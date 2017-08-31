@@ -11,7 +11,7 @@ import (
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/driver/couchdb/chttp"
+	"github.com/go-kivik/couchdb/chttp"
 )
 
 type db struct {

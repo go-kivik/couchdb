@@ -8,9 +8,9 @@ import (
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/driver/couchdb/chttp"
 	"github.com/flimzy/kivik/driver/util"
 	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/couchdb/chttp"
 )
 
 // deJSONify unmarshals a string, []byte, or json.RawMessage. All other types

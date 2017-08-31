@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/flimzy/kivik/driver/couchdb/chttp"
+	"github.com/go-kivik/couchdb/chttp"
 )
 
 func (c *client) Authenticate(ctx context.Context, a interface{}) error {
