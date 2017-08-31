@@ -14,35 +14,17 @@ function join_list {
 
 case "$1" in
     "standard")
-        go test -race $(go list ./... | grep -v /vendor/ | grep -v /pouchdb)
+        go test -race $(go list ./... | grep -v /vendor/)
     ;;
     "gopherjs")
         unset KIVIK_TEST_DSN_COUCH16
-        gopherjs test $(go list ./... | grep -v /vendor/ | grep -Ev 'kivik/(serve|auth|proxy)')
+        gopherjs test $(go list ./... | grep -v /vendor/)
     ;;
     "linter")
         diff -u <(echo -n) <(gofmt -e -d $(find . -type f -name '*.go' -not -path "./vendor/*"))
         go install # to make gotype (run by gometalinter) happy
-        gometalinter.v1 --deadline=30s --vendor --disable-all \
-            --enable=vet \
-            --enable=vetshadow \
-            --enable=gotype \
-            --enable=deadcode \
-            --enable=gocyclo \
-            --enable=golint \
-            --enable=varcheck \
-            --enable=structcheck \
-            --enable=aligncheck \
-            --enable=errcheck \
-            --enable=ineffassign \
-            --enable=unconvert \
-            --enable=goconst \
-            --enable=gosimple \
-            --enable=staticcheck \
-            --enable=gas \
-            --enable=misspell \
-            --enable=gofmt \
-            --exclude="Errors unhandled\..*\(gas\)"  # This is an annoying duplicate of errcheck
+        gometalinter.v1 --config .linter_test.json
+        gometalinter.v1 --config .linter.json
     ;;
     "coverage")
         # Use only CouchDB 2.0 for the coverage tests, primarily because CouchDB
@@ -50,7 +32,7 @@ case "$1" in
         unset KIVIK_TEST_DSN_COUCH16
         echo "" > coverage.txt
 
-        TEST_PKGS=$(find -name "*_test.go" | grep -v /vendor/ | grep -v /pouchdb | xargs dirname | sort -u | sed -e "s#^\.#github.com/flimzy/kivik#" )
+        TEST_PKGS=$(find -name "*_test.go" | grep -v /vendor/ | xargs dirname | sort -u | sed -e "s#^\.#github.com/go-kivik/couchdb#" )
 
         for d in $TEST_PKGS; do
             go test -i $d
