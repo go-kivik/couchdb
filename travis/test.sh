@@ -16,10 +16,6 @@ case "$1" in
     "standard")
         go test -race $(go list ./... | grep -v /vendor/)
     ;;
-    "gopherjs")
-        unset KIVIK_TEST_DSN_COUCH16
-        gopherjs test $(go list ./... | grep -v /vendor/)
-    ;;
     "linter")
         diff -u <(echo -n) <(gofmt -e -d $(find . -type f -name '*.go' -not -path "./vendor/*"))
         go install # to make gotype (run by gometalinter) happy
