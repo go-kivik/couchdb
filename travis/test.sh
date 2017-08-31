@@ -23,9 +23,9 @@ case "$1" in
         gometalinter.v1 --config .linter.json
     ;;
     "coverage")
-        # Use only CouchDB 2.0 for the coverage tests, primarily because CouchDB
-        # 1.6 is sporadic with failures, and leads to fluctuating coverage stats.
+        # Don't count integration tests in coverage reports
         unset KIVIK_TEST_DSN_COUCH16
+        unset KIVIK_TEST_DSN_COUCH20
         echo "" > coverage.txt
 
         TEST_PKGS=$(find -name "*_test.go" | grep -v /vendor/ | xargs dirname | sort -u | sed -e "s#^\.#github.com/go-kivik/couchdb#" )
