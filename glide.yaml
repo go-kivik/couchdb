@@ -15,8 +15,7 @@ import:
   - publicsuffix
 testImport:
 - package: github.com/flimzy/diff
-  version: ^0.1.2
+  version: ^0.1.1
 - package: github.com/go-kivik/kiviktest
-  version: ^1.0.5
   subpackages:
   - kt
