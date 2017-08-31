@@ -11,12 +11,6 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 )
 
-const (
-	typeJSON  = "application/json"
-	typeText  = "text/plain"
-	typeMixed = "multipart/mixed"
-)
-
 // Couch represents the parent driver instance.
 type Couch struct{}
 
