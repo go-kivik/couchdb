@@ -142,7 +142,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var tasks []*activeTask
 	if err = json.NewDecoder(resp.Body).Decode(&tasks); err != nil {
 		return nil, err

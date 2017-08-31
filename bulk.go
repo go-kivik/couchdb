@@ -70,7 +70,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}) (driver.BulkResul
 	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs", nil), opts)
 	if jsonErr := errFunc(); jsonErr != nil {
 		if resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		return nil, jsonErr
 	}
