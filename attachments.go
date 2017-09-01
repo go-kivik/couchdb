@@ -39,7 +39,7 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string)
 		return "", driver.MD5sum{}, err
 	}
 	cType, md5sum, body, err := d.decodeAttachment(resp)
-	body.Close()
+	_ = body.Close()
 	return cType, md5sum, err
 }
 

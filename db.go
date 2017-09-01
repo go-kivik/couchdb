@@ -92,9 +92,11 @@ func (d *db) Get(ctx context.Context, docID string, opts map[string]interface{})
 	if respErr := chttp.ResponseError(resp); respErr != nil {
 		return nil, respErr
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	doc := &bytes.Buffer{}
-	doc.ReadFrom(resp.Body)
+	if _, err := doc.ReadFrom(resp.Body); err != nil {
+		return nil, err
+	}
 	return doc.Bytes(), nil
 }
 
@@ -155,7 +157,7 @@ func (d *db) Delete(ctx context.Context, docID, rev string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return chttp.GetRev(resp)
 }
 
@@ -230,14 +232,14 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	res, err := d.Client.DoReq(ctx, kivik.MethodPut, d.path("/_security", nil), opts)
 	if jsonErr := errFunc(); jsonErr != nil {
 		if res != nil && res.Body != nil {
-			res.Body.Close()
+			_ = res.Body.Close()
 		}
 		return jsonErr
 	}
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	return chttp.ResponseError(res)
 }
 
@@ -263,6 +265,6 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return chttp.GetRev(resp)
 }
