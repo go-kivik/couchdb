@@ -102,3 +102,99 @@ func TestOptionsToParams(t *testing.T) {
 		}(test)
 	}
 }
+
+func TestDBPut(t *testing.T) {
+	tests := []struct {
+		name   string
+		db     *db
+		docID  string
+		doc    interface{}
+		status int
+		err    string
+	}{
+		{
+			name:   "missing docID",
+			db:     &db{},
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.db.Put(context.Background(), test.docID, test.doc)
+			var errMsg string
+			var status int
+			if err != nil {
+				errMsg = err.Error()
+				status = kivik.StatusCode(err)
+			}
+			if errMsg != test.err || status != test.status {
+				t.Errorf("Unexpected error: %d / %s", status, errMsg)
+			}
+		})
+	}
+}
+
+func TestDBGet(t *testing.T) {
+	tests := []struct {
+		name   string
+		db     *db
+		docID  string
+		opts   map[string]interface{}
+		status int
+		err    string
+	}{
+		{
+			name:   "missing docID",
+			db:     &db{},
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.db.Get(context.Background(), test.docID, test.opts)
+			var errMsg string
+			var status int
+			if err != nil {
+				errMsg = err.Error()
+				status = kivik.StatusCode(err)
+			}
+			if errMsg != test.err || status != test.status {
+				t.Errorf("Unexpected error: %d / %s", status, errMsg)
+			}
+		})
+	}
+}
+
+func TestDBDelete(t *testing.T) {
+	tests := []struct {
+		name   string
+		db     *db
+		docID  string
+		rev    string
+		status int
+		err    string
+	}{
+		{
+			name:   "missing docID",
+			db:     &db{},
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.db.Delete(context.Background(), test.docID, test.rev)
+			var errMsg string
+			var status int
+			if err != nil {
+				errMsg = err.Error()
+				status = kivik.StatusCode(err)
+			}
+			if errMsg != test.err || status != test.status {
+				t.Errorf("Unexpected error: %d / %s", status, errMsg)
+			}
+		})
+	}
+}

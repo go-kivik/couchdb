@@ -11,8 +11,11 @@ import (
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
 )
+
+var errDocIDRequired = errors.Status(kivik.StatusBadRequest, "kivik: docID required")
 
 type db struct {
 	*client
@@ -81,6 +84,9 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 
 // Get fetches the requested document.
 func (d *db) Get(ctx context.Context, docID string, opts map[string]interface{}) (json.RawMessage, error) {
+	if docID == "" {
+		return nil, errDocIDRequired
+	}
 	params, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
@@ -121,6 +127,9 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}) (docID, rev string,
 }
 
 func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string, err error) {
+	if docID == "" {
+		return "", errDocIDRequired
+	}
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
@@ -148,6 +157,9 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string
 }
 
 func (d *db) Delete(ctx context.Context, docID, rev string) (string, error) {
+	if docID == "" {
+		return "", errDocIDRequired
+	}
 	query := url.Values{}
 	query.Add("rev", rev)
 	opts := &chttp.Options{
