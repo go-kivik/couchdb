@@ -48,6 +48,9 @@ func TestSession(t *testing.T) {
 				_, _ = w.Write([]byte(test.body))
 			}))
 			client, err := kivik.New(context.Background(), "couch", s.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
 			session, err := client.Session(context.Background())
 			if status := kivik.StatusCode(err); status != test.errStatus {
 				t.Errorf("Unexpected error: %s", err)
