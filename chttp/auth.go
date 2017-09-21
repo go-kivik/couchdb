@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 
 	"github.com/flimzy/kivik"
 
@@ -86,6 +87,8 @@ func (a *BasicAuth) Logout(_ context.Context, c *Client) error {
 
 // CookieAuth provides CouchDB Cookie auth services as described at
 // http://docs.couchdb.org/en/2.0.0/api/server/authn.html#cookie-authentication
+//
+// CookieAuth stores authentication state after use, so should not be re-used.
 type CookieAuth struct {
 	Username string `json:"name"`
 	Password string `json:"password"`
@@ -94,6 +97,8 @@ type CookieAuth struct {
 	// Set to true if the authenticator created the cookie jar; It will then
 	// also destroy it on logout.
 	setJar bool
+	jar    http.CookieJar
+	dsn    *url.URL
 }
 
 var _ Authenticator = &CookieAuth{}
@@ -103,6 +108,8 @@ func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 	if err := a.setCookieJar(c); err != nil {
 		return err
 	}
+	a.jar = c.Jar
+	a.dsn = c.dsn
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(a); err != nil {
 		return err
@@ -111,6 +118,20 @@ func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 		return err
 	}
 	return ValidateAuth(ctx, a.Username, c)
+}
+
+// Cookie returns the current session cookie and true, if found, or nil and
+// false if not.
+func (a *CookieAuth) Cookie() (*http.Cookie, bool) {
+	if a.jar == nil || a.dsn == nil {
+		return nil, false
+	}
+	for _, cookie := range a.jar.Cookies(a.dsn) {
+		if cookie.Name == kivik.SessionCookieName {
+			return cookie, true
+		}
+	}
+	return nil, false
 }
 
 // ValidateAuth validates that the requested username is authenticated.
