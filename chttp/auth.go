@@ -90,6 +90,10 @@ type CookieAuth struct {
 	Username string `json:"name"`
 	Password string `json:"password"`
 
+	// Cookie will be set to the CouchDB auth cookie returned by the server, once
+	// authentication is successfully completed.
+	Cookie *http.Cookie `json:"-"`
+
 	transport http.RoundTripper
 	// Set to true if the authenticator created the cookie jar; It will then
 	// also destroy it on logout.
@@ -109,6 +113,12 @@ func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 	}
 	if _, err := c.DoError(ctx, kivik.MethodPost, "/_session", &Options{Body: buf}); err != nil {
 		return err
+	}
+	for _, cookie := range c.Jar.Cookies(c.dsn) {
+		if cookie.Name == kivik.SessionCookieName {
+			a.Cookie = cookie
+			break
+		}
 	}
 	return ValidateAuth(ctx, a.Username, c)
 }
