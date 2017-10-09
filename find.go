@@ -93,3 +93,19 @@ func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	}
 	return newRows(resp.Body), nil
 }
+
+func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan, error) {
+	if d.client.Compat == CompatCouch16 {
+		return nil, findNotImplemented
+	}
+	body, err := util.ToJSON(query)
+	if err != nil {
+		return nil, err
+	}
+	var plan driver.QueryPlan
+	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_explain", nil), &chttp.Options{Body: body}, &plan)
+	if err != nil {
+		return nil, err
+	}
+	return &plan, nil
+}
