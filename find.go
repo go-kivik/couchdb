@@ -94,6 +94,33 @@ func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	return newRows(resp.Body), nil
 }
 
+type queryPlan struct {
+	DBName   string                 `json:"dbname"`
+	Index    map[string]interface{} `json:"index"`
+	Selector map[string]interface{} `json:"selector"`
+	Options  map[string]interface{} `json:"opts"`
+	Limit    int64                  `json:"limit"`
+	Skip     int64                  `json:"skip"`
+	Fields   fields                 `json:"fields"`
+	Range    map[string]interface{} `json:"range"`
+}
+
+type fields []interface{}
+
+func (f *fields) UnmarshalJSON(data []byte) error {
+	if string(data) == `"all_fields"` {
+		return nil
+	}
+	var i []interface{}
+	if err := json.Unmarshal(data, &i); err != nil {
+		return err
+	}
+	newFields := make([]interface{}, len(i))
+	copy(newFields, i)
+	*f = newFields
+	return nil
+}
+
 func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan, error) {
 	if d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
@@ -102,10 +129,19 @@ func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan,
 	if err != nil {
 		return nil, err
 	}
-	var plan driver.QueryPlan
+	var plan queryPlan
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_explain", nil), &chttp.Options{Body: body}, &plan)
 	if err != nil {
 		return nil, err
 	}
-	return &plan, nil
+	return &driver.QueryPlan{
+		DBName:   plan.DBName,
+		Index:    plan.Index,
+		Selector: plan.Selector,
+		Options:  plan.Options,
+		Limit:    plan.Limit,
+		Skip:     plan.Skip,
+		Fields:   plan.Fields,
+		Range:    plan.Range,
+	}, nil
 }
