@@ -19,3 +19,5 @@ testImport:
 - package: github.com/go-kivik/kiviktest
   subpackages:
   - kt
+- package: github.com/flimzy/testy
+  version: ^0.0.2

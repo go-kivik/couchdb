@@ -85,7 +85,7 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 		{
 			name:  "non-array",
 			input: `{"fields":{}}`,
-			err:   "json: cannot unmarshal object into Go struct field queryPlan.fields of type []interface {}",
+			err:   "json: cannot unmarshal object into Go",
 		},
 		{
 			name:     "all_fields",
@@ -107,14 +107,14 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 		{
 			name:  "invalid bare string",
 			input: `{"fields":"not_all_fields"}`,
-			err:   "json: cannot unmarshal string into Go struct field queryPlan.fields of type []interface {}",
+			err:   "json: cannot unmarshal string into Go",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := new(queryPlan)
 			err := json.Unmarshal([]byte(test.input), &result)
-			testy.Error(t, test.err, err)
+			testy.ErrorRE(t, test.err, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
