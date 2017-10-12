@@ -32,6 +32,12 @@ func registerSuiteCouch20() {
 		"Find/RW/group/Admin/Warning.warning":  "no matching index found, create an index to optimize query time",
 		"Find/RW/group/NoAuth/Warning.warning": "no matching index found, create an index to optimize query time",
 
+		"Explain.databases":             []string{"chicken", "_duck"},
+		"Explain/Admin/chicken.status":  kivik.StatusNotFound,
+		"Explain/Admin/_duck.status":    kivik.StatusNotFound,
+		"Explain/NoAuth/chicken.status": kivik.StatusNotFound,
+		"Explain/NoAuth/_duck.status":   kivik.StatusUnauthorized,
+
 		"DBExists.databases":              []string{"_users", "chicken", "_duck"},
 		"DBExists/Admin/_users.exists":    true,
 		"DBExists/Admin/chicken.exists":   false,
