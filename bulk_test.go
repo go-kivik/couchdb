@@ -80,6 +80,7 @@ func TestBulkDocs(t *testing.T) {
 			name:    "new_edits",
 			options: map[string]interface{}{"new_edits": true},
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close()
 				var body struct {
 					NewEdits bool `json:"new_edits"`
 				}
@@ -88,6 +89,27 @@ func TestBulkDocs(t *testing.T) {
 				}
 				if !body.NewEdits {
 					return nil, errors.New("`new_edits` not set")
+				}
+				return &http.Response{
+					StatusCode: kivik.StatusCreated,
+					Body:       ioutil.NopCloser(strings.NewReader("[]")),
+				}, nil
+			}),
+		},
+		{
+			name:    "force_commit",
+			options: map[string]interface{}{"force_commit": true},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close()
+				var body map[string]interface{}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					return nil, err
+				}
+				if _, ok := body["force_commit"]; ok {
+					return nil, errors.New("force_commit key found in body")
+				}
+				if value := req.Header.Get("X-Couch-Full-Commit"); value != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not set to true")
 				}
 				return &http.Response{
 					StatusCode: kivik.StatusCreated,
