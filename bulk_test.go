@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -74,6 +75,25 @@ func TestBulkDocs(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader("[]")),
 			}, nil),
 			docs: []interface{}{1, 2, 3},
+		},
+		{
+			name:    "new_edits",
+			options: map[string]interface{}{"new_edits": true},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				var body struct {
+					NewEdits bool `json:"new_edits"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					return nil, err
+				}
+				if !body.NewEdits {
+					return nil, errors.New("`new_edits` not set")
+				}
+				return &http.Response{
+					StatusCode: kivik.StatusCreated,
+					Body:       ioutil.NopCloser(strings.NewReader("[]")),
+				}, nil
+			}),
 		},
 	}
 	for _, test := range tests {

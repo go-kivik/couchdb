@@ -62,7 +62,11 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
-	body, errFunc := chttp.EncodeBody(map[string]interface{}{"docs": docs}, cancel)
+	if options == nil {
+		options = make(map[string]interface{})
+	}
+	options["docs"] = docs
+	body, errFunc := chttp.EncodeBody(options, cancel)
 	opts := &chttp.Options{
 		Body:        body,
 		ForceCommit: d.forceCommit,
@@ -87,7 +91,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		}
 	default:
 		if resp.StatusCode < 400 {
-			fmt.Printf("Unexpected BulkDoc response code: %d", resp.StatusCode)
+			fmt.Printf("Unexpected BulkDoc response code: %d\n", resp.StatusCode)
 		}
 		// All other errors can consume the response body and return immediately
 		if e := chttp.ResponseError(resp); e != nil {
