@@ -25,11 +25,11 @@ go:
     - 1.8.x
     - 1.9.x
     - master
+osx_image: xcode8.3
 env:
     global:
         - KIVIK_TEST_DSN_COUCH16="http://admin:abc123@localhost:6000/"
         - KIVIK_TEST_DSN_COUCH20="http://admin:abc123@localhost:6001/"
-        - HOMEBREW_NO_AUTO_UPDATE=1
     matrix:
         - MODE=standard
 
