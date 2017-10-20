@@ -58,18 +58,27 @@ func (r *bulkResults) Close() error {
 	return r.body.Close()
 }
 
-func (d *db) BulkDocs(ctx context.Context, docs []interface{}) (driver.BulkResults, error) {
+func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[string]interface{}) (driver.BulkResults, error) {
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
-	body, errFunc := chttp.EncodeBody(map[string]interface{}{"docs": docs}, cancel)
+	if options == nil {
+		options = make(map[string]interface{})
+	}
+	forceCommit := d.forceCommit
+	if fc, ok := options["force_commit"].(bool); ok {
+		forceCommit = fc
+	}
+	delete(options, "force_commit")
+	options["docs"] = docs
+	body, errFunc := chttp.EncodeBody(options, cancel)
 	opts := &chttp.Options{
 		Body:        body,
-		ForceCommit: d.forceCommit,
+		ForceCommit: forceCommit,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs", nil), opts)
 	if jsonErr := errFunc(); jsonErr != nil {
-		if resp.Body != nil {
+		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
 		}
 		return nil, jsonErr
@@ -87,10 +96,12 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}) (driver.BulkResul
 		}
 	default:
 		if resp.StatusCode < 400 {
-			fmt.Printf("Unexpected BulkDoc response code: %d", resp.StatusCode)
+			fmt.Printf("Unexpected BulkDoc response code: %d\n", resp.StatusCode)
 		}
 		// All other errors can consume the response body and return immediately
-		return nil, chttp.ResponseError(resp)
+		if e := chttp.ResponseError(resp); e != nil {
+			return nil, e
+		}
 	}
 	dec := json.NewDecoder(resp.Body)
 	// Consume the opening '[' char

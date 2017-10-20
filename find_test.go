@@ -49,7 +49,6 @@ func TestExplain(t *testing.T) {
 			name: "db error",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusNotFound,
-				Request:    &http.Request{Method: http.MethodPost},
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: kivik.StatusNotFound,

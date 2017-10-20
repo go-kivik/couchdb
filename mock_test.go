@@ -2,25 +2,38 @@ package couchdb
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
 )
 
-type dummyTransport struct {
-	response *http.Response
-	err      error
-}
+type customTransport func(*http.Request) (*http.Response, error)
 
-var _ http.RoundTripper = &dummyTransport{}
+var _ http.RoundTripper = customTransport(nil)
 
-func (t *dummyTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
-	return t.response, t.err
+func (t customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return t(req)
 }
 
 func newTestDB(response *http.Response, err error) *db {
+	return newCustomDB(func(req *http.Request) (*http.Response, error) {
+		defer req.Body.Close()
+		if _, e := ioutil.ReadAll(req.Body); e != nil {
+			return nil, e
+		}
+		if err != nil {
+			return nil, err
+		}
+		response := response
+		response.Request = req
+		return response, nil
+	})
+}
+
+func newCustomDB(fn func(*http.Request) (*http.Response, error)) *db {
 	chttpClient, _ := chttp.New(context.Background(), "http://example.com/")
-	chttpClient.Client.Transport = &dummyTransport{response: response, err: err}
+	chttpClient.Client.Transport = customTransport(fn)
 	return &db{
 		dbName: "testdb",
 		client: &client{
