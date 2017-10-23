@@ -77,7 +77,7 @@ func registerSuiteCouch21() {
 
 		"Log.skip": true, // This was removed in CouchDB 2.0
 
-		"Version.version":        `^2\.0\.0$`,
+		"Version.version":        `^2\.1\.0$`,
 		"Version.vendor":         `^The Apache Software Foundation$`,
 		"Version.vendor_version": ``, // CouchDB 2.0 no longer has a vendor version
 
