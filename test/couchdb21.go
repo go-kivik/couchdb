@@ -159,8 +159,8 @@ func registerSuiteCouch21() {
 		"GetAttachmentMeta/RW/group/Admin/foo/NotFound.status":  kivik.StatusNotFound,
 		"GetAttachmentMeta/RW/group/NoAuth/foo/NotFound.status": kivik.StatusNotFound,
 
-		"PutAttachment/RW/group/Admin/Conflict.status":         kivik.StatusInternalServerError, // COUCHDB-3361
-		"PutAttachment/RW/group/NoAuth/Conflict.status":        kivik.StatusInternalServerError, // COUCHDB-3361
+		"PutAttachment/RW/group/Admin/Conflict.status":         kivik.StatusConflict,
+		"PutAttachment/RW/group/NoAuth/Conflict.status":        kivik.StatusConflict,
 		"PutAttachment/RW/group/NoAuth/UpdateDesignDoc.status": kivik.StatusUnauthorized,
 		"PutAttachment/RW/group/NoAuth/CreateDesignDoc.status": kivik.StatusUnauthorized,
 
