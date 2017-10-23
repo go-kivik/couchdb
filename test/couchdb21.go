@@ -133,7 +133,8 @@ func registerSuiteCouch21() {
 		"Stats/NoAuth/chicken.status": kivik.StatusNotFound,
 		"Stats/NoAuth/_duck.status":   kivik.StatusUnauthorized,
 
-		"Compact.skip": false,
+		"Compact.skip":             false,
+		"Compact/RW/NoAuth.status": kivik.StatusUnauthorized,
 
 		"Security.databases":                     []string{"_replicator", "_users", "_global_changes", "chicken", "_duck"},
 		"Security/Admin/chicken.status":          kivik.StatusNotFound,
