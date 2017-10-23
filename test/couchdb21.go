@@ -166,8 +166,8 @@ func registerSuiteCouch21() {
 
 		// "DeleteAttachment/RW/group/Admin/NotFound.status":  kivik.StatusNotFound, // COUCHDB-3362
 		// "DeleteAttachment/RW/group/NoAuth/NotFound.status": kivik.StatusNotFound, // COUCHDB-3362
-		"DeleteAttachment/RW/group/Admin/NoDoc.status":      kivik.StatusInternalServerError,
-		"DeleteAttachment/RW/group/NoAuth/NoDoc.status":     kivik.StatusInternalServerError,
+		"DeleteAttachment/RW/group/Admin/NoDoc.status":      kivik.StatusConflict,
+		"DeleteAttachment/RW/group/NoAuth/NoDoc.status":     kivik.StatusConflict,
 		"DeleteAttachment/RW/group/NoAuth/DesignDoc.status": kivik.StatusUnauthorized,
 
 		"Put/RW/Admin/group/LeadingUnderscoreInID.status":  kivik.StatusBadRequest,
