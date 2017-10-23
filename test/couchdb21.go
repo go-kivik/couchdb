@@ -37,6 +37,33 @@ func registerSuiteCouch21() {
 		"Explain/Admin/_duck.status":    kivik.StatusNotFound,
 		"Explain/NoAuth/chicken.status": kivik.StatusNotFound,
 		"Explain/NoAuth/_duck.status":   kivik.StatusUnauthorized,
+		"Explain.plan": &kivik.QueryPlan{
+			Index: map[string]interface{}{
+				"ddoc": nil,
+				"name": "_all_docs",
+				"type": "special",
+				"def":  map[string]interface{}{"fields": []interface{}{map[string]string{"_id": "asc"}}},
+			},
+			Selector: map[string]interface{}{"_id": map[string]interface{}{"$gt": nil}},
+			Options: map[string]interface{}{
+				"bookmark":  "nil",
+				"conflicts": false,
+				"r":         []int{49},
+				"sort":      map[string]interface{}{},
+				"use_index": []interface{}{},
+				"stable":    false,
+				"stale":     false,
+				"update":    true,
+				"skip":      0,
+				"limit":     25,
+				"fields":    "all_fields",
+			},
+			Range: map[string]interface{}{
+				"start_key": nil,
+				"end_key":   "\xef\xbf\xbd",
+			},
+			Limit: 25,
+		},
 
 		"DBExists.databases":              []string{"_users", "chicken", "_duck"},
 		"DBExists/Admin/_users.exists":    true,
