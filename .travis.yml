@@ -38,8 +38,6 @@ matrix:
         - go: master
     include:
         - go: 1.9.x
-          os: osx
-        - go: 1.9.x
           env: MODE=linter
         - go: 1.9.x
           env: MODE=coverage
