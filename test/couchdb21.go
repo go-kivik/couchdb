@@ -216,5 +216,7 @@ func registerSuiteCouch21() {
 
 		"Query/RW/group/Admin/WithoutDocs/ScanDoc.status":  kivik.StatusBadRequest,
 		"Query/RW/group/NoAuth/WithoutDocs/ScanDoc.status": kivik.StatusBadRequest,
+
+		"ViewCleanup/RW/NoAuth.status": kivik.StatusUnauthorized,
 	})
 }
