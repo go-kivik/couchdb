@@ -15,14 +15,16 @@ func (c *client) Version(ctx context.Context) (*driver.Version, error) {
 	return &driver.Version{
 		Version:     i.Version,
 		Vendor:      i.Vendor.Name,
+		Features:    i.Features,
 		RawResponse: i.Data,
 	}, err
 }
 
 type info struct {
-	Data    json.RawMessage
-	Version string `json:"version"`
-	Vendor  struct {
+	Data     json.RawMessage
+	Version  string   `json:"version"`
+	Features []string `json:"features"`
+	Vendor   struct {
 		Name string `json:"name"`
 	} `json:"vendor"`
 }
@@ -36,5 +38,6 @@ func (i *info) UnmarshalJSON(data []byte) error {
 	i.Data = data
 	i.Version = a.Version
 	i.Vendor = a.Vendor
+	i.Features = a.Features
 	return nil
 }

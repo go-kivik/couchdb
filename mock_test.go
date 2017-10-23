@@ -17,10 +17,26 @@ func (t customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func newTestDB(response *http.Response, err error) *db {
-	return newCustomDB(func(req *http.Request) (*http.Response, error) {
-		defer req.Body.Close()
-		if _, e := ioutil.ReadAll(req.Body); e != nil {
-			return nil, e
+	return &db{
+		dbName: "testdb",
+		client: newTestClient(response, err),
+	}
+}
+
+func newCustomDB(fn func(*http.Request) (*http.Response, error)) *db {
+	return &db{
+		dbName: "testdb",
+		client: newCustomClient(fn),
+	}
+}
+
+func newTestClient(response *http.Response, err error) *client {
+	return newCustomClient(func(req *http.Request) (*http.Response, error) {
+		if req.Body != nil {
+			defer req.Body.Close() // nolint: errcheck
+			if _, e := ioutil.ReadAll(req.Body); e != nil {
+				return nil, e
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -31,13 +47,10 @@ func newTestDB(response *http.Response, err error) *db {
 	})
 }
 
-func newCustomDB(fn func(*http.Request) (*http.Response, error)) *db {
+func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
 	chttpClient, _ := chttp.New(context.Background(), "http://example.com/")
 	chttpClient.Client.Transport = customTransport(fn)
-	return &db{
-		dbName: "testdb",
-		client: &client{
-			Client: chttpClient,
-		},
+	return &client{
+		Client: chttpClient,
 	}
 }
