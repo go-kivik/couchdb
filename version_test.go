@@ -32,7 +32,7 @@ func TestVersion2(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"name":[]}}`)),
 			}, nil),
-			err: "json: cannot unmarshal array into Go struct field .name of type string",
+			err: "json: cannot unmarshal array into Go ",
 		},
 		{
 			name: "error response",
@@ -96,7 +96,7 @@ func TestVersion2(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.Version(context.Background())
-			testy.Error(t, test.err, err)
+			testy.ErrorRE(t, test.err, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
