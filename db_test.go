@@ -228,65 +228,95 @@ func TestOptionsToParams(t *testing.T) {
 	}
 }
 
-func TestDBPut(t *testing.T) {
+func TestPut(t *testing.T) {
 	tests := []struct {
-		name   string
-		db     *db
-		docID  string
-		doc    interface{}
-		status int
-		err    string
+		name     string
+		db       *db
+		id       string
+		doc      interface{}
+		status   int
+		rev, err string
 	}{
 		{
 			name:   "missing docID",
-			db:     &db{},
 			status: kivik.StatusBadRequest,
 			err:    "kivik: docID required",
+		},
+		{
+			name:   "network error",
+			id:     "foo",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Put http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "bad request",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
+		},
+		{
+			name: "invalid JSON response",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
+			}, nil),
+			status: kivik.StatusInternalServerError,
+			err:    "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name: "invalid document",
+			id:   "foo",
+			doc:  make(chan int),
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			status: kivik.StatusBadRequest,
+			err:    "json: unsupported type: chan int",
+		},
+		{
+			name: "doc created, 1.6.1",
+			id:   "foo",
+			doc:  map[string]string{"foo": "bar"},
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusCreated,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Location":       {"http://localhost:5984/foo/foo"},
+					"ETag":           {`"1-4c6114c65e295552ab1019e2b046b10e"`},
+					"Date":           {"Wed, 25 Oct 2017 12:33:09 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"66"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"foo","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
+			}, nil),
+			rev: "1-4c6114c65e295552ab1019e2b046b10e",
+		},
+		{
+			name: "unexpected id in response",
+			id:   "foo",
+			doc:  map[string]string{"foo": "bar"},
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusCreated,
+				Body:       ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"unexpected","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
+			}, nil),
+			status: kivik.StatusInternalServerError,
+			err:    "modified document ID (unexpected) does not match that requested (foo)",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := test.db.Put(context.Background(), test.docID, test.doc)
-			var errMsg string
-			var status int
-			if err != nil {
-				errMsg = err.Error()
-				status = kivik.StatusCode(err)
-			}
-			if errMsg != test.err || status != test.status {
-				t.Errorf("Unexpected error: %d / %s", status, errMsg)
-			}
-		})
-	}
-}
-
-func TestDBGet(t *testing.T) {
-	tests := []struct {
-		name   string
-		db     *db
-		docID  string
-		opts   map[string]interface{}
-		status int
-		err    string
-	}{
-		{
-			name:   "missing docID",
-			db:     &db{},
-			status: kivik.StatusBadRequest,
-			err:    "kivik: docID required",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			_, err := test.db.Get(context.Background(), test.docID, test.opts)
-			var errMsg string
-			var status int
-			if err != nil {
-				errMsg = err.Error()
-				status = kivik.StatusCode(err)
-			}
-			if errMsg != test.err || status != test.status {
-				t.Errorf("Unexpected error: %d / %s", status, errMsg)
+			rev, err := test.db.Put(context.Background(), test.id, test.doc)
+			testy.StatusError(t, test.err, test.status, err)
+			if rev != test.rev {
+				t.Errorf("Unexpected rev: %s", rev)
 			}
 		})
 	}
