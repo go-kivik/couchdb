@@ -92,6 +92,74 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestCreateDoc(t *testing.T) {
+	tests := []struct {
+		name         string
+		db           *db
+		doc          interface{}
+		id, rev, err string
+	}{
+		{
+			name: "network error",
+			db:   newTestDB(nil, errors.New("foo error")),
+			err:  "Post http://example.com/testdb: foo error",
+		},
+		{
+			name: "invalid doc",
+			doc:  make(chan int),
+			db:   newTestDB(nil, errors.New("")),
+			err:  "json: unsupported type: chan int",
+		},
+		{
+			name: "error response",
+			doc:  map[string]interface{}{"foo": "bar"},
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			err: "Bad Request",
+		},
+		{
+			name: "invalid JSON response",
+			doc:  map[string]interface{}{"foo": "bar"},
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
+			}, nil),
+			err: "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name: "success, 1.6.1",
+			doc:  map[string]interface{}{"foo": "bar"},
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: map[string][]string{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Location":       {"http://localhost:5984/foo/43734cf3ce6d5a37050c050bb600006b"},
+					"ETag":           {`"1-4c6114c65e295552ab1019e2b046b10e"`},
+					"Date":           {"Wed, 25 Oct 2017 10:38:38 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"95"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"1-4c6114c65e295552ab1019e2b046b10e"}
+`)),
+			}, nil),
+			id:  "43734cf3ce6d5a37050c050bb600006b",
+			rev: "1-4c6114c65e295552ab1019e2b046b10e",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			id, rev, err := test.db.CreateDoc(context.Background(), test.doc)
+			testy.Error(t, test.err, err)
+			if test.id != id || test.rev != rev {
+				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
+			}
+		})
+	}
+}
+
 func TestDBInfo(t *testing.T) {
 	client := getClient(t)
 	db, err := client.DB(context.Background(), "_users", kivik.Options{"force_commit": true})
