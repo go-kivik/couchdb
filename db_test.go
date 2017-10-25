@@ -22,6 +22,12 @@ func TestAllDocs(t *testing.T) {
 	testy.Error(t, "Get http://example.com/testdb/_all_docs: test error", err)
 }
 
+func TestQuery(t *testing.T) {
+	db := newTestDB(nil, errors.New("test error"))
+	_, err := db.Query(context.Background(), "ddoc", "view", nil)
+	testy.Error(t, "Get http://example.com/testdb/_design/ddoc/_view/view: test error", err)
+}
+
 func TestDBInfo(t *testing.T) {
 	client := getClient(t)
 	db, err := client.DB(context.Background(), "_users", kivik.Options{"force_commit": true})
