@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -53,4 +54,18 @@ func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
 	return &client{
 		Client: chttpClient,
 	}
+}
+
+type errorReadCloser struct {
+	err error
+}
+
+var _ io.ReadCloser = &errorReadCloser{}
+
+func (c errorReadCloser) Read(_ []byte) (int, error) {
+	return 0, c.err
+}
+
+func (c errorReadCloser) Close() error {
+	return nil
 }
