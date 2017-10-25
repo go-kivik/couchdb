@@ -28,6 +28,70 @@ func TestQuery(t *testing.T) {
 	testy.Error(t, "Get http://example.com/testdb/_design/ddoc/_view/view: test error", err)
 }
 
+func TestGet(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		id       string
+		options  map[string]interface{}
+		expected string
+		err      string
+	}{
+		{
+			name: "missing doc ID",
+			err:  "kivik: docID required",
+		},
+		{
+			name:    "invalid options",
+			id:      "foo",
+			options: map[string]interface{}{"foo": make(chan int)},
+			err:     "cannot convert type chan int to []string",
+		},
+		{
+			name: "network failure",
+			id:   "foo",
+			db:   newTestDB(nil, errors.New("net error")),
+			err:  "Get http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "error response",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			err: "Bad Request",
+		},
+		{
+			name: "status OK",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader("some response")),
+			}, nil),
+			expected: "some response",
+		},
+		{
+			name: "body read failure",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       errorReadCloser{errors.New("read error")},
+			}, nil),
+			err: "read error",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Get(context.Background(), test.id, test.options)
+			testy.Error(t, test.err, err)
+			if string(result) != test.expected {
+				t.Errorf("Unexpected result: %s", string(result))
+			}
+		})
+	}
+}
+
 func TestDBInfo(t *testing.T) {
 	client := getClient(t)
 	db, err := client.DB(context.Background(), "_users", kivik.Options{"force_commit": true})
