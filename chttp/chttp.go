@@ -10,7 +10,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 )
 
 const (
@@ -198,7 +199,7 @@ func EncodeBody(i interface{}, cancel context.CancelFunc) (r io.Reader, errFunc 
 	go func() {
 		if err := json.NewEncoder(w).Encode(i); err != nil {
 			cancel()
-			errChan <- err
+			errChan <- errors.WrapStatus(kivik.StatusBadRequest, err)
 		}
 		close(errChan)
 		w.Close()
