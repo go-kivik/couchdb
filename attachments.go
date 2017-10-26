@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,18 +10,25 @@ import (
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
 )
 
 func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentType string, body io.Reader) (newRev string, err error) {
+	if docID == "" {
+		return "", missingArg("docID")
+	}
+	if filename == "" {
+		return "", missingArg("filename")
+	}
+	if contentType == "" {
+		return "", missingArg("contentType")
+	}
 	opts := &chttp.Options{
 		Body:        body,
 		ContentType: contentType,
 	}
-	query := url.Values{}
-	if rev != "" {
-		query.Add("rev", rev)
-	}
+	query := url.Values{"rev": []string{rev}}
 	var response struct {
 		Rev string `json:"rev"`
 	}
