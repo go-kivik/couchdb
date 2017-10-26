@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"mime"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
 )
 
 func dsn(t *testing.T) string {
@@ -125,7 +127,7 @@ func TestEncodeBody(t *testing.T) {
 				t.Parallel()
 				r, errFunc := EncodeBody(test.Input, func() {})
 				buf := &bytes.Buffer{}
-				buf.ReadFrom(r)
+				_, _ = buf.ReadFrom(r)
 				var msg string
 				if err := errFunc(); err != nil {
 					msg = err.Error()
@@ -205,5 +207,61 @@ func TestSetHeaders(t *testing.T) {
 				}
 			})
 		}(test)
+	}
+}
+
+func TestGetRev(t *testing.T) {
+	tests := []struct {
+		name          string
+		resp          *http.Response
+		expected, err string
+	}{
+		{
+			name: "error response",
+			resp: &http.Response{
+				StatusCode: 400,
+				Request:    &http.Request{Method: "POST"},
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			},
+			err: "Bad Request",
+		},
+		{
+			name: "no ETag header",
+			resp: &http.Response{
+				StatusCode: 200,
+				Request:    &http.Request{Method: "POST"},
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			},
+			err: "no ETag header found",
+		},
+		{
+			name: "normalized Etag header",
+			resp: &http.Response{
+				StatusCode: 200,
+				Request:    &http.Request{Method: "POST"},
+				Header:     http.Header{"Etag": {`"12345"`}},
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			},
+			expected: `12345`,
+		},
+		{
+			name: "satndard ETag header",
+			resp: &http.Response{
+				StatusCode: 200,
+				Request:    &http.Request{Method: "POST"},
+				Header:     http.Header{"ETag": {`"12345"`}},
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			},
+			expected: `12345`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := GetRev(test.resp)
+			testy.Error(t, test.err, err)
+			if result != test.expected {
+				t.Errorf("Got %s, expected %s", result, test.expected)
+			}
+		})
 	}
 }
