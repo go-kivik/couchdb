@@ -3,8 +3,10 @@ package couchdb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -281,6 +283,45 @@ func TestOptionsToParams(t *testing.T) {
 				}
 			})
 		}(test)
+	}
+}
+
+func TestCompact(t *testing.T) {
+	tests := []struct {
+		name string
+		db   *db
+		err  string
+	}{
+		{
+			name: "net error",
+			db:   newTestDB(nil, errors.New("net error")),
+			err:  "Post http://example.com/testdb/_compact: net error",
+		},
+		{
+			name: "1.6.1",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				return &http.Response{
+					StatusCode: kivik.StatusOK,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Date":           {"Thu, 26 Oct 2017 13:07:52 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"12"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.Compact(context.Background())
+			testy.Error(t, test.err, err)
+		})
 	}
 }
 
