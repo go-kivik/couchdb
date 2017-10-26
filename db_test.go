@@ -48,7 +48,7 @@ func TestGet(t *testing.T) {
 			name:    "invalid options",
 			id:      "foo",
 			options: map[string]interface{}{"foo": make(chan int)},
-			err:     "cannot convert type chan int to []string",
+			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name: "network failure",
@@ -265,7 +265,7 @@ func TestOptionsToParams(t *testing.T) {
 		{
 			Name:  "Error",
 			Input: map[string]interface{}{"foo": []byte("foo")},
-			Error: "cannot convert type []uint8 to []string",
+			Error: "kivik: invalid type []uint8 for options",
 		},
 	}
 	for _, test := range tests {
@@ -657,7 +657,7 @@ func TestRowsQuery(t *testing.T) {
 			name:    "invalid options",
 			path:    "_all_docs",
 			options: map[string]interface{}{"foo": make(chan int)},
-			err:     "cannot convert type chan int to []string",
+			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name: "network error",
@@ -983,6 +983,109 @@ func TestRev(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			rev, err := test.db.Rev(context.Background(), test.id)
 			testy.StatusError(t, test.err, test.status, err)
+			if rev != test.rev {
+				t.Errorf("Got %s, expected %s", rev, test.rev)
+			}
+		})
+	}
+}
+
+func TestCopy(t *testing.T) {
+	tests := []struct {
+		name           string
+		target, source string
+		options        map[string]interface{}
+		db             *db
+		rev            string
+		status         int
+		err            string
+	}{
+		{
+			name:   "missing source",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: sourceID required",
+		},
+		{
+			name:   "missing target",
+			source: "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: targetID required",
+		},
+		{
+			name:   "net error",
+			source: "foo",
+			target: "bar",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "(Copy http://example.com/testdb/foo: )?net error",
+		},
+		{
+			name:    "invalid options",
+			source:  "foo",
+			target:  "bar",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name:   "create 1.6.1",
+			source: "foo",
+			target: "bar",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if req.Header.Get("Destination") != "bar" {
+					return nil, errors.New("Unexpected destination")
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Location":       {"http://example.com/foo/bar"},
+						"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
+						"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"66"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
+				}, nil
+			}),
+			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
+		},
+		{
+			name:   "force commit 1.6.1",
+			source: "foo",
+			target: "bar",
+			options: map[string]interface{}{
+				OptionFullCommit: true,
+			},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if dest := req.Header.Get("Destination"); dest != "bar" {
+					return nil, fmt.Errorf("Unexpected destination: %s", dest)
+				}
+				if fc := req.Header.Get("X-Couch-Full-Commit"); fc != "true" {
+					return nil, fmt.Errorf("X-Couch-Full-Commit: %s", fc)
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Location":       {"http://example.com/foo/bar"},
+						"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
+						"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"66"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
+				}, nil
+			}),
+			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rev, err := test.db.Copy(context.Background(), test.target, test.source, test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Got %s, expected %s", rev, test.rev)
 			}

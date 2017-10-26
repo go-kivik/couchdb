@@ -46,7 +46,7 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 			case int, uint, uint8, uint16, uint32, uint64, int8, int16, int32, int64:
 				values = []string{fmt.Sprintf("%d", v)}
 			default:
-				return nil, fmt.Errorf("cannot convert type %T to []string", i)
+				return nil, errors.Statusf(kivik.StatusBadRequest, "kivik: invalid type %T for options", i)
 			}
 			for _, value := range values {
 				params.Add(key, value)
@@ -271,12 +271,23 @@ func (d *db) Rev(ctx context.Context, docID string) (rev string, err error) {
 }
 
 func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[string]interface{}) (targetRev string, err error) {
+	if sourceID == "" {
+		return "", errors.Status(kivik.StatusBadRequest, "kivik: sourceID required")
+	}
+	if targetID == "" {
+		return "", errors.Status(kivik.StatusBadRequest, "kivik: targetID required")
+	}
 	params, err := optionsToParams(options)
 	if err != nil {
 		return "", err
 	}
+	forceCommit := d.forceCommit
+	if fc, ok := options[OptionFullCommit].(bool); ok {
+		forceCommit = fc
+	}
+	delete(options, OptionFullCommit)
 	opts := &chttp.Options{
-		ForceCommit: d.forceCommit,
+		ForceCommit: forceCommit,
 		Destination: targetID,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodCopy, d.path(chttp.EncodeDocID(sourceID), params), opts)
