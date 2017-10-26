@@ -936,3 +936,56 @@ func TestSetSecurity(t *testing.T) {
 		})
 	}
 }
+
+func TestRev(t *testing.T) {
+	tests := []struct {
+		name   string
+		db     *db
+		id     string
+		rev    string
+		status int
+		err    string
+	}{
+		{
+			name:   "no doc id",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+		{
+			name:   "net error",
+			id:     "foo",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Head http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "1.6.1",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Request: &http.Request{
+					Method: "HEAD",
+				},
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":           {`"1-4c6114c65e295552ab1019e2b046b10e"`},
+					"Date":           {"Thu, 26 Oct 2017 15:21:15 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"70"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			rev: "1-4c6114c65e295552ab1019e2b046b10e",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rev, err := test.db.Rev(context.Background(), test.id)
+			testy.StatusError(t, test.err, test.status, err)
+			if rev != test.rev {
+				t.Errorf("Got %s, expected %s", rev, test.rev)
+			}
+		})
+	}
+}

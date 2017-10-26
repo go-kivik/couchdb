@@ -260,11 +260,14 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 
 // Rev returns the most current rev of the requested document.
 func (d *db) Rev(ctx context.Context, docID string) (rev string, err error) {
+	if docID == "" {
+		return "", errors.Status(kivik.StatusBadRequest, "kivik: docID required")
+	}
 	res, err := d.Client.DoError(ctx, http.MethodHead, d.path(chttp.EncodeDocID(docID), nil), nil)
 	if err != nil {
 		return "", err
 	}
-	return strings.Trim(res.Header.Get("Etag"), `""`), nil
+	return chttp.GetRev(res)
 }
 
 func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[string]interface{}) (targetRev string, err error) {
