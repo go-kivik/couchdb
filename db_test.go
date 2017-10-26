@@ -809,3 +809,63 @@ func TestRowsQuery(t *testing.T) {
 		})
 	}
 }
+
+func TestSecurity(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		expected *driver.Security
+		status   int
+		err      string
+	}{
+		{
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Get http://example.com/testdb/_security: net error",
+		},
+		{
+			name: "1.6.1 empty",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 14:28:14 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"3"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader("{}")),
+			}, nil),
+			expected: &driver.Security{},
+		},
+		{
+			name: "1.6.1 non-empty",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 14:28:14 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"65"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"admins":{},"members":{"names":["32dgsme3cmi6pddghslq5egiye"]}}`)),
+			}, nil),
+			expected: &driver.Security{
+				Members: driver.Members{
+					Names: []string{"32dgsme3cmi6pddghslq5egiye"},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Security(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
