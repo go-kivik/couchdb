@@ -66,10 +66,10 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		options = make(map[string]interface{})
 	}
 	forceCommit := d.forceCommit
-	if fc, ok := options["force_commit"].(bool); ok {
+	if fc, ok := options[OptionFullCommit].(bool); ok {
 		forceCommit = fc
 	}
-	delete(options, "force_commit")
+	delete(options, OptionFullCommit)
 	options["docs"] = docs
 	body, errFunc := chttp.EncodeBody(options, cancel)
 	opts := &chttp.Options{
