@@ -160,18 +160,74 @@ func TestCreateDoc(t *testing.T) {
 	}
 }
 
-func TestDBInfo(t *testing.T) {
-	client := getClient(t)
-	db, err := client.DB(context.Background(), "_users", kivik.Options{"force_commit": true})
-	if err != nil {
-		t.Fatalf("Failed to connect to db: %s", err)
+func TestStats(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		expected *driver.DBStats
+		err      string
+	}{
+		{
+			name: "network error",
+			db:   newTestDB(nil, errors.New("net error")),
+			err:  "Get http://example.com/testdb: net error",
+		},
+		{
+			name: "1.6.1",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 12:58:14 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"235"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"db_name":"_users","doc_count":3,"doc_del_count":14,"update_seq":31,"purge_seq":0,"compact_running":false,"disk_size":127080,"data_size":6028,"instance_start_time":"1509022681259533","disk_format_version":6,"committed_update_seq":31}`)),
+			}, nil),
+			expected: &driver.DBStats{
+				Name:         "_users",
+				DocCount:     3,
+				DeletedCount: 14,
+				UpdateSeq:    "31",
+				DiskSize:     127080,
+				ActiveSize:   6028,
+			},
+		},
+		{
+			name: "2.0.0",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+					"Date":                {"Thu, 26 Oct 2017 13:01:13 GMT"},
+					"Content-Type":        {"application/json"},
+					"Content-Length":      {"429"},
+					"Cache-Control":       {"must-revalidate"},
+					"X-Couch-Request-ID":  {"2486f27546"},
+					"X-CouchDB-Body-Time": {"0"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"db_name":"_users","update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw","sizes":{"file":87323,"external":2495,"active":6082},"purge_seq":0,"other":{"data_size":2495},"doc_del_count":6,"doc_count":1,"disk_size":87323,"disk_format_version":6,"data_size":6082,"compact_running":false,"instance_start_time":"0"}`)),
+			}, nil),
+			expected: &driver.DBStats{
+				Name:         "_users",
+				DocCount:     1,
+				DeletedCount: 6,
+				UpdateSeq:    "13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw",
+				DiskSize:     87323,
+				ActiveSize:   6082,
+				ExternalSize: 2495,
+			},
+		},
 	}
-	info, err := db.Stats(context.Background())
-	if err != nil {
-		t.Fatalf("Failed: %s", err)
-	}
-	if info.Name != "_users" {
-		t.Errorf("Unexpected name %s", info.Name)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Stats(context.Background())
+			testy.Error(t, test.err, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
 	}
 }
 
