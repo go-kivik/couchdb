@@ -526,7 +526,7 @@ func TestDelete(t *testing.T) {
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: kivik.StatusInternalServerError,
-			err:    "Delete http://example.com/testdb/foo?rev=: net error",
+			err:    "(Delete http://example.com/testdb/foo?rev=: )?net error",
 		},
 		{
 			name: "1.6.1 conflict",
@@ -567,7 +567,7 @@ func TestDelete(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			newrev, err := test.db.Delete(context.Background(), test.id, test.rev)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newrev != test.newrev {
 				t.Errorf("Unexpected new rev: %s", newrev)
 			}
