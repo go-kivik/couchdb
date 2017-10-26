@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/testy"
 )
 
@@ -96,6 +97,115 @@ func TestPutAttachment(t *testing.T) {
 			testy.StatusError(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
+			}
+		})
+	}
+}
+
+func TestGetAttachmentMeta(t *testing.T) {
+	tests := []struct {
+		name              string
+		id, rev, filename string
+		db                *db
+		ctype             string
+		md5               driver.MD5sum
+		status            int
+		err               string
+	}{
+		{
+			name:   "missing docID",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+		{
+			name:   "missing filename",
+			id:     "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: filename required",
+		},
+		{
+			name:     "network error",
+			id:       "foo",
+			filename: "foo.txt",
+			db:       newTestDB(nil, errors.New("net error")),
+			status:   kivik.StatusInternalServerError,
+			err:      "Head http://example.com/testdb/foo/foo.txt: net error",
+		},
+		{
+			name:     "1.6.1",
+			id:       "foo",
+			filename: "foo.txt",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":           {`"gSr8dSmynwAoomH7V6RVYw=="`},
+					"Date":           {"Thu, 26 Oct 2017 21:15:13 GMT"},
+					"Content-Type":   {"text/plain"},
+					"Content-Length": {"13"},
+					"Cache-Control":  {"must-revalidate"},
+					"Accept-Ranges":  {"none"},
+				},
+				Body: Body(""),
+			}, nil),
+			md5:   driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
+			ctype: "text/plain",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctype, md5sum, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename)
+			testy.StatusError(t, test.err, test.status, err)
+			if ctype != test.ctype {
+				t.Errorf("Unexpected Content-Type: %s", ctype)
+			}
+			if md5sum != test.md5 {
+				t.Errorf("Unexpected MD5 Sum: %0x", md5sum)
+			}
+		})
+	}
+}
+
+func TestGetMD5Checksum(t *testing.T) {
+	tests := []struct {
+		name string
+		resp *http.Response
+		sum  driver.MD5sum
+		err  string
+	}{
+		{
+			name: "no etag header",
+			resp: &http.Response{},
+			err:  "ETag header not found",
+		},
+		{
+			name: "invalid ETag header",
+			resp: &http.Response{
+				Header: http.Header{"ETag": []string{`invalid base64`}},
+			},
+			err: "failed to decode MD5 checksum: illegal base64 data at input byte 7",
+		},
+		{
+			name: "Standard ETag header",
+			resp: &http.Response{
+				Header: http.Header{"ETag": []string{`"ENGoH7oK8V9R3BMnfDHZmw=="`}},
+			},
+			sum: driver.MD5sum{0x10, 0xd1, 0xa8, 0x1f, 0xba, 0x0a, 0xf1, 0x5f, 0x51, 0xdc, 0x13, 0x27, 0x7c, 0x31, 0xd9, 0x9b},
+		},
+		{
+			name: "normalized Etag header",
+			resp: &http.Response{
+				Header: http.Header{"Etag": []string{`"ENGoH7oK8V9R3BMnfDHZmw=="`}},
+			},
+			sum: driver.MD5sum{0x10, 0xd1, 0xa8, 0x1f, 0xba, 0x0a, 0xf1, 0x5f, 0x51, 0xdc, 0x13, 0x27, 0x7c, 0x31, 0xd9, 0x9b},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			sum, err := getMD5Checksum(test.resp)
+			testy.Error(t, test.err, err)
+			if sum != test.sum {
+				t.Errorf("Unexpected result: %0x", sum)
 			}
 		})
 	}

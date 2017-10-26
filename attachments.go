@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
@@ -40,6 +41,12 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentTyp
 }
 
 func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, err error) {
+	if docID == "" {
+		return "", driver.MD5sum{}, missingArg("docID")
+	}
+	if filename == "" {
+		return "", driver.MD5sum{}, missingArg("filename")
+	}
 	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename)
 	if err != nil {
 		return "", driver.MD5sum{}, err
@@ -87,7 +94,14 @@ func getContentType(resp *http.Response) (ctype string, ok bool) {
 }
 
 func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
-	hash, err := base64.StdEncoding.DecodeString(resp.Header.Get("Content-MD5"))
+	etag, ok := resp.Header["Etag"]
+	if !ok {
+		etag, ok = resp.Header["ETag"]
+	}
+	if !ok {
+		return driver.MD5sum{}, errors.New("ETag header not found")
+	}
+	hash, err := base64.StdEncoding.DecodeString(strings.Trim(etag[0], `"`))
 	if err != nil {
 		err = fmt.Errorf("failed to decode MD5 checksum: %s", err)
 	}
