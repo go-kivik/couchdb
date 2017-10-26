@@ -13,11 +13,10 @@ import:
 - package: golang.org/x/net
   subpackages:
   - publicsuffix
-testImport:
 - package: github.com/flimzy/diff
   version: ^0.1.2
 - package: github.com/go-kivik/kiviktest
   subpackages:
   - kt
 - package: github.com/flimzy/testy
-  version: ^0.0.2
+  version: ^0.0.3

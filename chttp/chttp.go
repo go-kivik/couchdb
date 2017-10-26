@@ -10,7 +10,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 )
 
 const (
@@ -198,7 +199,7 @@ func EncodeBody(i interface{}, cancel context.CancelFunc) (r io.Reader, errFunc 
 	go func() {
 		if err := json.NewEncoder(w).Encode(i); err != nil {
 			cancel()
-			errChan <- err
+			errChan <- errors.WrapStatus(kivik.StatusBadRequest, err)
 		}
 		close(errChan)
 		w.Close()
@@ -247,10 +248,14 @@ func GetRev(resp *http.Response) (rev string, err error) {
 	if err = ResponseError(resp); err != nil {
 		return "", err
 	}
-	if _, ok := resp.Header["Etag"]; !ok {
-		return "", errors.New("no Etag header found")
+	etag, ok := resp.Header["Etag"]
+	if !ok {
+		etag, ok = resp.Header["ETag"]
 	}
-	rev = resp.Header.Get("Etag")
+	if !ok {
+		return "", errors.New("no ETag header found")
+	}
+	rev = etag[0]
 	// trim quote marks (")
 	return rev[1 : len(rev)-1], nil
 }
