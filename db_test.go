@@ -507,33 +507,69 @@ func TestPut(t *testing.T) {
 	}
 }
 
-func TestDBDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	tests := []struct {
-		name   string
-		db     *db
-		docID  string
-		rev    string
-		status int
-		err    string
+		name    string
+		id, rev string
+		db      *db
+		newrev  string
+		status  int
+		err     string
 	}{
 		{
-			name:   "missing docID",
-			db:     &db{},
+			name:   "no doc id",
 			status: kivik.StatusBadRequest,
 			err:    "kivik: docID required",
+		},
+		{
+			name:   "network error",
+			id:     "foo",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Delete http://example.com/testdb/foo?rev=: net error",
+		},
+		{
+			name: "1.6.1 conflict",
+			id:   "43734cf3ce6d5a37050c050bb600006b",
+			db: newTestDB(&http.Response{
+				StatusCode: 409,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 13:29:06 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"58"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"error":"conflict","reason":"Document update conflict."}`)),
+			}, nil),
+			status: kivik.StatusConflict,
+			err:    "Conflict",
+		},
+		{
+			name: "1.6.1 success",
+			id:   "43734cf3ce6d5a37050c050bb600006b",
+			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 13:29:06 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"ETag":           {`"2-185ccf92154a9f24a4f4fd12233bf463"`},
+					"Content-Length": {"95"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"2-185ccf92154a9f24a4f4fd12233bf463"}`)),
+			}, nil),
+			newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := test.db.Delete(context.Background(), test.docID, test.rev)
-			var errMsg string
-			var status int
-			if err != nil {
-				errMsg = err.Error()
-				status = kivik.StatusCode(err)
-			}
-			if errMsg != test.err || status != test.status {
-				t.Errorf("Unexpected error: %d / %s", status, errMsg)
+			newrev, err := test.db.Delete(context.Background(), test.id, test.rev)
+			testy.StatusError(t, test.err, test.status, err)
+			if newrev != test.newrev {
+				t.Errorf("Unexpected new rev: %s", newrev)
 			}
 		})
 	}
