@@ -212,6 +212,9 @@ func (d *db) Compact(ctx context.Context) error {
 }
 
 func (d *db) CompactView(ctx context.Context, ddocID string) error {
+	if ddocID == "" {
+		return errors.Status(kivik.StatusBadRequest, "kivik: ddocID required")
+	}
 	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact/"+ddocID, nil), nil)
 	if err != nil {
 		return err
