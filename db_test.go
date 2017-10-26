@@ -575,6 +575,66 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestFlush(t *testing.T) {
+	tests := []struct {
+		name string
+		db   *db
+		err  string
+	}{
+		{
+			name: "net error",
+			db:   newTestDB(nil, errors.New("net error")),
+			err:  "Post http://example.com/testdb/_ensure_full_commit: net error",
+		},
+		{
+			name: "1.6.1",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Date":           {"Thu, 26 Oct 2017 13:07:52 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"53"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"1509022681259533"}`)),
+				}, nil
+			}),
+		},
+		{
+			name: "2.0.0",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+						"Date":                {"Thu, 26 Oct 2017 13:07:52 GMT"},
+						"Content-Type":        {"application/json"},
+						"Content-Length":      {"38"},
+						"Cache-Control":       {"must-revalidate"},
+						"X-Couch-Request-ID":  {"e454023cb8"},
+						"X-CouchDB-Body-Time": {"0"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"0"}`)),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.Flush(context.Background())
+			testy.Error(t, test.err, err)
+		})
+	}
+}
+
 func TestRowsQuery(t *testing.T) {
 	type queryResult struct {
 		Offset    int64
