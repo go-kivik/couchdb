@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -866,6 +867,72 @@ func TestSecurity(t *testing.T) {
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
+		})
+	}
+}
+
+func TestSetSecurity(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		security *driver.Security
+		status   int
+		err      string
+	}{
+		{
+			name:   "net error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Put http://example.com/testdb/_security: net error",
+		},
+		{
+			name: "1.6.1",
+			security: &driver.Security{
+				Admins: driver.Members{
+					Names: []string{"bob"},
+				},
+				Members: driver.Members{
+					Roles: []string{"users"},
+				},
+			},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close() // nolint: errcheck
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				var body interface{}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					return nil, err
+				}
+				expected := map[string]interface{}{
+					"admins": map[string]interface{}{
+						"names": []string{"bob"},
+					},
+					"members": map[string]interface{}{
+						"roles": []string{"users"},
+					},
+				}
+				if d := diff.AsJSON(expected, body); d != nil {
+					t.Error(d)
+				}
+				return &http.Response{
+					StatusCode: 200,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Date":           {"Thu, 26 Oct 2017 15:06:21 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"12"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.SetSecurity(context.Background(), test.security)
+			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
 }
