@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -47,7 +48,7 @@ func TestGet(t *testing.T) {
 			name:    "invalid options",
 			id:      "foo",
 			options: map[string]interface{}{"foo": make(chan int)},
-			err:     "cannot convert type chan int to []string",
+			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name: "network failure",
@@ -264,7 +265,7 @@ func TestOptionsToParams(t *testing.T) {
 		{
 			Name:  "Error",
 			Input: map[string]interface{}{"foo": []byte("foo")},
-			Error: "cannot convert type []uint8 to []string",
+			Error: "kivik: invalid type []uint8 for options",
 		},
 	}
 	for _, test := range tests {
@@ -575,6 +576,66 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestFlush(t *testing.T) {
+	tests := []struct {
+		name string
+		db   *db
+		err  string
+	}{
+		{
+			name: "net error",
+			db:   newTestDB(nil, errors.New("net error")),
+			err:  "Post http://example.com/testdb/_ensure_full_commit: net error",
+		},
+		{
+			name: "1.6.1",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Date":           {"Thu, 26 Oct 2017 13:07:52 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"53"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"1509022681259533"}`)),
+				}, nil
+			}),
+		},
+		{
+			name: "2.0.0",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+						"Date":                {"Thu, 26 Oct 2017 13:07:52 GMT"},
+						"Content-Type":        {"application/json"},
+						"Content-Length":      {"38"},
+						"Cache-Control":       {"must-revalidate"},
+						"X-Couch-Request-ID":  {"e454023cb8"},
+						"X-CouchDB-Body-Time": {"0"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"0"}`)),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.Flush(context.Background())
+			testy.Error(t, test.err, err)
+		})
+	}
+}
+
 func TestRowsQuery(t *testing.T) {
 	type queryResult struct {
 		Offset    int64
@@ -596,7 +657,7 @@ func TestRowsQuery(t *testing.T) {
 			name:    "invalid options",
 			path:    "_all_docs",
 			options: map[string]interface{}{"foo": make(chan int)},
-			err:     "cannot convert type chan int to []string",
+			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name: "network error",
@@ -745,6 +806,288 @@ func TestRowsQuery(t *testing.T) {
 
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestSecurity(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		expected *driver.Security
+		status   int
+		err      string
+	}{
+		{
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Get http://example.com/testdb/_security: net error",
+		},
+		{
+			name: "1.6.1 empty",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 14:28:14 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"3"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader("{}")),
+			}, nil),
+			expected: &driver.Security{},
+		},
+		{
+			name: "1.6.1 non-empty",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 26 Oct 2017 14:28:14 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"65"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"admins":{},"members":{"names":["32dgsme3cmi6pddghslq5egiye"]}}`)),
+			}, nil),
+			expected: &driver.Security{
+				Members: driver.Members{
+					Names: []string{"32dgsme3cmi6pddghslq5egiye"},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Security(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestSetSecurity(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		security *driver.Security
+		status   int
+		err      string
+	}{
+		{
+			name:   "net error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Put http://example.com/testdb/_security: net error",
+		},
+		{
+			name: "1.6.1",
+			security: &driver.Security{
+				Admins: driver.Members{
+					Names: []string{"bob"},
+				},
+				Members: driver.Members{
+					Roles: []string{"users"},
+				},
+			},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close() // nolint: errcheck
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
+				}
+				var body interface{}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					return nil, err
+				}
+				expected := map[string]interface{}{
+					"admins": map[string]interface{}{
+						"names": []string{"bob"},
+					},
+					"members": map[string]interface{}{
+						"roles": []string{"users"},
+					},
+				}
+				if d := diff.AsJSON(expected, body); d != nil {
+					t.Error(d)
+				}
+				return &http.Response{
+					StatusCode: 200,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Date":           {"Thu, 26 Oct 2017 15:06:21 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"12"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.SetSecurity(context.Background(), test.security)
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
+
+func TestRev(t *testing.T) {
+	tests := []struct {
+		name   string
+		db     *db
+		id     string
+		rev    string
+		status int
+		err    string
+	}{
+		{
+			name:   "no doc id",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+		{
+			name:   "net error",
+			id:     "foo",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Head http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "1.6.1",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Request: &http.Request{
+					Method: "HEAD",
+				},
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":           {`"1-4c6114c65e295552ab1019e2b046b10e"`},
+					"Date":           {"Thu, 26 Oct 2017 15:21:15 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"70"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			rev: "1-4c6114c65e295552ab1019e2b046b10e",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rev, err := test.db.Rev(context.Background(), test.id)
+			testy.StatusError(t, test.err, test.status, err)
+			if rev != test.rev {
+				t.Errorf("Got %s, expected %s", rev, test.rev)
+			}
+		})
+	}
+}
+
+func TestCopy(t *testing.T) {
+	tests := []struct {
+		name           string
+		target, source string
+		options        map[string]interface{}
+		db             *db
+		rev            string
+		status         int
+		err            string
+	}{
+		{
+			name:   "missing source",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: sourceID required",
+		},
+		{
+			name:   "missing target",
+			source: "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: targetID required",
+		},
+		{
+			name:   "net error",
+			source: "foo",
+			target: "bar",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "(Copy http://example.com/testdb/foo: )?net error",
+		},
+		{
+			name:    "invalid options",
+			source:  "foo",
+			target:  "bar",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name:   "create 1.6.1",
+			source: "foo",
+			target: "bar",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if req.Header.Get("Destination") != "bar" {
+					return nil, errors.New("Unexpected destination")
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Location":       {"http://example.com/foo/bar"},
+						"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
+						"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"66"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
+				}, nil
+			}),
+			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
+		},
+		{
+			name:   "force commit 1.6.1",
+			source: "foo",
+			target: "bar",
+			options: map[string]interface{}{
+				OptionFullCommit: true,
+			},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if dest := req.Header.Get("Destination"); dest != "bar" {
+					return nil, fmt.Errorf("Unexpected destination: %s", dest)
+				}
+				if fc := req.Header.Get("X-Couch-Full-Commit"); fc != "true" {
+					return nil, fmt.Errorf("X-Couch-Full-Commit: %s", fc)
+				}
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Location":       {"http://example.com/foo/bar"},
+						"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
+						"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Length": {"66"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
+				}, nil
+			}),
+			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rev, err := test.db.Copy(context.Background(), test.target, test.source, test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if rev != test.rev {
+				t.Errorf("Got %s, expected %s", rev, test.rev)
 			}
 		})
 	}

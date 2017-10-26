@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/go-kivik/couchdb/chttp"
 )
@@ -68,4 +69,8 @@ func (c errorReadCloser) Read(_ []byte) (int, error) {
 
 func (c errorReadCloser) Close() error {
 	return nil
+}
+
+func Body(str string) io.ReadCloser {
+	return ioutil.NopCloser(strings.NewReader(str))
 }
