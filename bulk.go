@@ -19,6 +19,18 @@ type bulkResults struct {
 
 var _ driver.BulkResults = &bulkResults{}
 
+func newBulkResults(body io.ReadCloser) (*bulkResults, error) {
+	dec := json.NewDecoder(body)
+	// Consume the opening '[' char
+	if err := consumeDelim(dec, json.Delim('[')); err != nil {
+		return nil, err
+	}
+	return &bulkResults{
+		body: body,
+		dec:  dec,
+	}, nil
+}
+
 func (r *bulkResults) Next(update *driver.BulkResult) error {
 	if !r.dec.More() {
 		if err := consumeDelim(r.dec, json.Delim(']')); err != nil {
@@ -32,8 +44,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		Error  string `json:"error"`
 		Reason string `json:"reason"`
 	}
-	err := r.dec.Decode(&updateResult)
-	if err != nil {
+	if err := r.dec.Decode(&updateResult); err != nil {
 		return err
 	}
 	update.ID = updateResult.ID
@@ -44,10 +55,8 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		switch updateResult.Error {
 		case "conflict":
 			status = kivik.StatusConflict
-		case "not_implemented":
-			status = kivik.StatusNotImplemented
 		default:
-			fmt.Printf("Unknown error %s / %s \n", updateResult.Error, updateResult.Reason)
+			status = 600 // Unknown error
 		}
 		update.Error = errors.Status(status, updateResult.Reason)
 	}
@@ -103,13 +112,9 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 			return nil, e
 		}
 	}
-	dec := json.NewDecoder(resp.Body)
-	// Consume the opening '[' char
-	if jsonErr := consumeDelim(dec, json.Delim('[')); jsonErr != nil {
-		return nil, jsonErr
+	results, bulkErr := newBulkResults(resp.Body)
+	if bulkErr != nil {
+		return nil, bulkErr
 	}
-	return &bulkResults{
-		body: resp.Body,
-		dec:  dec,
-	}, err
+	return results, err
 }

@@ -76,10 +76,10 @@ func TestRowsIteratorErrors(t *testing.T) {
 		Input string
 		Error string
 	}{
-		{Input: "", Error: "EOF"},
+		{Input: "", Error: "no closing delimiter: EOF"},
 		{Input: "[]", Error: "Unexpected JSON delimiter: ["},
 		{Input: `"foo"`, Error: "Unexpected token string: foo"},
-		{Input: `{"rows":[{"id":"1","key":"1","value":1}`, Error: "EOF"},
+		{Input: `{"rows":[{"id":"1","key":"1","value":1}`, Error: "no closing delimiter: EOF"},
 		{Input: `{"foo":"bar"}`, Error: "Unexpected key: foo"},
 		{Input: `{"rows":[{"id":"1","key":"1","value":1}],"foo":"bar"}`, Error: "Unexpected key: foo"},
 	}

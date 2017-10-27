@@ -32,9 +32,8 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 }
 
 type changesRows struct {
-	body   io.ReadCloser
-	dec    *json.Decoder
-	closed bool
+	body io.ReadCloser
+	dec  *json.Decoder
 }
 
 func newChangesRows(r io.ReadCloser) *changesRows {
@@ -50,9 +49,6 @@ func (r *changesRows) Close() error {
 }
 
 func (r *changesRows) Next(row *driver.Change) error {
-	if r.closed {
-		return io.EOF
-	}
 	if r.dec == nil {
 		r.dec = json.NewDecoder(r.body)
 	}

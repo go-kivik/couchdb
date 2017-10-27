@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/flimzy/kivik/driver"
+	"github.com/pkg/errors"
 )
 
 type rows struct {
@@ -166,7 +167,7 @@ func (r *rows) nextRow(row *driver.Row) error {
 func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 	t, err := dec.Token()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "no closing delimiter")
 	}
 	d, ok := t.(json.Delim)
 	if !ok {

@@ -3,13 +3,16 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 )
 
@@ -66,7 +69,7 @@ func TestBulkDocs(t *testing.T) {
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
 			status: 500,
-			err:    "invalid character 'i' looking for beginning of value",
+			err:    "no closing delimiter: invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "unexpected response code",
@@ -80,7 +83,7 @@ func TestBulkDocs(t *testing.T) {
 			name:    "new_edits",
 			options: map[string]interface{}{"new_edits": true},
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				defer req.Body.Close()
+				defer req.Body.Close() // nolint: errcheck
 				var body struct {
 					NewEdits bool `json:"new_edits"`
 				}
@@ -100,7 +103,7 @@ func TestBulkDocs(t *testing.T) {
 			name:    "force_commit",
 			options: map[string]interface{}{"force_commit": true},
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				defer req.Body.Close()
+				defer req.Body.Close() // nolint: errcheck
 				var body map[string]interface{}
 				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 					return nil, err
@@ -123,5 +126,145 @@ func TestBulkDocs(t *testing.T) {
 			_, err := test.db.BulkDocs(context.Background(), test.docs, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 		})
+	}
+}
+
+func TestBulkNext(t *testing.T) {
+	tests := []struct {
+		name     string
+		results  *bulkResults
+		status   int
+		err      string
+		expected *driver.BulkResult
+	}{
+		{
+			name: "no results",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[]`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			status: 500,
+			err:    "EOF",
+		},
+		{
+			name: "closing delimiter missing",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			status: 500,
+			err:    "no closing delimiter: EOF",
+		},
+		{
+			name: "invalid doc json",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[{foo}]`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			status: 500,
+			err:    "invalid character 'f' looking for beginning of object key string",
+		},
+		{
+			name: "successful update",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[{"id":"foo","rev":"1-xxx"}]`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			expected: &driver.BulkResult{
+				ID:  "foo",
+				Rev: "1-xxx",
+			},
+		},
+		{
+			name: "conflict",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[{"id":"foo","rev":"1-xxx","error":"conflict","reason":"annoying conflict"}]`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			expected: &driver.BulkResult{
+				ID:    "foo",
+				Rev:   "1-xxx",
+				Error: errors.Status(kivik.StatusConflict, "annoying conflict"),
+			},
+		},
+		{
+			name: "conflict",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[{"id":"foo","error":"conflict","reason":"annoying conflict"}]`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			expected: &driver.BulkResult{
+				ID:    "foo",
+				Error: errors.Status(kivik.StatusConflict, "annoying conflict"),
+			},
+		},
+		{
+			name: "unknown error",
+			results: func() *bulkResults {
+				r, err := newBulkResults(Body(`[{"id":"foo","error":"foo","reason":"foo is erroneous"}]`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			expected: &driver.BulkResult{
+				ID:    "foo",
+				Error: errors.Status(600, "foo is erroneous"),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := new(driver.BulkResult)
+			err := test.results.Next(result)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+type closeTracker struct {
+	closed bool
+	io.ReadCloser
+}
+
+func (c *closeTracker) Close() error {
+	c.closed = true
+	return c.ReadCloser.Close()
+}
+
+func TestBulkClose(t *testing.T) {
+	body := &closeTracker{
+		ReadCloser: Body(`[{"id":"foo","error":"foo","reason":"foo is erroneous"}]`),
+	}
+	r, err := newBulkResults(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := r.Close(); e != nil {
+		t.Fatal(e)
+	}
+	if !body.closed {
+		t.Errorf("Failed to close")
 	}
 }
