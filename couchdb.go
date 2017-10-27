@@ -87,9 +87,6 @@ func (c *client) DB(_ context.Context, dbName string, options map[string]interfa
 	if err != nil {
 		return nil, err
 	}
-	if key, exists := getAnyKey(options); exists {
-		return nil, errors.Statusf(kivik.StatusBadRequest, "kivik: unrecognized option '%s'", key)
-	}
 	return &db{
 		client:      c,
 		dbName:      dbName,

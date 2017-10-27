@@ -139,13 +139,6 @@ func TestDB(t *testing.T) {
 			err:    "kivik: dbName required",
 		},
 		{
-			name:    "unrecognized option",
-			dbName:  "foo",
-			options: map[string]interface{}{"foo": "bar"},
-			status:  kivik.StatusBadRequest,
-			err:     "kivik: unrecognized option 'foo'",
-		},
-		{
 			name:    "invalid force type",
 			dbName:  "foo",
 			options: map[string]interface{}{OptionFullCommit: 123},

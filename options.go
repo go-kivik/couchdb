@@ -5,13 +5,6 @@ import (
 	"github.com/flimzy/kivik/errors"
 )
 
-func getAnyKey(i map[string]interface{}) (string, bool) {
-	for k := range i {
-		return k, true
-	}
-	return "", false
-}
-
 func forceCommit(opts map[string]interface{}) (bool, error) {
 	fc, ok := opts[OptionFullCommit]
 	if !ok {
