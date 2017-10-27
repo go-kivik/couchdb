@@ -15,8 +15,6 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 )
 
-var errDocIDRequired = errors.Status(kivik.StatusBadRequest, "kivik: docID required")
-
 type db struct {
 	*client
 	dbName      string
@@ -85,7 +83,7 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 // Get fetches the requested document.
 func (d *db) Get(ctx context.Context, docID string, opts map[string]interface{}) (json.RawMessage, error) {
 	if docID == "" {
-		return nil, errDocIDRequired
+		return nil, missingArg("docID")
 	}
 	params, err := optionsToParams(opts)
 	if err != nil {
@@ -128,7 +126,7 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}) (docID, rev string,
 
 func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string, err error) {
 	if docID == "" {
-		return "", errDocIDRequired
+		return "", missingArg("docID")
 	}
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
@@ -158,7 +156,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string
 
 func (d *db) Delete(ctx context.Context, docID, rev string) (string, error) {
 	if docID == "" {
-		return "", errDocIDRequired
+		return "", missingArg("docID")
 	}
 	query := url.Values{}
 	query.Add("rev", rev)
@@ -213,7 +211,7 @@ func (d *db) Compact(ctx context.Context) error {
 
 func (d *db) CompactView(ctx context.Context, ddocID string) error {
 	if ddocID == "" {
-		return errors.Status(kivik.StatusBadRequest, "kivik: ddocID required")
+		return missingArg("ddocID")
 	}
 	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact/"+ddocID, nil), nil)
 	if err != nil {
@@ -261,7 +259,7 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 // Rev returns the most current rev of the requested document.
 func (d *db) Rev(ctx context.Context, docID string) (rev string, err error) {
 	if docID == "" {
-		return "", errors.Status(kivik.StatusBadRequest, "kivik: docID required")
+		return "", missingArg("docID")
 	}
 	res, err := d.Client.DoError(ctx, http.MethodHead, d.path(chttp.EncodeDocID(docID), nil), nil)
 	if err != nil {
