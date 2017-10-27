@@ -89,7 +89,7 @@ func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	if d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
-	body, err := util.ToJSON(query)
+	body, err := toJSON(query)
 	if err != nil {
 		return nil, err
 	}
