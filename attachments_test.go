@@ -90,6 +90,20 @@ func TestPutAttachment(t *testing.T) {
 			}),
 			newRev: "2-8ee3381d24ee4ac3e9f8c1f6c7395641",
 		},
+		{
+			name:     "no rev",
+			id:       "foo",
+			filename: "foo.txt",
+			ctype:    "text/plain",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if _, ok := req.URL.Query()["rev"]; ok {
+					t.Errorf("'rev' should not be present in the query")
+				}
+				return nil, errors.New("ignore this error")
+			}),
+			status: kivik.StatusInternalServerError,
+			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

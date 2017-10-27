@@ -29,7 +29,10 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentTyp
 		Body:        body,
 		ContentType: contentType,
 	}
-	query := url.Values{"rev": []string{rev}}
+	query := url.Values{}
+	if rev != "" {
+		query.Add("rev", rev)
+	}
 	var response struct {
 		Rev string `json:"rev"`
 	}
