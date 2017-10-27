@@ -72,7 +72,7 @@ func (c *client) setCompatMode(ctx context.Context) {
 	switch info.Vendor {
 	case VendorCouchDB, VendorCloudant:
 		switch {
-		case strings.HasPrefix(info.Version, "2.0."):
+		case strings.HasPrefix(info.Version, "2."):
 			c.Compat = CompatCouch20
 		case strings.HasPrefix(info.Version, "1.6"):
 			c.Compat = CompatCouch16
