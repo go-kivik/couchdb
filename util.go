@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"io"
 	"strings"
+
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 )
 
 // toJSON converts a string, []byte, json.RawMessage, or an arbitrary type into
@@ -20,6 +23,6 @@ func toJSON(i interface{}) (io.Reader, error) {
 	default:
 		buf := &bytes.Buffer{}
 		err := json.NewEncoder(buf).Encode(i)
-		return buf, err
+		return buf, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 }

@@ -5,15 +5,19 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/testy"
 )
 
 func TestToJSON(t *testing.T) {
-	type tjTest struct {
+	tests := []struct {
 		Name     string
 		Input    interface{}
 		Expected string
-	}
-	tests := []tjTest{
+		status   int
+		err      string
+	}{
 		{
 			Name:     "Null",
 			Expected: "null",
@@ -38,13 +42,17 @@ func TestToJSON(t *testing.T) {
 			Input:    map[string]string{"foo": "bar"},
 			Expected: `{"foo":"bar"}`,
 		},
+		{
+			Name:   "invalid json",
+			Input:  make(chan int),
+			status: kivik.StatusBadRequest,
+			err:    "json: unsupported type: chan int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			r, err := toJSON(test.Input)
-			if err != nil {
-				t.Fatalf("jsonify failed: %s", err)
-			}
+			testy.StatusError(t, test.err, test.status, err)
 			buf := &bytes.Buffer{}
 			buf.ReadFrom(r)
 			result := strings.TrimSpace(buf.String())
