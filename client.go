@@ -32,6 +32,9 @@ func (c *client) CreateDB(ctx context.Context, dbName string, _ map[string]inter
 }
 
 func (c *client) DestroyDB(ctx context.Context, dbName string, _ map[string]interface{}) error {
+	if dbName == "" {
+		return missingArg("dbName")
+	}
 	_, err := c.DoError(ctx, kivik.MethodDelete, dbName, nil)
 	return err
 }
