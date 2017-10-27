@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -239,5 +240,31 @@ func TestBulkNext(t *testing.T) {
 				t.Error(d)
 			}
 		})
+	}
+}
+
+type closeTracker struct {
+	closed bool
+	io.ReadCloser
+}
+
+func (c *closeTracker) Close() error {
+	c.closed = true
+	return c.ReadCloser.Close()
+}
+
+func TestBulkClose(t *testing.T) {
+	body := &closeTracker{
+		ReadCloser: Body(`[{"id":"foo","error":"foo","reason":"foo is erroneous"}]`),
+	}
+	r, err := newBulkResults(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := r.Close(); e != nil {
+		t.Fatal(e)
+	}
+	if !body.closed {
+		t.Errorf("Failed to close")
 	}
 }
