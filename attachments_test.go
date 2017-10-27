@@ -410,3 +410,70 @@ func TestDecodeAttachment(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteAttachment(t *testing.T) {
+	tests := []struct {
+		name              string
+		id, rev, filename string
+		db                *db
+		newRev            string
+		status            int
+		err               string
+	}{
+		{
+			name:   "no doc id",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+		{
+			name:   "no rev",
+			id:     "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: rev required",
+		},
+		{
+			name:   "no filename",
+			id:     "foo",
+			rev:    "1-xxx",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: filename required",
+		},
+		{
+			name:     "net error",
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			db:       newTestDB(nil, errors.New("net error")),
+			status:   kivik.StatusInternalServerError,
+			err:      "(Delete http://example.com/testdb/foo/foo.txt?rev=1-xxx: )?net error",
+		},
+		{
+			name:     "success 1.6.1",
+			id:       "foo",
+			rev:      "2-8ee3381d24ee4ac3e9f8c1f6c7395641",
+			filename: "foo.txt",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":           {`"3-231a932924f61816915289fecd35b14a"`},
+					"Date":           {"Fri, 27 Oct 2017 13:30:40 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"66"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true,"id":"foo","rev":"3-231a932924f61816915289fecd35b14a"}`),
+			}, nil),
+			newRev: "3-231a932924f61816915289fecd35b14a",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.rev, test.filename)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if newRev != test.newRev {
+				t.Errorf("Unexpected new rev: %s", newRev)
+			}
+		})
+	}
+}

@@ -116,10 +116,16 @@ func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
 }
 
 func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string) (newRev string, err error) {
-	query := url.Values{}
-	if rev != "" {
-		query.Add("rev", rev)
+	if docID == "" {
+		return "", missingArg("docID")
 	}
+	if rev == "" {
+		return "", missingArg("rev")
+	}
+	if filename == "" {
+		return "", missingArg("filename")
+	}
+	query := url.Values{"rev": {rev}}
 	var response struct {
 		Rev string `json:"rev"`
 	}
