@@ -34,9 +34,7 @@ func ResponseError(resp *http.Response) error {
 	httpErr := &HTTPError{}
 	if resp.Request.Method != "HEAD" && resp.ContentLength != 0 {
 		if ct, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ct == typeJSON {
-			if err := json.NewDecoder(resp.Body).Decode(httpErr); err != nil {
-				httpErr.Reason = fmt.Sprintf("unknown (failed to decode error response: %s)", err)
-			}
+			_ = json.NewDecoder(resp.Body).Decode(httpErr)
 		}
 	}
 	httpErr.Code = resp.StatusCode
