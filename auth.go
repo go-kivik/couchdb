@@ -11,5 +11,5 @@ func (c *client) Authenticate(ctx context.Context, a interface{}) error {
 	if auth, ok := a.(chttp.Authenticator); ok {
 		return auth.Authenticate(ctx, c.Client)
 	}
-	return errors.New("invalid authenticator")
+	return errors.New("kivik: invalid authenticator")
 }
