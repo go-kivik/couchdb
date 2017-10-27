@@ -8,6 +8,7 @@ import (
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
 )
 
@@ -51,7 +52,7 @@ var _ driver.Client = &client{}
 func (d *Couch) NewClient(ctx context.Context, dsn string) (driver.Client, error) {
 	chttpClient, err := chttp.New(ctx, dsn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	c := &client{
 		Client: chttpClient,
