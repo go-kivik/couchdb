@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/kivik/errors"
@@ -96,10 +99,27 @@ func (d *db) Get(ctx context.Context, docID string, opts map[string]interface{})
 	if respErr := chttp.ResponseError(resp); respErr != nil {
 		return nil, respErr
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	doc := &bytes.Buffer{}
-	if _, err := doc.ReadFrom(resp.Body); err != nil {
-		return nil, err
+	if ct, params, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ct == "multipart/related" {
+		boundary, ok := params["boundary"]
+		if !ok {
+			return nil, errors.Status(kivik.StatusInternalServerError, "multipart response with no boundary")
+		}
+		fmt.Printf("boundary = %s\n", boundary)
+		mpReader := multipart.NewReader(resp.Body, boundary)
+		part, err := mpReader.NextPart()
+		spew.Dump(part.Header)
+		if err != nil {
+			return nil, errors.WrapStatus(kivik.StatusInternalServerError, err)
+		}
+		if _, err := doc.ReadFrom(part); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := doc.ReadFrom(resp.Body); err != nil {
+			return nil, err
+		}
 	}
 	return doc.Bytes(), nil
 }
