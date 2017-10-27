@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/flimzy/diff"
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/testy"
 )
 
 func TestStateTime(t *testing.T) {
@@ -52,5 +56,54 @@ func TestStateTime(t *testing.T) {
 				}
 			})
 		}(test)
+	}
+}
+
+func TestReplicationErrorUnmarshal(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *replicationError
+		err      string
+	}{
+		{
+			name:  "doc example 1",
+			input: `"db_not_found: could not open http://adm:*****@localhost:5984/missing/"`,
+			expected: &replicationError{
+				status: kivik.StatusNotFound,
+				reason: "db_not_found: could not open http://adm:*****@localhost:5984/missing/",
+			},
+		},
+		{
+			name:  "timeout",
+			input: `"timeout: some timeout occurred"`,
+			expected: &replicationError{
+				status: kivik.StatusRequestTimeout,
+				reason: "timeout: some timeout occurred",
+			},
+		},
+		{
+			name:  "unknown",
+			input: `"unknown error"`,
+			expected: &replicationError{
+				status: kivik.StatusInternalServerError,
+				reason: "unknown error",
+			},
+		},
+		{
+			name:  "invalid JSON",
+			input: `"\C"`,
+			err:   "invalid character 'C' in string escape code",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repErr := new(replicationError)
+			err := repErr.UnmarshalJSON([]byte(test.input))
+			testy.Error(t, test.err, err)
+			if d := diff.Interface(test.expected, repErr); d != nil {
+				t.Error(d)
+			}
+		})
 	}
 }
