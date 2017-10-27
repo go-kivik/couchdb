@@ -17,6 +17,13 @@ type couchUpdates struct {
 
 var _ driver.DBUpdates = &couchUpdates{}
 
+func newUpdates(body io.ReadCloser) *couchUpdates {
+	return &couchUpdates{
+		body: body,
+		dec:  json.NewDecoder(body),
+	}
+}
+
 func (u *couchUpdates) Next(update *driver.DBUpdate) error {
 	return u.dec.Decode(update)
 }
@@ -33,8 +40,5 @@ func (c *client) DBUpdates() (updates driver.DBUpdates, err error) {
 	if err := chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return &couchUpdates{
-		body: resp.Body,
-		dec:  json.NewDecoder(resp.Body),
-	}, nil
+	return newUpdates(resp.Body), nil
 }
