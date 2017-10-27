@@ -44,12 +44,6 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentTyp
 }
 
 func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, err error) {
-	if docID == "" {
-		return "", driver.MD5sum{}, missingArg("docID")
-	}
-	if filename == "" {
-		return "", driver.MD5sum{}, missingArg("filename")
-	}
 	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename)
 	if err != nil {
 		return "", driver.MD5sum{}, err
@@ -59,7 +53,7 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string)
 	return cType, md5sum, err
 }
 
-func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, body io.ReadCloser, err error) {
+func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
 	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename)
 	if err != nil {
 		return "", driver.MD5sum{}, nil, err
@@ -68,6 +62,15 @@ func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string) (cT
 }
 
 func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename string) (*http.Response, error) {
+	if method == "" {
+		return nil, errors.New("method required")
+	}
+	if docID == "" {
+		return nil, missingArg("docID")
+	}
+	if filename == "" {
+		return nil, missingArg("filename")
+	}
 	query := url.Values{}
 	if rev != "" {
 		query.Add("rev", rev)

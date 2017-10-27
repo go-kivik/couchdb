@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/testy"
@@ -127,17 +128,6 @@ func TestGetAttachmentMeta(t *testing.T) {
 		err               string
 	}{
 		{
-			name:   "missing docID",
-			status: kivik.StatusBadRequest,
-			err:    "kivik: docID required",
-		},
-		{
-			name:   "missing filename",
-			id:     "foo",
-			status: kivik.StatusBadRequest,
-			err:    "kivik: filename required",
-		},
-		{
 			name:     "network error",
 			id:       "foo",
 			filename: "foo.txt",
@@ -220,6 +210,143 @@ func TestGetMD5Checksum(t *testing.T) {
 			testy.Error(t, test.err, err)
 			if sum != test.sum {
 				t.Errorf("Unexpected result: %0x", sum)
+			}
+		})
+	}
+}
+
+func TestGetAttachment(t *testing.T) {
+	tests := []struct {
+		name              string
+		id, rev, filename string
+		db                *db
+		ctype             string
+		md5               driver.MD5sum
+		content           string
+		status            int
+		err               string
+	}{
+		{
+			name:     "network error",
+			id:       "foo",
+			filename: "foo.txt",
+			db:       newTestDB(nil, errors.New("net error")),
+			status:   kivik.StatusInternalServerError,
+			err:      "Get http://example.com/testdb/foo/foo.txt: net error",
+		},
+		{
+			name:     "1.6.1",
+			id:       "foo",
+			filename: "foo.txt",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: 200,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"ETag":           {`"gSr8dSmynwAoomH7V6RVYw=="`},
+						"Date":           {"Fri, 27 Oct 2017 11:24:50 GMT"},
+						"Content-Type":   {"text/plain"},
+						"Content-Length": {"13"},
+						"Cache-Control":  {"must-revalidate"},
+						"Accept-Ranges":  {"none"},
+					},
+					Body: Body(`Hello, world!`),
+				}, nil
+			}),
+			ctype:   "text/plain",
+			md5:     driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
+			content: "Hello, world!",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctype, md5, content, err := test.db.GetAttachment(context.Background(), test.id, test.rev, test.filename)
+			testy.StatusError(t, test.err, test.status, err)
+			defer content.Close() // nolint: errcheck
+			if ctype != test.ctype {
+				t.Errorf("Unexpected content type: %s", ctype)
+			}
+			if md5 != test.md5 {
+				t.Errorf("Unexpected MD5 sum: %0x", md5)
+			}
+			fileContent, err := ioutil.ReadAll(content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d := diff.Text(test.content, string(fileContent)); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestFetchAttachment(t *testing.T) {
+	tests := []struct {
+		name                      string
+		method, id, rev, filename string
+		db                        *db
+		resp                      *http.Response
+		status                    int
+		err                       string
+	}{
+		{
+			name:   "no method",
+			status: kivik.StatusInternalServerError,
+			err:    "method required",
+		},
+		{
+			name:   "no docID",
+			method: "GET",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+		{
+			name:   "no filename",
+			method: "GET",
+			id:     "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: filename required",
+		},
+		{
+			name:     "no rev",
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			db:       newTestDB(nil, errors.New("ignore this error")),
+			status:   kivik.StatusInternalServerError,
+			err:      "http://example.com/testdb/foo/foo.txt:",
+		},
+		{
+			name:     "with rev",
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			rev:      "1-xxx",
+			db:       newTestDB(nil, errors.New("ignore this error")),
+			status:   kivik.StatusInternalServerError,
+			err:      "http://example.com/testdb/foo/foo.txt\\?rev=1-xxx:",
+		},
+		{
+			name:     "success",
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			rev:      "1-xxx",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+			}, nil),
+			resp: &http.Response{
+				StatusCode: 200,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.rev, test.filename)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			resp.Request = nil
+			if d := diff.Interface(test.resp, resp); d != nil {
+				t.Error(d)
 			}
 		})
 	}
