@@ -13,6 +13,9 @@ func (c *client) AllDBs(ctx context.Context, _ map[string]interface{}) ([]string
 }
 
 func (c *client) DBExists(ctx context.Context, dbName string, _ map[string]interface{}) (bool, error) {
+	if dbName == "" {
+		return false, missingArg("dbName")
+	}
 	_, err := c.DoError(ctx, kivik.MethodHead, dbName, nil)
 	if kivik.StatusCode(err) == kivik.StatusNotFound {
 		return false, nil
@@ -21,6 +24,9 @@ func (c *client) DBExists(ctx context.Context, dbName string, _ map[string]inter
 }
 
 func (c *client) CreateDB(ctx context.Context, dbName string, _ map[string]interface{}) error {
+	if dbName == "" {
+		return missingArg("dbName")
+	}
 	_, err := c.DoError(ctx, kivik.MethodPut, dbName, nil)
 	return err
 }
