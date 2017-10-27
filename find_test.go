@@ -226,3 +226,71 @@ func TestCreateIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestGetIndexes(t *testing.T) {
+	tests := []struct {
+		name     string
+		db       *db
+		expected []driver.Index
+		status   int
+		err      string
+	}{
+		{
+			name:   "Couch 1.6",
+			db:     &db{client: &client{Compat: CompatCouch16}},
+			status: kivik.StatusNotImplemented,
+			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
+		},
+		{
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Get http://example.com/testdb/_index: net error",
+		},
+		{
+			name: "2.1.0",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"X-CouchDB-Body-Time": {"0"},
+					"X-Couch-Request-ID":  {"f44881735c"},
+					"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":                {"Fri, 27 Oct 2017 18:23:29 GMT"},
+					"Content-Type":        {"application/json"},
+					"Content-Length":      {"269"},
+					"Cache-Control":       {"must-revalidate"},
+				},
+				Body: Body(`{"total_rows":2,"indexes":[{"ddoc":null,"name":"_all_docs","type":"special","def":{"fields":[{"_id":"asc"}]}},{"ddoc":"_design/a7ee061f1a2c0c6882258b2f1e148b714e79ccea","name":"a7ee061f1a2c0c6882258b2f1e148b714e79ccea","type":"json","def":{"fields":[{"foo":"asc"}]}}]}`),
+			}, nil),
+			expected: []driver.Index{
+				{
+					Name: "_all_docs",
+					Type: "special",
+					Definition: map[string]interface{}{
+						"fields": []interface{}{
+							map[string]interface{}{"_id": "asc"},
+						},
+					},
+				},
+				{
+					DesignDoc: "_design/a7ee061f1a2c0c6882258b2f1e148b714e79ccea",
+					Name:      "a7ee061f1a2c0c6882258b2f1e148b714e79ccea",
+					Type:      "json",
+					Definition: map[string]interface{}{
+						"fields": []interface{}{
+							map[string]interface{}{"foo": "asc"}},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.GetIndexes(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
