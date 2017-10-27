@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
@@ -162,8 +161,51 @@ func TestCreateDB(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.client.CreateDB(context.Background(), test.dbName, nil)
-			spew.Dump(err)
 			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
+
+func TestDestroyDB(t *testing.T) {
+	tests := []struct {
+		name   string
+		client *client
+		dbName string
+		status int
+		err    string
+	}{
+		{
+			name:   "no db name",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: dbName required",
+		},
+		{
+			name:   "network error",
+			dbName: "foo",
+			client: newTestClient(nil, errors.New("net error")),
+			status: 500,
+			err:    "(Delete http://example.com/foo: )?net error",
+		},
+		{
+			name:   "1.6.1",
+			dbName: "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Fri, 27 Oct 2017 17:12:45 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"12"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true}`),
+			}, nil),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.client.DestroyDB(context.Background(), test.dbName, nil)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }

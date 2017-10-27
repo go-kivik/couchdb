@@ -3,11 +3,11 @@ package couchdb
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
 )
 
@@ -51,7 +51,7 @@ var _ driver.Client = &client{}
 func (d *Couch) NewClient(ctx context.Context, dsn string) (driver.Client, error) {
 	chttpClient, err := chttp.New(ctx, dsn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	c := &client{
 		Client: chttpClient,
@@ -71,7 +71,7 @@ func (c *client) setCompatMode(ctx context.Context) {
 	switch info.Vendor {
 	case VendorCouchDB, VendorCloudant:
 		switch {
-		case strings.HasPrefix(info.Version, "2.0."):
+		case strings.HasPrefix(info.Version, "2."):
 			c.Compat = CompatCouch20
 		case strings.HasPrefix(info.Version, "1.6"):
 			c.Compat = CompatCouch16
@@ -80,12 +80,12 @@ func (c *client) setCompatMode(ctx context.Context) {
 }
 
 func (c *client) DB(_ context.Context, dbName string, options map[string]interface{}) (driver.DB, error) {
+	if dbName == "" {
+		return nil, missingArg("dbName")
+	}
 	forceCommit, err := forceCommit(options)
 	if err != nil {
 		return nil, err
-	}
-	if key, exists := getAnyKey(options); exists {
-		return nil, fmt.Errorf("kivik: unrecognized option '%s'", key)
 	}
 	return &db{
 		client:      c,
