@@ -1,10 +1,8 @@
 package couchdb
 
-import "fmt"
-
-// Available options
-const (
-	optionForceCommit = "force_commit"
+import (
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 )
 
 func getAnyKey(i map[string]interface{}) (string, bool) {
@@ -15,14 +13,14 @@ func getAnyKey(i map[string]interface{}) (string, bool) {
 }
 
 func forceCommit(opts map[string]interface{}) (bool, error) {
-	fc, ok := opts[optionForceCommit]
+	fc, ok := opts[OptionFullCommit]
 	if !ok {
 		return false, nil
 	}
 	fcBool, ok := fc.(bool)
 	if !ok {
-		return false, fmt.Errorf("kivik: option '%s' must be bool, not %T", optionForceCommit, fcBool)
+		return false, errors.Statusf(kivik.StatusBadRequest, "kivik: option '%s' must be bool, not %T", OptionFullCommit, fc)
 	}
-	delete(opts, optionForceCommit)
+	delete(opts, OptionFullCommit)
 	return fcBool, nil
 }

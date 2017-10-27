@@ -3,7 +3,6 @@ package couchdb
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/flimzy/kivik"
@@ -81,12 +80,15 @@ func (c *client) setCompatMode(ctx context.Context) {
 }
 
 func (c *client) DB(_ context.Context, dbName string, options map[string]interface{}) (driver.DB, error) {
+	if dbName == "" {
+		return nil, missingArg("dbName")
+	}
 	forceCommit, err := forceCommit(options)
 	if err != nil {
 		return nil, err
 	}
 	if key, exists := getAnyKey(options); exists {
-		return nil, fmt.Errorf("kivik: unrecognized option '%s'", key)
+		return nil, errors.Statusf(kivik.StatusBadRequest, "kivik: unrecognized option '%s'", key)
 	}
 	return &db{
 		client:      c,

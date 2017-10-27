@@ -122,3 +122,60 @@ func TestSetCompatMode(t *testing.T) {
 		})
 	}
 }
+
+func TestDB(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   *client
+		dbName   string
+		options  map[string]interface{}
+		expected *db
+		status   int
+		err      string
+	}{
+		{
+			name:   "no dbname",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: dbName required",
+		},
+		{
+			name:    "unrecognized option",
+			dbName:  "foo",
+			options: map[string]interface{}{"foo": "bar"},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: unrecognized option 'foo'",
+		},
+		{
+			name:    "invalid force type",
+			dbName:  "foo",
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'force_commit' must be bool, not int",
+		},
+		{
+			name:    "force commit",
+			dbName:  "foo",
+			options: map[string]interface{}{OptionFullCommit: true},
+			expected: &db{
+				dbName:      "foo",
+				forceCommit: true,
+			},
+		},
+		{
+			name:   "no force commit",
+			dbName: "foo",
+			expected: &db{
+				dbName: "foo",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.DB(context.Background(), test.dbName, test.options)
+			testy.StatusError(t, test.err, test.status, err)
+			if _, ok := result.(*db); !ok {
+				t.Errorf("Unexpected result type: %T", result)
+			}
+		})
+	}
+}
