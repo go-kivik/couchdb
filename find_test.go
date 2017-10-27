@@ -356,3 +356,82 @@ func TestDeleteIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestFind(t *testing.T) {
+	tests := []struct {
+		name   string
+		db     *db
+		query  interface{}
+		status int
+		err    string
+	}{
+		{
+			name:   "Couch 1.6",
+			db:     &db{client: &client{Compat: CompatCouch16}},
+			status: kivik.StatusNotImplemented,
+			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
+		},
+		{
+			name:   "invalid query json",
+			db:     newTestDB(nil, nil),
+			query:  make(chan int),
+			status: kivik.StatusBadRequest,
+			err:    "json: unsupported type: chan int",
+		},
+		{
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: 500,
+			err:    "Post http://example.com/testdb/_find: net error",
+		},
+		{
+			name: "error response",
+			db: newTestDB(&http.Response{
+				StatusCode: 415,
+				Header: http.Header{
+					"Content-Type":        {"application/json"},
+					"X-CouchDB-Body-Time": {"0"},
+					"X-Couch-Request-ID":  {"aa1f852b27"},
+					"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":                {"Fri, 27 Oct 2017 19:20:04 GMT"},
+					"Content-Length":      {"77"},
+					"Cache-Control":       {"must-revalidate"},
+				},
+				ContentLength: 77,
+				Body:          Body(`{"error":"bad_content_type","reason":"Content-Type must be application/json"}`),
+			}, nil),
+			status: kivik.StatusBadContentType,
+			err:    "Unsupported Media Type: Content-Type must be application/json",
+		},
+		{
+			name: "success 2.1.0",
+			query: map[string]interface{}{
+				"selector": map[string]string{"_id": "foo"},
+			},
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":        {"application/json"},
+					"X-CouchDB-Body-Time": {"0"},
+					"X-Couch-Request-ID":  {"a0884508d8"},
+					"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":                {"Fri, 27 Oct 2017 19:20:04 GMT"},
+					"Transfer-Encoding":   {"chunked"},
+					"Cache-Control":       {"must-revalidate"},
+				},
+				Body: Body(`{"docs":[
+{"_id":"foo","_rev":"2-f5d2de1376388f1b54d93654df9dc9c7","_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-ENGoH7oK8V9R3BMnfDHZmw==","length":13,"stub":true}}}
+]}`),
+			}, nil),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Find(context.Background(), test.query)
+			testy.StatusError(t, test.err, test.status, err)
+			if _, ok := result.(*rows); !ok {
+				t.Errorf("Unexpected type returned: %t", result)
+			}
+		})
+	}
+}
