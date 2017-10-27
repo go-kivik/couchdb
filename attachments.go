@@ -48,7 +48,7 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string)
 	if err != nil {
 		return "", driver.MD5sum{}, err
 	}
-	cType, md5sum, body, err := d.decodeAttachment(resp)
+	cType, md5sum, body, err := decodeAttachment(resp)
 	_ = body.Close()
 	return cType, md5sum, err
 }
@@ -58,7 +58,7 @@ func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string) (cT
 	if err != nil {
 		return "", driver.MD5sum{}, nil, err
 	}
-	return d.decodeAttachment(resp)
+	return decodeAttachment(resp)
 }
 
 func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename string) (*http.Response, error) {
@@ -82,7 +82,7 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	return resp, chttp.ResponseError(resp)
 }
 
-func (d *db) decodeAttachment(resp *http.Response) (cType string, md5sum driver.MD5sum, body io.ReadCloser, err error) {
+func decodeAttachment(resp *http.Response) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
 	var ok bool
 	if cType, ok = getContentType(resp); !ok {
 		return "", driver.MD5sum{}, nil, errors.New("no Content-Type in response")

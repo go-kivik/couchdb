@@ -351,3 +351,62 @@ func TestFetchAttachment(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeAttachment(t *testing.T) {
+	tests := []struct {
+		name    string
+		resp    *http.Response
+		ctype   string
+		md5     driver.MD5sum
+		content string
+		status  int
+		err     string
+	}{
+		{
+			name:   "no content type",
+			resp:   &http.Response{},
+			status: kivik.StatusInternalServerError,
+			err:    "no Content-Type in response",
+		},
+		{
+			name: "no etag header",
+			resp: &http.Response{
+				Header: http.Header{"Content-Type": {"text/plain"}},
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "ETag header not found",
+		},
+		{
+			name: "success",
+			resp: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/plain"},
+					"ETag":         {`"gSr8dSmynwAoomH7V6RVYw=="`},
+				},
+				Body: Body("Hello, World!"),
+			},
+			ctype:   "text/plain",
+			md5:     driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
+			content: "Hello, World!",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctype, md5, content, err := decodeAttachment(test.resp)
+			testy.StatusError(t, test.err, test.status, err)
+			if ctype != test.ctype {
+				t.Errorf("Unexpected content type: %s", ctype)
+			}
+			if md5 != test.md5 {
+				t.Errorf("Unexpected MD5 sum: %0x", md5)
+			}
+			fileContent, err := ioutil.ReadAll(content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d := diff.Text(test.content, string(fileContent)); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
