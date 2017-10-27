@@ -351,3 +351,129 @@ func TestFetchAttachment(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeAttachment(t *testing.T) {
+	tests := []struct {
+		name    string
+		resp    *http.Response
+		ctype   string
+		md5     driver.MD5sum
+		content string
+		status  int
+		err     string
+	}{
+		{
+			name:   "no content type",
+			resp:   &http.Response{},
+			status: kivik.StatusInternalServerError,
+			err:    "no Content-Type in response",
+		},
+		{
+			name: "no etag header",
+			resp: &http.Response{
+				Header: http.Header{"Content-Type": {"text/plain"}},
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "ETag header not found",
+		},
+		{
+			name: "success",
+			resp: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/plain"},
+					"ETag":         {`"gSr8dSmynwAoomH7V6RVYw=="`},
+				},
+				Body: Body("Hello, World!"),
+			},
+			ctype:   "text/plain",
+			md5:     driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
+			content: "Hello, World!",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctype, md5, content, err := decodeAttachment(test.resp)
+			testy.StatusError(t, test.err, test.status, err)
+			if ctype != test.ctype {
+				t.Errorf("Unexpected content type: %s", ctype)
+			}
+			if md5 != test.md5 {
+				t.Errorf("Unexpected MD5 sum: %0x", md5)
+			}
+			fileContent, err := ioutil.ReadAll(content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d := diff.Text(test.content, string(fileContent)); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestDeleteAttachment(t *testing.T) {
+	tests := []struct {
+		name              string
+		id, rev, filename string
+		db                *db
+		newRev            string
+		status            int
+		err               string
+	}{
+		{
+			name:   "no doc id",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
+		},
+		{
+			name:   "no rev",
+			id:     "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: rev required",
+		},
+		{
+			name:   "no filename",
+			id:     "foo",
+			rev:    "1-xxx",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: filename required",
+		},
+		{
+			name:     "net error",
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			db:       newTestDB(nil, errors.New("net error")),
+			status:   kivik.StatusInternalServerError,
+			err:      "(Delete http://example.com/testdb/foo/foo.txt?rev=1-xxx: )?net error",
+		},
+		{
+			name:     "success 1.6.1",
+			id:       "foo",
+			rev:      "2-8ee3381d24ee4ac3e9f8c1f6c7395641",
+			filename: "foo.txt",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":           {`"3-231a932924f61816915289fecd35b14a"`},
+					"Date":           {"Fri, 27 Oct 2017 13:30:40 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"66"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true,"id":"foo","rev":"3-231a932924f61816915289fecd35b14a"}`),
+			}, nil),
+			newRev: "3-231a932924f61816915289fecd35b14a",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.rev, test.filename)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if newRev != test.newRev {
+				t.Errorf("Unexpected new rev: %s", newRev)
+			}
+		})
+	}
+}
