@@ -166,3 +166,63 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateIndex(t *testing.T) {
+	tests := []struct {
+		testName   string
+		ddoc, name string
+		index      interface{}
+		db         *db
+		status     int
+		err        string
+	}{
+		{
+			name:   "Couch 1.6",
+			db:     &db{client: &client{Compat: CompatCouch16}},
+			status: kivik.StatusNotImplemented,
+			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
+		},
+		{
+			name:   "invalid JSON index",
+			db:     newTestDB(nil, nil),
+			index:  `invalid json`,
+			status: kivik.StatusBadRequest,
+			err:    "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name:   "invalid raw index",
+			db:     newTestDB(nil, nil),
+			index:  map[string]interface{}{"foo": make(chan int)},
+			status: kivik.StatusBadRequest,
+			err:    "json: unsupported type: chan int",
+		},
+		{
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: 500,
+			err:    "Post http://example.com/testdb/_index: net error",
+		},
+		{
+			name: "success 2.1.0",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"X-CouchDB-Body-Time": {"0"},
+					"X-Couch-Request-ID":  {"8e4aef0c2f"},
+					"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":                {"Fri, 27 Oct 2017 18:14:38 GMT"},
+					"Content-Type":        {"application/json"},
+					"Content-Length":      {"126"},
+					"Cache-Control":       {"must-revalidate"},
+				},
+				Body: Body(`{"result":"created","id":"_design/a7ee061f1a2c0c6882258b2f1e148b714e79ccea","name":"a7ee061f1a2c0c6882258b2f1e148b714e79ccea"}`),
+			}, nil),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			err := test.db.CreateIndex(context.Background(), test.ddoc, test.name, test.index)
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
