@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
-	"github.com/go-kivik/kiviktest/kt"
 )
 
 func TestAllDBs(t *testing.T) {
@@ -120,14 +120,50 @@ func TestDBExists(t *testing.T) {
 	}
 }
 
-func TestCreateAndDestroyDB(t *testing.T) {
-	client := getClient(t)
-	dbName := kt.TestDBName(t)
-	defer client.DestroyDB(context.Background(), dbName, nil) // nolint: errcheck
-	if err := client.CreateDB(context.Background(), dbName, nil); err != nil {
-		t.Errorf("Create failed: %s", err)
+func TestCreateDB(t *testing.T) {
+	tests := []struct {
+		name   string
+		dbName string
+		client *client
+		status int
+		err    string
+	}{
+		{
+			name:   "missing dbname",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: dbName required",
+		},
+		{
+			name:   "network error",
+			dbName: "foo",
+			client: newTestClient(nil, errors.New("net error")),
+			status: 500,
+			err:    "Put http://example.com/foo: net error",
+		},
+		{
+			name:   "conflict 1.6.1",
+			dbName: "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 412,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Fri, 27 Oct 2017 15:23:57 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"94"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				ContentLength: 94,
+				Body:          Body(`{"error":"file_exists","reason":"The database could not be created, the file already exists."}`),
+			}, nil),
+			status: kivik.StatusPreconditionFailed,
+			err:    "Precondition Failed: The database could not be created, the file already exists.",
+		},
 	}
-	if err := client.DestroyDB(context.Background(), dbName, nil); err != nil {
-		t.Errorf("Destroy failed: %s", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.client.CreateDB(context.Background(), test.dbName, nil)
+			spew.Dump(err)
+			testy.StatusError(t, test.err, test.status, err)
+		})
 	}
 }
