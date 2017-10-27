@@ -169,12 +169,12 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 
 func TestCreateIndex(t *testing.T) {
 	tests := []struct {
-		testName   string
-		ddoc, name string
-		index      interface{}
-		db         *db
-		status     int
-		err        string
+		name            string
+		ddoc, indexName string
+		index           interface{}
+		db              *db
+		status          int
+		err             string
 	}{
 		{
 			name:   "Couch 1.6",
@@ -220,8 +220,8 @@ func TestCreateIndex(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.testName, func(t *testing.T) {
-			err := test.db.CreateIndex(context.Background(), test.ddoc, test.name, test.index)
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.CreateIndex(context.Background(), test.ddoc, test.indexName, test.index)
 			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
@@ -291,6 +291,68 @@ func TestGetIndexes(t *testing.T) {
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
+		})
+	}
+}
+
+func TestDeleteIndex(t *testing.T) {
+	tests := []struct {
+		name            string
+		ddoc, indexName string
+		db              *db
+		status          int
+		err             string
+	}{
+		{
+			name:   "Couch 1.6",
+			db:     &db{client: &client{Compat: CompatCouch16}},
+			status: kivik.StatusNotImplemented,
+			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
+		},
+		{
+			name:   "no ddoc",
+			status: kivik.StatusBadRequest,
+			db:     newTestDB(nil, nil),
+			err:    "kivik: ddoc required",
+		},
+		{
+			name:   "no index name",
+			ddoc:   "foo",
+			status: kivik.StatusBadRequest,
+			db:     newTestDB(nil, nil),
+			err:    "kivik: name required",
+		},
+		{
+			name:      "network error",
+			ddoc:      "foo",
+			indexName: "bar",
+			db:        newTestDB(nil, errors.New("net error")),
+			status:    500,
+			err:       "^(Delete http://example.com/testdb/_index/foo/json/bar: )?net error",
+		},
+		{
+			name:      "2.1.0 success",
+			ddoc:      "_design/a7ee061f1a2c0c6882258b2f1e148b714e79ccea",
+			indexName: "a7ee061f1a2c0c6882258b2f1e148b714e79ccea",
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"X-CouchDB-Body-Time": {"0"},
+					"X-Couch-Request-ID":  {"6018a0a693"},
+					"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":                {"Fri, 27 Oct 2017 19:06:28 GMT"},
+					"Content-Type":        {"application/json"},
+					"Content-Length":      {"11"},
+					"Cache-Control":       {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true}`),
+			}, nil),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.db.DeleteIndex(context.Background(), test.ddoc, test.indexName)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }

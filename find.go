@@ -71,6 +71,15 @@ func (d *db) GetIndexes(ctx context.Context) ([]driver.Index, error) {
 }
 
 func (d *db) DeleteIndex(ctx context.Context, ddoc, name string) error {
+	if d.client.Compat == CompatCouch16 {
+		return findNotImplemented
+	}
+	if ddoc == "" {
+		return missingArg("ddoc")
+	}
+	if name == "" {
+		return missingArg("name")
+	}
 	path := fmt.Sprintf("_index/%s/json/%s", ddoc, name)
 	_, err := d.Client.DoError(ctx, kivik.MethodDelete, d.path(path, nil), nil)
 	return err
