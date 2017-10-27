@@ -6,16 +6,52 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
 	"github.com/go-kivik/kiviktest/kt"
 )
 
 func TestAllDBs(t *testing.T) {
-	client := getClient(t)
-	_, err := client.AllDBs(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("Failed: %s", err)
+	tests := []struct {
+		name     string
+		client   *client
+		expected []string
+		status   int
+		err      string
+	}{
+		{
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: 500,
+			err:    "Get http://example.com/_all_dbs: net error",
+		},
+		{
+			name: "2.0.0",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+					"Date":                {"Fri, 27 Oct 2017 15:15:07 GMT"},
+					"Content-Type":        {"application/json"},
+					"ETag":                {`"33UVNAZU752CYNGBBTMWQFP7U"`},
+					"Transfer-Encoding":   {"chunked"},
+					"X-Couch-Request-ID":  {"ab5cd97c3e"},
+					"X-CouchDB-Body-Time": {"0"},
+				},
+				Body: Body(`["_global_changes","_replicator","_users"]`),
+			}, nil),
+			expected: []string{"_global_changes", "_replicator", "_users"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.AllDBs(context.Background(), nil)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
 	}
 }
 
