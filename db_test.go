@@ -83,6 +83,39 @@ func TestGet(t *testing.T) {
 			}, nil),
 			err: "read error",
 		},
+		{
+			name:    "included attachment",
+			id:      "foo",
+			options: map[string]interface{}{"attachments": true},
+			db: newTestDB(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":           {`"4-7b04d36203016ec724d75f19f77e65f4"`},
+					"Date":           {"Fri, 27 Oct 2017 20:28:46 GMT"},
+					"Content-Type":   {`multipart/related; boundary="f526840f9c6208bdcd2e20a6bddd916f"`},
+					"Content-Length": {"546"},
+				},
+				Body: Body(`--f526840f9c6208bdcd2e20a6bddd916f
+Content-Type: application/json
+
+{"_id":"foo","_rev":"4-7b04d36203016ec724d75f19f77e65f4","foo":"bar","_attachments":{"foo.txt":{"content_type":"text/plain","revpos":4,"digest":"md5-ENGoH7oK8V9R3BMnfDHZmw==","length":13,"follows":true,"encoding":"gzip","encoded_length":33}}}
+--f526840f9c6208bdcd2e20a6bddd916f
+Content-Disposition: attachment; filename="foo.txt"
+Content-Type: text/plain
+Content-Length: 33
+Content-Encoding: gzip
+
+` +
+					"\x8b\x1f\x00\x08\x95\xf2\x59\xf3\x03\x00\x48\xf3\xc9\xcd\xd7\xc9" +
+					"\x08\x51\x2f\xcf\x49\xca\xe4\x51\x00\x02\x9e\x84\xb4\xe8\x00\x0e" +
+					"\x00\x00" +
+					`
+
+--f526840f9c6208bdcd2e20a6bddd916f--`),
+			}, nil),
+			expected: `{"_id":"foo","_rev":"4-7b04d36203016ec724d75f19f77e65f4","foo":"bar","_attachments":{"foo.txt":{"content_type":"text/plain","revpos":4,"digest":"md5-ENGoH7oK8V9R3BMnfDHZmw==","length":13,"follows":true,"encoding":"gzip","encoded_length":33}}}`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
