@@ -1,7 +1,10 @@
 package couchdb
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -103,6 +106,71 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			testy.Error(t, test.err, err)
 			if d := diff.Interface(test.expected, repErr); d != nil {
 				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestReplicate(t *testing.T) {
+	tests := []struct {
+		name           string
+		target, source string
+		options        map[string]interface{}
+		client         *client
+		status         int
+		err            string
+	}{
+		{
+			name:   "no target",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: targetDSN required",
+		},
+		{
+			name:   "no source",
+			target: "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: sourceDSN required",
+		},
+		{
+			name:   "invalid options",
+			target: "foo", source: "bar",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "json: unsupported type: chan int",
+		},
+		{
+			name:   "network error",
+			target: "foo", source: "bar",
+			client: newTestClient(nil, errors.New("net eror")),
+			status: kivik.StatusInternalServerError,
+			err:    "Post http://example.com/_replicator: net eror",
+		},
+		{
+			name:   "1.6.1",
+			target: "foo", source: "bar",
+			client: newCustomClient(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Location":       {"http://localhost:5984/_replicator/4ab99e4d7d4b5a6c5a6df0d0ed01221d"},
+						"ETag":           {`"1-290800e5803500237075f9b08226cffd"`},
+						"Date":           {"Mon, 30 Oct 2017 20:03:34 GMT"},
+						"Content-Type":   {"application/json"},
+						"Content-Length": {"95"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"1-290800e5803500237075f9b08226cffd"}`),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, err := test.client.Replicate(context.Background(), test.target, test.source, test.options)
+			testy.StatusError(t, test.err, test.status, err)
+			if _, ok := resp.(*replication); !ok {
+				t.Errorf("Unexpected response type: %T", resp)
 			}
 		})
 	}

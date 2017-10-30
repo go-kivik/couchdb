@@ -72,5 +72,8 @@ func (c errorReadCloser) Close() error {
 }
 
 func Body(str string) io.ReadCloser {
+	if !strings.HasSuffix(str, "\n") {
+		str = str + "\n"
+	}
 	return ioutil.NopCloser(strings.NewReader(str))
 }

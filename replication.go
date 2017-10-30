@@ -265,16 +265,22 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if options == nil {
 		options = make(map[string]interface{})
 	}
-	// Allow overriding source and target with options, i.e. for OAuth1 options
+	// Allow overriding source and target with options, i.e. for auth options
 	if _, ok := options["source"]; !ok {
 		options["source"] = sourceDSN
 	}
 	if _, ok := options["target"]; !ok {
 		options["target"] = targetDSN
 	}
+	if t, _ := options["target"]; t == "" {
+		return nil, missingArg("targetDSN")
+	}
+	if s, _ := options["source"]; s == "" {
+		return nil, missingArg("sourceDSN")
+	}
 	body := &bytes.Buffer{}
 	if err := json.NewEncoder(body).Encode(options); err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	var repStub struct {
 		ID string `json:"id"`
