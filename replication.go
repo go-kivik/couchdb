@@ -242,10 +242,7 @@ func (c *client) GetReplications(ctx context.Context, options map[string]interfa
 			Doc replicatorDoc `json:"doc"`
 		} `json:"rows"`
 	}
-	path := "/_replicator/_all_docs"
-	if params != nil {
-		path += "?" + params.Encode()
-	}
+	path := "/_replicator/_all_docs?" + params.Encode()
 	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
 		return nil, err
 	}
