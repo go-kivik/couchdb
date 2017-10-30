@@ -13,25 +13,6 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 )
 
-// deJSONify unmarshals a string, []byte, or json.RawMessage. All other types
-// are returned as-is.
-func deJSONify(i interface{}) (interface{}, error) {
-	var data []byte
-	switch t := i.(type) {
-	case string:
-		data = []byte(t)
-	case []byte:
-		data = t
-	case json.RawMessage:
-		data = []byte(t)
-	default:
-		return i, nil
-	}
-	var x interface{}
-	err := json.Unmarshal(data, &x)
-	return x, errors.WrapStatus(kivik.StatusBadRequest, err)
-}
-
 var findNotImplemented = errors.Status(kivik.StatusNotImplemented, "kivik: Find interface not implemented prior to CouchDB 2.0.0")
 
 func (d *db) CreateIndex(ctx context.Context, ddoc, name string, index interface{}) error {
@@ -71,6 +52,15 @@ func (d *db) GetIndexes(ctx context.Context) ([]driver.Index, error) {
 }
 
 func (d *db) DeleteIndex(ctx context.Context, ddoc, name string) error {
+	if d.client.Compat == CompatCouch16 {
+		return findNotImplemented
+	}
+	if ddoc == "" {
+		return missingArg("ddoc")
+	}
+	if name == "" {
+		return missingArg("name")
+	}
 	path := fmt.Sprintf("_index/%s/json/%s", ddoc, name)
 	_, err := d.Client.DoError(ctx, kivik.MethodDelete, d.path(path, nil), nil)
 	return err
@@ -80,7 +70,7 @@ func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	if d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
-	body, err := util.ToJSON(query)
+	body, err := toJSON(query)
 	if err != nil {
 		return nil, err
 	}

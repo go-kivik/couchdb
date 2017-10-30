@@ -30,9 +30,10 @@ func (re *replicationError) StatusCode() int {
 }
 
 func (re *replicationError) UnmarshalJSON(data []byte) error {
-	reason := bytes.Trim(data, `"`)
-	re.reason = string(reason)
-	parts := bytes.SplitN(reason, []byte(":"), 2)
+	if err := json.Unmarshal(data, &re.reason); err != nil {
+		return err
+	}
+	parts := strings.SplitN(re.reason, ":", 2)
 	switch string(parts[0]) {
 	case "db_not_found":
 		re.status = kivik.StatusNotFound
