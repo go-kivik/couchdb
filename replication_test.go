@@ -10,6 +10,7 @@ import (
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/testy"
 )
 
@@ -267,6 +268,74 @@ func TestGetReplications(t *testing.T) {
 					Err:           msg,
 				}
 			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestReplicationUpdate(t *testing.T) {
+	tests := []struct {
+		name     string
+		rep      *replication
+		expected *driver.ReplicationInfo
+		status   int
+		err      string
+	}{
+		{
+			name: "db error",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db:    newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "Get http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d: net error",
+		},
+		{
+			name: "no active reps 1.6.1",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					switch req.URL.Path {
+					case "/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d":
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"ETag":           {`"2-6419706e969050d8000efad07259de4f"`},
+								"Date":           {"Mon, 30 Oct 2017 20:57:15 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"359"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(`{"_id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","_rev":"2-6419706e969050d8000efad07259de4f","source":"foo","target":"bar","owner":"admin","_replication_state":"error","_replication_state_time":"2017-10-30T20:03:34+00:00","_replication_state_reason":"unauthorized: unauthorized to access or create database foo","_replication_id":"548507fbb9fb9fcd8a3b27050b9ba5bf"}`),
+						}, nil
+					case "/_active_tasks":
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"Date":           {"Mon, 30 Oct 2017 21:06:40 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"3"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(`[]`),
+						}, nil
+					default:
+						panic("Unknown req path: " + req.URL.Path)
+					}
+				}),
+			},
+			expected: &driver.ReplicationInfo{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := new(driver.ReplicationInfo)
+			err := test.rep.Update(context.Background(), result)
+			testy.StatusError(t, test.err, test.status, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
