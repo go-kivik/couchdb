@@ -39,6 +39,8 @@ func (re *replicationError) UnmarshalJSON(data []byte) error {
 		re.status = kivik.StatusNotFound
 	case "timeout":
 		re.status = kivik.StatusRequestTimeout
+	case "unauthorized":
+		re.status = kivik.StatusUnauthorized
 	default:
 		re.status = kivik.StatusInternalServerError
 	}

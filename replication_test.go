@@ -98,6 +98,14 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			input: `"\C"`,
 			err:   "invalid character 'C' in string escape code",
 		},
+		{
+			name:  "Unauthorized",
+			input: `"unauthorized: unauthorized to access or create database foo"`,
+			expected: &replicationError{
+				status: kivik.StatusUnauthorized,
+				reason: "unauthorized: unauthorized to access or create database foo",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
