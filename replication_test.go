@@ -342,3 +342,87 @@ func TestReplicationUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestReplicationDelete(t *testing.T) {
+	tests := []struct {
+		name   string
+		rep    *replication
+		status int
+		err    string
+	}{
+		{
+			name: "network error",
+			rep: &replication{
+				docID: "foo",
+				db:    newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "Head http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "delete error",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					if req.Method == "HEAD" {
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"ETag":           {`"2-6419706e969050d8000efad07259de4f"`},
+								"Date":           {"Mon, 30 Oct 2017 21:14:46 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"359"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(""),
+						}, nil
+					}
+					return nil, errors.New("delete error")
+				}),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "^(Delete http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\\?rev=2-6419706e969050d8000efad07259de4f: )?delete error",
+		},
+		{
+			name: "success, 1.6.1",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					if req.Method == "HEAD" {
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"ETag":           {`"2-6419706e969050d8000efad07259de4f"`},
+								"Date":           {"Mon, 30 Oct 2017 21:14:46 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"359"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(""),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Header: http.Header{
+							"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+							"ETag":           {`"3-2ae9fa6e1f8982a08c4a42b3943e67c5"`},
+							"Date":           {"Mon, 30 Oct 2017 21:29:43 GMT"},
+							"Content-Type":   {"application/json"},
+							"Content-Length": {"95"},
+							"Cache-Control":  {"must-revalidate"},
+						},
+						Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"3-2ae9fa6e1f8982a08c4a42b3943e67c5"}`),
+					}, nil
+				}),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.rep.Delete(context.Background())
+			testy.StatusErrorRE(t, test.err, test.status, err)
+		})
+	}
+}
