@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"testing"
+	"time"
 
 	"github.com/go-kivik/couchdb/chttp"
 )
@@ -72,5 +74,16 @@ func (c errorReadCloser) Close() error {
 }
 
 func Body(str string) io.ReadCloser {
+	if !strings.HasSuffix(str, "\n") {
+		str = str + "\n"
+	}
 	return ioutil.NopCloser(strings.NewReader(str))
+}
+
+func parseTime(t *testing.T, str string) time.Time {
+	ts, err := time.Parse(time.RFC3339, str)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ts
 }

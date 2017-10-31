@@ -1,12 +1,16 @@
 package couchdb
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/testy"
 )
 
@@ -95,6 +99,14 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			input: `"\C"`,
 			err:   "invalid character 'C' in string escape code",
 		},
+		{
+			name:  "Unauthorized",
+			input: `"unauthorized: unauthorized to access or create database foo"`,
+			expected: &replicationError{
+				status: kivik.StatusUnauthorized,
+				reason: "unauthorized: unauthorized to access or create database foo",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -104,6 +116,313 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			if d := diff.Interface(test.expected, repErr); d != nil {
 				t.Error(d)
 			}
+		})
+	}
+}
+
+func TestReplicate(t *testing.T) {
+	tests := []struct {
+		name           string
+		target, source string
+		options        map[string]interface{}
+		client         *client
+		status         int
+		err            string
+	}{
+		{
+			name:   "no target",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: targetDSN required",
+		},
+		{
+			name:   "no source",
+			target: "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: sourceDSN required",
+		},
+		{
+			name:   "invalid options",
+			target: "foo", source: "bar",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "json: unsupported type: chan int",
+		},
+		{
+			name:   "network error",
+			target: "foo", source: "bar",
+			client: newTestClient(nil, errors.New("net eror")),
+			status: kivik.StatusInternalServerError,
+			err:    "Post http://example.com/_replicator: net eror",
+		},
+		{
+			name:   "1.6.1",
+			target: "foo", source: "bar",
+			client: newCustomClient(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: 201,
+					Header: http.Header{
+						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+						"Location":       {"http://localhost:5984/_replicator/4ab99e4d7d4b5a6c5a6df0d0ed01221d"},
+						"ETag":           {`"1-290800e5803500237075f9b08226cffd"`},
+						"Date":           {"Mon, 30 Oct 2017 20:03:34 GMT"},
+						"Content-Type":   {"application/json"},
+						"Content-Length": {"95"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"1-290800e5803500237075f9b08226cffd"}`),
+				}, nil
+			}),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, err := test.client.Replicate(context.Background(), test.target, test.source, test.options)
+			testy.StatusError(t, test.err, test.status, err)
+			if _, ok := resp.(*replication); !ok {
+				t.Errorf("Unexpected response type: %T", resp)
+			}
+		})
+	}
+}
+
+type replicationRow struct {
+	ReplicationID string
+	Source        string
+	Target        string
+	StartTime     time.Time
+	EndTime       time.Time
+	State         string
+	Status        int
+	Err           string
+}
+
+func TestGetReplications(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  map[string]interface{}
+		client   *client
+		expected []replicationRow
+		status   int
+		err      string
+	}{
+		{
+			name:    "invalid options",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusInternalServerError,
+			err:    "Get http://example.com/_replicator/_all_docs?include_docs=true: net error",
+		},
+		{
+			name: "success, 1.6.1",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Transfer-Encoding": {"chunked"},
+					"Server":            {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"ETag":              {`"97AGDUD7SV24L2PLSG3XG4MOY"`},
+					"Date":              {"Mon, 30 Oct 2017 20:31:31 GMT"},
+					"Content-Type":      {"application/json"},
+					"Cache-Control":     {"must-revalidate"},
+				},
+				Body: Body(`{"total_rows":2,"offset":0,"rows":[
+				{"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","key":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","value":{"rev":"2-6419706e969050d8000efad07259de4f"},"doc":{"_id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","_rev":"2-6419706e969050d8000efad07259de4f","source":"foo","target":"bar","owner":"admin","_replication_state":"error","_replication_state_time":"2017-10-30T20:03:34+00:00","_replication_state_reason":"unauthorized: unauthorized to access or create database foo","_replication_id":"548507fbb9fb9fcd8a3b27050b9ba5bf"}},
+				{"id":"_design/_replicator","key":"_design/_replicator","value":{"rev":"1-5bfa2c99eefe2b2eb4962db50aa3cfd4"},"doc":{"_id":"_design/_replicator","_rev":"1-5bfa2c99eefe2b2eb4962db50aa3cfd4","language":"javascript","validate_doc_update":"..."}}
+				]}`),
+			}, nil),
+			expected: []replicationRow{
+				{
+					ReplicationID: "548507fbb9fb9fcd8a3b27050b9ba5bf",
+					Source:        "foo",
+					Target:        "bar",
+					State:         "error",
+					Status:        kivik.StatusUnauthorized,
+					EndTime:       parseTime(t, "2017-10-30T20:03:34+00:00"),
+					Err:           "unauthorized: unauthorized to access or create database foo",
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reps, err := test.client.GetReplications(context.Background(), test.options)
+			testy.StatusError(t, test.err, test.status, err)
+			result := make([]replicationRow, len(reps))
+			for i, rep := range reps {
+				var msg string
+				if e := rep.Err(); e != nil {
+					msg = e.Error()
+				}
+				result[i] = replicationRow{
+					ReplicationID: rep.ReplicationID(),
+					Source:        rep.Source(),
+					Target:        rep.Target(),
+					StartTime:     rep.StartTime(),
+					EndTime:       rep.EndTime(),
+					State:         rep.State(),
+					Status:        kivik.StatusCode(rep.Err()),
+					Err:           msg,
+				}
+			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestReplicationUpdate(t *testing.T) {
+	tests := []struct {
+		name     string
+		rep      *replication
+		expected *driver.ReplicationInfo
+		status   int
+		err      string
+	}{
+		{
+			name: "db error",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db:    newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "Get http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d: net error",
+		},
+		{
+			name: "no active reps 1.6.1",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					switch req.URL.Path {
+					case "/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d":
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"ETag":           {`"2-6419706e969050d8000efad07259de4f"`},
+								"Date":           {"Mon, 30 Oct 2017 20:57:15 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"359"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(`{"_id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","_rev":"2-6419706e969050d8000efad07259de4f","source":"foo","target":"bar","owner":"admin","_replication_state":"error","_replication_state_time":"2017-10-30T20:03:34+00:00","_replication_state_reason":"unauthorized: unauthorized to access or create database foo","_replication_id":"548507fbb9fb9fcd8a3b27050b9ba5bf"}`),
+						}, nil
+					case "/_active_tasks":
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"Date":           {"Mon, 30 Oct 2017 21:06:40 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"3"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(`[]`),
+						}, nil
+					default:
+						panic("Unknown req path: " + req.URL.Path)
+					}
+				}),
+			},
+			expected: &driver.ReplicationInfo{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := new(driver.ReplicationInfo)
+			err := test.rep.Update(context.Background(), result)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestReplicationDelete(t *testing.T) {
+	tests := []struct {
+		name   string
+		rep    *replication
+		status int
+		err    string
+	}{
+		{
+			name: "network error",
+			rep: &replication{
+				docID: "foo",
+				db:    newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "Head http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "delete error",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					if req.Method == "HEAD" {
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"ETag":           {`"2-6419706e969050d8000efad07259de4f"`},
+								"Date":           {"Mon, 30 Oct 2017 21:14:46 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"359"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(""),
+						}, nil
+					}
+					return nil, errors.New("delete error")
+				}),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "^(Delete http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\\?rev=2-6419706e969050d8000efad07259de4f: )?delete error",
+		},
+		{
+			name: "success, 1.6.1",
+			rep: &replication{
+				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					if req.Method == "HEAD" {
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+								"ETag":           {`"2-6419706e969050d8000efad07259de4f"`},
+								"Date":           {"Mon, 30 Oct 2017 21:14:46 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"359"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(""),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Header: http.Header{
+							"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+							"ETag":           {`"3-2ae9fa6e1f8982a08c4a42b3943e67c5"`},
+							"Date":           {"Mon, 30 Oct 2017 21:29:43 GMT"},
+							"Content-Type":   {"application/json"},
+							"Content-Length": {"95"},
+							"Cache-Control":  {"must-revalidate"},
+						},
+						Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"3-2ae9fa6e1f8982a08c4a42b3943e67c5"}`),
+					}, nil
+				}),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.rep.Delete(context.Background())
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
