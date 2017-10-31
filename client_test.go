@@ -23,7 +23,7 @@ func TestAllDBs(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/_all_dbs: net error",
 		},
 		{
@@ -73,7 +73,7 @@ func TestDBExists(t *testing.T) {
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Head http://example.com/foo: net error",
 		},
 		{
@@ -137,7 +137,7 @@ func TestCreateDB(t *testing.T) {
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/foo: net error",
 		},
 		{
@@ -184,7 +184,7 @@ func TestDestroyDB(t *testing.T) {
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "(Delete http://example.com/foo: )?net error",
 		},
 		{
@@ -221,7 +221,7 @@ func TestDBUpdates(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/_db_updates?feed=continuous&since=now: net error",
 		},
 		{

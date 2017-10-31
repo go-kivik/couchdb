@@ -45,7 +45,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		Reason string `json:"reason"`
 	}
 	if err := r.dec.Decode(&updateResult); err != nil {
-		return err
+		return errors.WrapStatus(kivik.StatusBadResponse, err)
 	}
 	update.ID = updateResult.ID
 	update.Rev = updateResult.Rev

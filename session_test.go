@@ -12,6 +12,7 @@ import (
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/testy"
 )
 
 func TestSession(t *testing.T) {
@@ -21,6 +22,7 @@ func TestSession(t *testing.T) {
 		body      string
 		expected  interface{}
 		errStatus int
+		err       string
 	}{
 		{
 			name:   "valid",
@@ -37,7 +39,8 @@ func TestSession(t *testing.T) {
 		{
 			name:      "invalid response",
 			body:      `{"userCtx":"asdf"}`,
-			errStatus: kivik.StatusInternalServerError,
+			errStatus: kivik.StatusBadResponse,
+			err:       "json: cannot unmarshal string into Go ",
 		},
 	}
 	for _, test := range tests {
@@ -52,12 +55,7 @@ func TestSession(t *testing.T) {
 				t.Fatal(err)
 			}
 			session, err := client.Session(context.Background())
-			if status := kivik.StatusCode(err); status != test.errStatus {
-				t.Errorf("Unexpected error: %s", err)
-			}
-			if err != nil {
-				return
-			}
+			testy.StatusErrorRE(t, test.err, test.errStatus, err)
 			if d := diff.Interface(test.expected, session); d != nil {
 				t.Error(d)
 			}

@@ -101,7 +101,7 @@ func TestToJSON(t *testing.T) {
 			r, err := toJSON(test.Input)
 			testy.StatusError(t, test.err, test.status, err)
 			buf := &bytes.Buffer{}
-			buf.ReadFrom(r)
+			_, _ = buf.ReadFrom(r)
 			result := strings.TrimSpace(buf.String())
 			if result != test.Expected {
 				t.Errorf("Expected: `%s`\n  Actual: `%s`", test.Expected, result)

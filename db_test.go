@@ -38,23 +38,27 @@ func TestGet(t *testing.T) {
 		id       string
 		options  map[string]interface{}
 		expected string
+		status   int
 		err      string
 	}{
 		{
-			name: "missing doc ID",
-			err:  "kivik: docID required",
+			name:   "missing doc ID",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: docID required",
 		},
 		{
 			name:    "invalid options",
 			id:      "foo",
 			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
-			name: "network failure",
-			id:   "foo",
-			db:   newTestDB(nil, errors.New("net error")),
-			err:  "Get http://example.com/testdb/foo: net error",
+			name:   "network failure",
+			id:     "foo",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/testdb/foo: net error",
 		},
 		{
 			name: "error response",
@@ -63,7 +67,8 @@ func TestGet(t *testing.T) {
 				StatusCode: kivik.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			err: "Bad Request",
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
 		},
 		{
 			name: "status OK",
@@ -81,13 +86,14 @@ func TestGet(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       errorReadCloser{errors.New("read error")},
 			}, nil),
-			err: "read error",
+			status: kivik.StatusUnknownError,
+			err:    "read error",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Get(context.Background(), test.id, test.options)
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 			if string(result) != test.expected {
 				t.Errorf("Unexpected result: %s", string(result))
 			}
@@ -97,21 +103,25 @@ func TestGet(t *testing.T) {
 
 func TestCreateDoc(t *testing.T) {
 	tests := []struct {
-		name         string
-		db           *db
-		doc          interface{}
-		id, rev, err string
+		name    string
+		db      *db
+		doc     interface{}
+		id, rev string
+		status  int
+		err     string
 	}{
 		{
-			name: "network error",
-			db:   newTestDB(nil, errors.New("foo error")),
-			err:  "Post http://example.com/testdb: foo error",
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("foo error")),
+			status: kivik.StatusNetworkError,
+			err:    "Post http://example.com/testdb: foo error",
 		},
 		{
-			name: "invalid doc",
-			doc:  make(chan int),
-			db:   newTestDB(nil, errors.New("")),
-			err:  "json: unsupported type: chan int",
+			name:   "invalid doc",
+			doc:    make(chan int),
+			db:     newTestDB(nil, errors.New("")),
+			status: kivik.StatusBadRequest,
+			err:    "json: unsupported type: chan int",
 		},
 		{
 			name: "error response",
@@ -120,7 +130,8 @@ func TestCreateDoc(t *testing.T) {
 				StatusCode: kivik.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			err: "Bad Request",
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
 		},
 		{
 			name: "invalid JSON response",
@@ -129,7 +140,8 @@ func TestCreateDoc(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
-			err: "invalid character 'i' looking for beginning of value",
+			status: kivik.StatusBadResponse,
+			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "success, 1.6.1",
@@ -155,7 +167,7 @@ func TestCreateDoc(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			id, rev, err := test.db.CreateDoc(context.Background(), test.doc)
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
 			}
@@ -168,12 +180,14 @@ func TestStats(t *testing.T) {
 		name     string
 		db       *db
 		expected *driver.DBStats
+		status   int
 		err      string
 	}{
 		{
-			name: "network error",
-			db:   newTestDB(nil, errors.New("net error")),
-			err:  "Get http://example.com/testdb: net error",
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/testdb: net error",
 		},
 		{
 			name: "1.6.1",
@@ -226,7 +240,7 @@ func TestStats(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Stats(context.Background())
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -289,14 +303,16 @@ func TestOptionsToParams(t *testing.T) {
 
 func TestCompact(t *testing.T) {
 	tests := []struct {
-		name string
-		db   *db
-		err  string
+		name   string
+		db     *db
+		status int
+		err    string
 	}{
 		{
-			name: "net error",
-			db:   newTestDB(nil, errors.New("net error")),
-			err:  "Post http://example.com/testdb/_compact: net error",
+			name:   "net error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Post http://example.com/testdb/_compact: net error",
 		},
 		{
 			name: "1.6.1",
@@ -321,7 +337,7 @@ func TestCompact(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.Compact(context.Background())
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
 }
@@ -340,10 +356,10 @@ func TestCompactView(t *testing.T) {
 			err:    "kivik: ddocID required",
 		},
 		{
-			name:   "net error",
+			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			id:     "foo",
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/testdb/_compact/foo: net error",
 		},
 		{
@@ -377,14 +393,16 @@ func TestCompactView(t *testing.T) {
 
 func TestViewCleanup(t *testing.T) {
 	tests := []struct {
-		name string
-		db   *db
-		err  string
+		name   string
+		db     *db
+		status int
+		err    string
 	}{
 		{
-			name: "net error",
-			db:   newTestDB(nil, errors.New("net error")),
-			err:  "Post http://example.com/testdb/_view_cleanup: net error",
+			name:   "net error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Post http://example.com/testdb/_view_cleanup: net error",
 		},
 		{
 			name: "1.6.1",
@@ -409,19 +427,20 @@ func TestViewCleanup(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.ViewCleanup(context.Background())
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
 }
 
 func TestPut(t *testing.T) {
 	tests := []struct {
-		name     string
-		db       *db
-		id       string
-		doc      interface{}
-		status   int
-		rev, err string
+		name   string
+		db     *db
+		id     string
+		doc    interface{}
+		rev    string
+		status int
+		err    string
 	}{
 		{
 			name:   "missing docID",
@@ -432,11 +451,11 @@ func TestPut(t *testing.T) {
 			name:   "network error",
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/testdb/foo: net error",
 		},
 		{
-			name: "bad request",
+			name: "error response",
 			id:   "foo",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusBadRequest,
@@ -452,7 +471,7 @@ func TestPut(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusBadResponse,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
@@ -493,7 +512,7 @@ func TestPut(t *testing.T) {
 				StatusCode: kivik.StatusCreated,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"unexpected","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
 			}, nil),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusBadResponse,
 			err:    "modified document ID (unexpected) does not match that requested (foo)",
 		},
 	}
@@ -526,7 +545,7 @@ func TestDelete(t *testing.T) {
 			name:   "network error",
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "(Delete http://example.com/testdb/foo?rev=: )?net error",
 		},
 		{
@@ -578,14 +597,16 @@ func TestDelete(t *testing.T) {
 
 func TestFlush(t *testing.T) {
 	tests := []struct {
-		name string
-		db   *db
-		err  string
+		name   string
+		db     *db
+		status int
+		err    string
 	}{
 		{
-			name: "net error",
-			db:   newTestDB(nil, errors.New("net error")),
-			err:  "Post http://example.com/testdb/_ensure_full_commit: net error",
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Post http://example.com/testdb/_ensure_full_commit: net error",
 		},
 		{
 			name: "1.6.1",
@@ -631,7 +652,7 @@ func TestFlush(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.Flush(context.Background())
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
 }
@@ -651,19 +672,22 @@ func TestRowsQuery(t *testing.T) {
 		path     string
 		options  map[string]interface{}
 		expected queryResult
+		status   int
 		err      string
 	}{
 		{
 			name:    "invalid options",
 			path:    "_all_docs",
 			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
-			name: "network error",
-			path: "_all_docs",
-			db:   newTestDB(nil, errors.New("go away")),
-			err:  "Get http://example.com/testdb/_all_docs: go away",
+			name:   "network error",
+			path:   "_all_docs",
+			db:     newTestDB(nil, errors.New("go away")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/testdb/_all_docs: go away",
 		},
 		{
 			name: "error response",
@@ -672,7 +696,8 @@ func TestRowsQuery(t *testing.T) {
 				StatusCode: kivik.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			err: "Bad Request",
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
 		},
 		{
 			name: "all docs default 1.6.1",
@@ -781,7 +806,7 @@ func TestRowsQuery(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			rows, err := test.db.rowsQuery(context.Background(), test.path, test.options)
-			testy.Error(t, test.err, err)
+			testy.StatusError(t, test.err, test.status, err)
 			result := queryResult{
 				Rows: []driver.Row{},
 			}
@@ -822,7 +847,7 @@ func TestSecurity(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/testdb/_security: net error",
 		},
 		{
@@ -880,9 +905,9 @@ func TestSetSecurity(t *testing.T) {
 		err      string
 	}{
 		{
-			name:   "net error",
+			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/testdb/_security: net error",
 		},
 		{
@@ -952,10 +977,10 @@ func TestRev(t *testing.T) {
 			err:    "kivik: docID required",
 		},
 		{
-			name:   "net error",
+			name:   "network error",
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Head http://example.com/testdb/foo: net error",
 		},
 		{
@@ -1012,11 +1037,11 @@ func TestCopy(t *testing.T) {
 			err:    "kivik: targetID required",
 		},
 		{
-			name:   "net error",
+			name:   "network error",
 			source: "foo",
 			target: "bar",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "(Copy http://example.com/testdb/foo: )?net error",
 		},
 		{

@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -85,7 +84,7 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 func decodeAttachment(resp *http.Response) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
 	var ok bool
 	if cType, ok = getContentType(resp); !ok {
-		return "", driver.MD5sum{}, nil, errors.New("no Content-Type in response")
+		return "", driver.MD5sum{}, nil, errors.Status(kivik.StatusBadResponse, "no Content-Type in response")
 	}
 
 	md5sum, err = getMD5Checksum(resp)
@@ -105,11 +104,11 @@ func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
 		etag, ok = resp.Header["ETag"]
 	}
 	if !ok {
-		return driver.MD5sum{}, errors.New("ETag header not found")
+		return driver.MD5sum{}, errors.Status(kivik.StatusBadResponse, "ETag header not found")
 	}
 	hash, err := base64.StdEncoding.DecodeString(strings.Trim(etag[0], `"`))
 	if err != nil {
-		err = fmt.Errorf("failed to decode MD5 checksum: %s", err)
+		err = errors.Statusf(kivik.StatusBadResponse, "failed to decode MD5 checksum: %s", err)
 	}
 	copy(md5sum[:], hash)
 	return md5sum, err

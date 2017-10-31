@@ -2,11 +2,11 @@ package couchdb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 	"github.com/go-kivik/couchdb/chttp"
 )
@@ -50,7 +50,7 @@ func TestAuthenticate(t *testing.T) {
 		{
 			name:          "invalid authenticator",
 			authenticator: 1,
-			status:        kivik.StatusInternalServerError,
+			status:        kivik.StatusUnknownError,
 			err:           "kivik: invalid authenticator",
 		},
 		{
@@ -61,8 +61,8 @@ func TestAuthenticate(t *testing.T) {
 		{
 			name:          "auth failure",
 			client:        &client{Client: &chttp.Client{}},
-			authenticator: &mockAuther{authErr: errors.New("auth failed")},
-			status:        kivik.StatusInternalServerError,
+			authenticator: &mockAuther{authErr: errors.Status(kivik.StatusUnauthorized, "auth failed")},
+			status:        kivik.StatusUnauthorized,
 			err:           "auth failed",
 		},
 	}

@@ -38,7 +38,7 @@ func TestStateTime(t *testing.T) {
 			Expected: "2017-04-18 19:32:39 +0000",
 		},
 		{
-			Name:     "InvalidInput",
+			Name:     "invalid timestamp",
 			Input:    `"foo"`,
 			Error:    `kivik: '"foo"' does not appear to be a valid timestamp`,
 			Expected: "0001-01-01 00:00:00 +0000",
@@ -48,13 +48,8 @@ func TestStateTime(t *testing.T) {
 		func(test stTest) {
 			t.Run(test.Name, func(t *testing.T) {
 				var result replicationStateTime
-				var errMsg string
-				if err := json.Unmarshal([]byte(test.Input), &result); err != nil {
-					errMsg = err.Error()
-				}
-				if errMsg != test.Error {
-					t.Errorf("Error\nExpected: %s\n  Actual: %s\n", test.Error, errMsg)
-				}
+				err := json.Unmarshal([]byte(test.Input), &result)
+				testy.Error(t, test.Error, err)
 				if r := time.Time(result).Format("2006-01-02 15:04:05 -0700"); r != test.Expected {
 					t.Errorf("Result\nExpected: %s\n  Actual: %s\n", test.Expected, r)
 				}
@@ -151,7 +146,7 @@ func TestReplicate(t *testing.T) {
 			name:   "network error",
 			target: "foo", source: "bar",
 			client: newTestClient(nil, errors.New("net eror")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/_replicator: net eror",
 		},
 		{
@@ -214,7 +209,7 @@ func TestGetReplications(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/_replicator/_all_docs?include_docs=true: net error",
 		},
 		{
@@ -284,12 +279,12 @@ func TestReplicationUpdate(t *testing.T) {
 		err      string
 	}{
 		{
-			name: "db error",
+			name: "network error",
 			rep: &replication{
 				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d: net error",
 		},
 		{
@@ -356,11 +351,11 @@ func TestReplicationDelete(t *testing.T) {
 				docID: "foo",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Head http://example.com/testdb/foo: net error",
 		},
 		{
-			name: "delete error",
+			name: "delete network error",
 			rep: &replication{
 				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
 				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
@@ -381,7 +376,7 @@ func TestReplicationDelete(t *testing.T) {
 					return nil, errors.New("delete error")
 				}),
 			},
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "^(Delete http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\\?rev=2-6419706e969050d8000efad07259de4f: )?delete error",
 		},
 		{
