@@ -4,16 +4,104 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 
+	"golang.org/x/net/publicsuffix"
+
 	"github.com/flimzy/diff"
+	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
 )
+
+func TestNew(t *testing.T) {
+	type newTest struct {
+		name     string
+		dsn      string
+		expected *Client
+		status   int
+		err      string
+	}
+	tests := []newTest{
+		{
+			name:   "invalid url",
+			dsn:    "http://foo.com/%xx",
+			status: kivik.StatusBadRequest,
+			err:    `parse http://foo.com/%xx: invalid URL escape "%xx"`,
+		},
+		{
+			name: "no auth",
+			dsn:  "http://foo.com/",
+			expected: &Client{
+				Client: &http.Client{},
+				rawDSN: "http://foo.com/",
+				dsn: &url.URL{
+					Scheme: "http",
+					Host:   "foo.com",
+					Path:   "/",
+				},
+			},
+		},
+		func() newTest {
+			h := func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(kivik.StatusUnauthorized)
+			}
+			s := httptest.NewServer(http.HandlerFunc(h))
+			dsn, _ := url.Parse(s.URL)
+			dsn.User = url.UserPassword("user", "password")
+			return newTest{
+				name:   "auth failed",
+				dsn:    dsn.String(),
+				status: kivik.StatusUnauthorized,
+				err:    "Unauthorized",
+			}
+		}(),
+		func() newTest {
+			h := func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(kivik.StatusOK)
+				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`)
+			}
+			s := httptest.NewServer(http.HandlerFunc(h))
+			authDSN, _ := url.Parse(s.URL)
+			dsn, _ := url.Parse(s.URL)
+			authDSN.User = url.UserPassword("user", "password")
+			jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+			return newTest{
+				name: "auth success",
+				dsn:  authDSN.String(),
+				expected: &Client{
+					Client: &http.Client{Jar: jar},
+					rawDSN: authDSN.String(),
+					dsn:    dsn,
+					auth: &CookieAuth{
+						Username: "user",
+						Password: "password",
+						dsn:      dsn,
+						setJar:   true,
+						jar:      jar,
+					},
+				},
+			}
+		}(),
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := New(context.Background(), test.dsn)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
 
 func dsn(t *testing.T) string {
 	for _, env := range []string{"KIVIK_TEST_DSN_COUCH16", "KIVIK_TEST_DSN_COUCH20", "KIVIK_TEST_DSN_CLOUDANT"} {
