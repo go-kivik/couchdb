@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 
-	"github.com/flimzy/kivik"
-
 	"golang.org/x/net/publicsuffix"
+
+	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 )
 
 // Authenticator is an interface that provides authentication to a server.
@@ -55,7 +55,7 @@ func (a *BasicAuth) Authenticate(ctx context.Context, c *Client) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	if err = ResponseError(res); err != nil {
 		return err
 	}
@@ -65,10 +65,10 @@ func (a *BasicAuth) Authenticate(ctx context.Context, c *Client) error {
 		} `json:"userCtx"`
 	}{}
 	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return err
+		return errors.WrapStatus(kivik.StatusBadResponse, err)
 	}
 	if result.Ctx.Name != a.Username {
-		return errors.New("authentication failed")
+		return errors.Status(kivik.StatusBadResponse, "authentication failed")
 	}
 	// Everything looks good, lets make this official
 	a.transport = c.Transport
