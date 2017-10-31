@@ -40,7 +40,7 @@ func TestSession(t *testing.T) {
 			name:      "invalid response",
 			body:      `{"userCtx":"asdf"}`,
 			errStatus: kivik.StatusBadResponse,
-			err:       "json: cannot unmarshal string into Go struct field alias.userCtx of type couchdb.userContext",
+			err:       "json: cannot unmarshal string into Go ",
 		},
 	}
 	for _, test := range tests {
@@ -55,7 +55,7 @@ func TestSession(t *testing.T) {
 				t.Fatal(err)
 			}
 			session, err := client.Session(context.Background())
-			testy.StatusError(t, test.err, test.errStatus, err)
+			testy.StatusErrorRE(t, test.err, test.errStatus, err)
 			if d := diff.Interface(test.expected, session); d != nil {
 				t.Error(d)
 			}
