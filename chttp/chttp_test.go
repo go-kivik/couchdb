@@ -103,6 +103,15 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestDSN(t *testing.T) {
+	expected := "foo"
+	client := &Client{rawDSN: expected}
+	result := client.DSN()
+	if result != expected {
+		t.Errorf("Unexpected result: %s", result)
+	}
+}
+
 func dsn(t *testing.T) string {
 	for _, env := range []string{"KIVIK_TEST_DSN_COUCH16", "KIVIK_TEST_DSN_COUCH20", "KIVIK_TEST_DSN_CLOUDANT"} {
 		dsn := os.Getenv(env)
