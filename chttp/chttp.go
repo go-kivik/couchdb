@@ -127,7 +127,7 @@ type Response struct {
 // DecodeJSON unmarshals the response body into i. This method consumes and
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
-	defer r.Body.Close()
+	defer r.Body.Close() // nolint: errcheck
 	return json.NewDecoder(r.Body).Decode(i)
 }
 
@@ -202,7 +202,7 @@ func EncodeBody(i interface{}, cancel context.CancelFunc) (r io.Reader, errFunc 
 			errChan <- errors.WrapStatus(kivik.StatusBadRequest, err)
 		}
 		close(errChan)
-		w.Close()
+		_ = w.Close()
 	}()
 	return r, func() error {
 		return <-errChan

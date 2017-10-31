@@ -55,7 +55,7 @@ func (a *BasicAuth) Authenticate(ctx context.Context, c *Client) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	if err = ResponseError(res); err != nil {
 		return err
 	}
