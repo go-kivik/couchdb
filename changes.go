@@ -7,6 +7,7 @@ import (
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
 )
 
@@ -56,5 +57,5 @@ func (r *changesRows) Next(row *driver.Change) error {
 		return io.EOF
 	}
 
-	return r.dec.Decode(row)
+	return errors.WrapStatus(kivik.StatusBadResponse, r.dec.Decode(row))
 }

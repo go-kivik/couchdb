@@ -128,7 +128,7 @@ type Response struct {
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
 	defer r.Body.Close() // nolint: errcheck
-	return json.NewDecoder(r.Body).Decode(i)
+	return errors.WrapStatus(kivik.StatusBadResponse, json.NewDecoder(r.Body).Decode(i))
 }
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
@@ -179,7 +179,8 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	fixPath(req, path)
 	setHeaders(req, opts)
 
-	return c.Do(req)
+	response, err := c.Do(req)
+	return response, errors.WrapStatus(kivik.StatusNetworkError, err)
 }
 
 // fixPath sets the request's URL.RawPath to work with escaped characters in

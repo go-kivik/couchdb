@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -61,7 +60,7 @@ func (t *replicationStateTime) UnmarshalJSON(data []byte) error {
 		*t = epochTime
 		return nil
 	}
-	return fmt.Errorf("kivik: '%s' does not appear to be a valid timestamp", string(data))
+	return errors.Errorf("kivik: '%s' does not appear to be a valid timestamp", string(data))
 }
 
 type replication struct {

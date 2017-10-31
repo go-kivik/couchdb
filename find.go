@@ -117,7 +117,7 @@ func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan,
 	}
 	body, err := util.ToJSON(query)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	var plan queryPlan
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_explain", nil), &chttp.Options{Body: body}, &plan)

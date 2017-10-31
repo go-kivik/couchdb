@@ -36,17 +36,17 @@ func TestExplain(t *testing.T) {
 			name:   "invalid query",
 			db:     &db{client: &client{}},
 			query:  make(chan int),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusBadRequest,
 			err:    "json: unsupported type: chan int",
 		},
 		{
-			name:   "transport error",
-			db:     newTestDB(nil, errors.New("xport error")),
-			status: kivik.StatusInternalServerError,
-			err:    "Post http://example.com/testdb/_explain: xport error",
+			name:   "network error",
+			db:     newTestDB(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Post http://example.com/testdb/_explain: net error",
 		},
 		{
-			name: "db error",
+			name: "error response",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusNotFound,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
@@ -153,7 +153,7 @@ func TestCreateIndex(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/testdb/_index: net error",
 		},
 		{
@@ -198,7 +198,7 @@ func TestGetIndexes(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/testdb/_index: net error",
 		},
 		{
@@ -281,7 +281,7 @@ func TestDeleteIndex(t *testing.T) {
 			ddoc:      "foo",
 			indexName: "bar",
 			db:        newTestDB(nil, errors.New("net error")),
-			status:    500,
+			status:    kivik.StatusNetworkError,
 			err:       "^(Delete http://example.com/testdb/_index/foo/json/bar: )?net error",
 		},
 		{
@@ -335,7 +335,7 @@ func TestFind(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/testdb/_find: net error",
 		},
 		{

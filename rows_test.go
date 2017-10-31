@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/testy"
 )
 
 var input = `
@@ -73,27 +75,59 @@ func TestRowsIterator(t *testing.T) {
 
 func TestRowsIteratorErrors(t *testing.T) {
 	tests := []struct {
-		Input string
-		Error string
+		name   string
+		input  string
+		status int
+		err    string
 	}{
-		{Input: "", Error: "no closing delimiter: EOF"},
-		{Input: "[]", Error: "Unexpected JSON delimiter: ["},
-		{Input: `"foo"`, Error: "Unexpected token string: foo"},
-		{Input: `{"rows":[{"id":"1","key":"1","value":1}`, Error: "no closing delimiter: EOF"},
-		{Input: `{"foo":"bar"}`, Error: "Unexpected key: foo"},
-		{Input: `{"rows":[{"id":"1","key":"1","value":1}],"foo":"bar"}`, Error: "Unexpected key: foo"},
+		{
+			name:   "empty input",
+			input:  "",
+			status: kivik.StatusBadResponse,
+			err:    "no closing delimiter: EOF",
+		},
+		{
+			name:   "unexpected delimiter",
+			input:  "[]",
+			status: kivik.StatusBadResponse,
+			err:    "Unexpected JSON delimiter: [",
+		},
+		{
+			name:   "unexpected input",
+			input:  `"foo"`,
+			status: kivik.StatusBadResponse,
+			err:    "Unexpected token string: foo",
+		},
+		{
+			name:   "missing closing delimiter",
+			input:  `{"rows":[{"id":"1","key":"1","value":1}`,
+			status: kivik.StatusBadResponse,
+			err:    "no closing delimiter: EOF",
+		},
+		{
+			name:   "unexpected key",
+			input:  `{"foo":"bar"}`,
+			status: kivik.StatusBadResponse,
+			err:    "Unexpected key: foo",
+		},
+		{
+			name:   "unexpected key after valid row",
+			input:  `{"rows":[{"id":"1","key":"1","value":1}],"foo":"bar"}`,
+			status: kivik.StatusBadResponse,
+			err:    "Unexpected key: foo",
+		},
 	}
 	for _, test := range tests {
-		rows := newRows(ioutil.NopCloser(strings.NewReader(test.Input)))
-		for i := 0; i < 10; i++ {
-			err := rows.Next(&driver.Row{})
-			if err != nil {
-				if err.Error() != test.Error {
-					t.Errorf("Input: %s\n\tExpected Error: %s\n\t  Actual Error: %s\n", test.Input, test.Error, err)
+		t.Run(test.name, func(t *testing.T) {
+			rows := newRows(ioutil.NopCloser(strings.NewReader(test.input)))
+			for i := 0; i < 10; i++ {
+				err := rows.Next(&driver.Row{})
+				if err == nil {
+					continue
 				}
-				break
+				testy.StatusError(t, test.err, test.status, err)
 			}
-		}
+		})
 	}
 }
 

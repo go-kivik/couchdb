@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
-	"github.com/pkg/errors"
+	"github.com/flimzy/kivik/errors"
 )
 
 type rows struct {
@@ -63,7 +64,7 @@ func (r *rows) Next(row *driver.Row) error {
 			return err
 		}
 		if err := r.begin(); err != nil {
-			return err
+			return errors.WrapStatus(kivik.StatusBadResponse, err)
 		}
 	}
 
@@ -137,7 +138,7 @@ func (r *rows) parseMeta(key string) error {
 	case "warning":
 		return r.dec.Decode(&r.warning)
 	}
-	return fmt.Errorf("Unexpected key: %s", key)
+	return errors.Statusf(kivik.StatusBadResponse, "Unexpected key: %s", key)
 }
 
 func (r *rows) readUpdateSeq() error {
@@ -167,14 +168,14 @@ func (r *rows) nextRow(row *driver.Row) error {
 func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 	t, err := dec.Token()
 	if err != nil {
-		return errors.Wrap(err, "no closing delimiter")
+		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "no closing delimiter"))
 	}
 	d, ok := t.(json.Delim)
 	if !ok {
-		return fmt.Errorf("Unexpected token %T: %v", t, t)
+		return errors.Statusf(kivik.StatusBadResponse, "Unexpected token %T: %v", t, t)
 	}
 	if d != expectedDelim {
-		return fmt.Errorf("Unexpected JSON delimiter: %c", d)
+		return errors.Statusf(kivik.StatusBadResponse, "Unexpected JSON delimiter: %c", d)
 	}
 	return nil
 }

@@ -48,7 +48,7 @@ func TestPutAttachment(t *testing.T) {
 			name: "network error",
 			id:   "foo", rev: "1-xxx", filename: "x.jpg", ctype: "image/jpeg",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/testdb/foo/x.jpg?rev=1-xxx: net error",
 		},
 		{
@@ -102,7 +102,7 @@ func TestPutAttachment(t *testing.T) {
 				}
 				return nil, errors.New("ignore this error")
 			}),
-			status: kivik.StatusInternalServerError,
+			status: 601,
 			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
 		},
 	}
@@ -132,7 +132,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusInternalServerError,
+			status:   kivik.StatusNetworkError,
 			err:      "Head http://example.com/testdb/foo/foo.txt: net error",
 		},
 		{
@@ -172,22 +172,25 @@ func TestGetAttachmentMeta(t *testing.T) {
 
 func TestGetMD5Checksum(t *testing.T) {
 	tests := []struct {
-		name string
-		resp *http.Response
-		sum  driver.MD5sum
-		err  string
+		name   string
+		resp   *http.Response
+		sum    driver.MD5sum
+		status int
+		err    string
 	}{
 		{
-			name: "no etag header",
-			resp: &http.Response{},
-			err:  "ETag header not found",
+			name:   "no etag header",
+			resp:   &http.Response{},
+			status: kivik.StatusBadResponse,
+			err:    "ETag header not found",
 		},
 		{
 			name: "invalid ETag header",
 			resp: &http.Response{
 				Header: http.Header{"ETag": []string{`invalid base64`}},
 			},
-			err: "failed to decode MD5 checksum: illegal base64 data at input byte 7",
+			status: kivik.StatusBadResponse,
+			err:    "failed to decode MD5 checksum: illegal base64 data at input byte 7",
 		},
 		{
 			name: "Standard ETag header",
@@ -231,7 +234,7 @@ func TestGetAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusInternalServerError,
+			status:   kivik.StatusNetworkError,
 			err:      "Get http://example.com/testdb/foo/foo.txt: net error",
 		},
 		{
@@ -313,7 +316,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   kivik.StatusInternalServerError,
+			status:   601,
 			err:      "http://example.com/testdb/foo/foo.txt:",
 		},
 		{
@@ -323,7 +326,7 @@ func TestFetchAttachment(t *testing.T) {
 			filename: "foo.txt",
 			rev:      "1-xxx",
 			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   kivik.StatusInternalServerError,
+			status:   601,
 			err:      "http://example.com/testdb/foo/foo.txt\\?rev=1-xxx:",
 		},
 		{
@@ -365,7 +368,7 @@ func TestDecodeAttachment(t *testing.T) {
 		{
 			name:   "no content type",
 			resp:   &http.Response{},
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusBadResponse,
 			err:    "no Content-Type in response",
 		},
 		{
@@ -373,7 +376,7 @@ func TestDecodeAttachment(t *testing.T) {
 			resp: &http.Response{
 				Header: http.Header{"Content-Type": {"text/plain"}},
 			},
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusBadResponse,
 			err:    "ETag header not found",
 		},
 		{
@@ -439,12 +442,12 @@ func TestDeleteAttachment(t *testing.T) {
 			err:    "kivik: filename required",
 		},
 		{
-			name:     "net error",
+			name:     "network error",
 			id:       "foo",
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusInternalServerError,
+			status:   kivik.StatusNetworkError,
 			err:      "(Delete http://example.com/testdb/foo/foo.txt?rev=1-xxx: )?net error",
 		},
 		{

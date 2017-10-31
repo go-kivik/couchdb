@@ -28,7 +28,7 @@ func TestBulkDocs(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: 500,
+			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/testdb/_bulk_docs: net error",
 		},
 		{
@@ -52,7 +52,7 @@ func TestBulkDocs(t *testing.T) {
 			err:    "Expectation Failed: one or more document was rejected",
 		},
 		{
-			name: "bad request",
+			name: "error response",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
@@ -68,7 +68,7 @@ func TestBulkDocs(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
-			status: 500,
+			status: kivik.StatusBadResponse,
 			err:    "no closing delimiter: invalid character 'i' looking for beginning of value",
 		},
 		{
@@ -158,7 +158,7 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: 500,
+			status: kivik.StatusBadResponse,
 			err:    "no closing delimiter: EOF",
 		},
 		{
@@ -170,7 +170,7 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: 500,
+			status: kivik.StatusBadResponse,
 			err:    "invalid character 'f' looking for beginning of object key string",
 		},
 		{
@@ -185,21 +185,6 @@ func TestBulkNext(t *testing.T) {
 			expected: &driver.BulkResult{
 				ID:  "foo",
 				Rev: "1-xxx",
-			},
-		},
-		{
-			name: "conflict",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[{"id":"foo","rev":"1-xxx","error":"conflict","reason":"annoying conflict"}]`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			expected: &driver.BulkResult{
-				ID:    "foo",
-				Rev:   "1-xxx",
-				Error: errors.Status(kivik.StatusConflict, "annoying conflict"),
 			},
 		},
 		{
@@ -227,7 +212,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(600, "foo is erroneous"),
+				Error: errors.Status(kivik.StatusUnknownError, "foo is erroneous"),
 			},
 		},
 	}

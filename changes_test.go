@@ -27,9 +27,9 @@ func TestChanges(t *testing.T) {
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
-			name:   "net error",
+			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
+			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/testdb/_changes?feed=continuous&heartbeat=6000&since=now: net error",
 		},
 		{
@@ -78,7 +78,7 @@ func TestChangesNext(t *testing.T) {
 			changes: &changesRows{
 				body: Body("invalid json"),
 			},
-			status: 500,
+			status: kivik.StatusBadResponse,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
@@ -118,7 +118,7 @@ func TestChangesNext(t *testing.T) {
 func TestChangesClose(t *testing.T) {
 	body := &closeTracker{ReadCloser: Body("foo")}
 	feed := &changesRows{body: body}
-	feed.Close()
+	_ = feed.Close()
 	if !body.closed {
 		t.Errorf("Failed to close")
 	}

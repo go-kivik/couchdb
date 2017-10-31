@@ -99,7 +99,7 @@ func (d *db) Get(ctx context.Context, docID string, opts map[string]interface{})
 	defer func() { _ = resp.Body.Close() }()
 	doc := &bytes.Buffer{}
 	if _, err := doc.ReadFrom(resp.Body); err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusUnknownError, err)
 	}
 	return doc.Bytes(), nil
 }
@@ -149,7 +149,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string
 	}
 	if result.ID != docID {
 		// This should never happen; this is mostly for debugging and internal use
-		return result.Rev, fmt.Errorf("modified document ID (%s) does not match that requested (%s)", result.ID, docID)
+		return result.Rev, errors.Statusf(kivik.StatusBadResponse, "modified document ID (%s) does not match that requested (%s)", result.ID, docID)
 	}
 	return result.Rev, nil
 }
