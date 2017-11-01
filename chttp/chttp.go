@@ -84,16 +84,6 @@ func (c *Client) Auth(ctx context.Context, a Authenticator) error {
 	return nil
 }
 
-// Logout logs out after authentication.
-func (c *Client) Logout(ctx context.Context) error {
-	if c.auth == nil {
-		return errors.New("not authenticated")
-	}
-	err := c.auth.Logout(ctx, c)
-	c.auth = nil
-	return err
-}
-
 // Options are optional parameters which may be sent with a request.
 type Options struct {
 	// Accept sets the request's Accept header. Defaults to "application/json".

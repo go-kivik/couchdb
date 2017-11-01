@@ -19,72 +19,77 @@ import (
 )
 
 func TestBasicAuthRoundTrip(t *testing.T) {
-	user, pass := "foo", "bar"
-	expected := &http.Response{StatusCode: 200}
-	auth := &BasicAuth{
-		Username: user,
-		Password: pass,
-		transport: customTransport(func(req *http.Request) (*http.Response, error) {
-			u, p, ok := req.BasicAuth()
-			if !ok {
-				t.Error("BasicAuth not set in request")
+	type rtTest struct {
+		name     string
+		auth     *BasicAuth
+		req      *http.Request
+		expected *http.Response
+		cleanup  func()
+	}
+	tests := []rtTest{
+		{
+			name: "Provided transport",
+			req:  httptest.NewRequest("GET", "/", nil),
+			auth: &BasicAuth{
+				Username: "foo",
+				Password: "bar",
+				transport: customTransport(func(req *http.Request) (*http.Response, error) {
+					u, p, ok := req.BasicAuth()
+					if !ok {
+						t.Error("BasicAuth not set in request")
+					}
+					if u != "foo" || p != "bar" {
+						t.Errorf("Unexpected user/password: %s/%s", u, p)
+					}
+					return &http.Response{StatusCode: 200}, nil
+				}),
+			},
+			expected: &http.Response{StatusCode: 200},
+		},
+		func() rtTest {
+			h := func(w http.ResponseWriter, r *http.Request) {
+				u, p, ok := r.BasicAuth()
+				if !ok {
+					t.Error("BasicAuth not set in request")
+				}
+				if u != "foo" || p != "bar" {
+					t.Errorf("Unexpected user/password: %s/%s", u, p)
+				}
+				w.Header().Set("Date", "Wed, 01 Nov 2017 19:32:41 GMT")
 			}
-			if u != user || p != pass {
-				t.Errorf("Unexpected user/password: %s/%s", u, p)
+			s := httptest.NewServer(http.HandlerFunc(h))
+			return rtTest{
+				name: "default transport",
+				auth: &BasicAuth{Username: "foo", Password: "bar"},
+				req:  httptest.NewRequest("GET", s.URL, nil),
+				expected: &http.Response{
+					Status:     "200 OK",
+					StatusCode: 200,
+					Proto:      "HTTP/1.1",
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+					Header: http.Header{
+						"Content-Length": {"0"},
+						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Date":           {"Wed, 01 Nov 2017 19:32:41 GMT"},
+					},
+				},
+				cleanup: func() { s.Close() },
 			}
-			return expected, nil
-		}),
+		}(),
 	}
-	req := httptest.NewRequest("GET", "/", nil)
-	res, err := auth.RoundTrip(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d := diff.Interface(expected, res); d != nil {
-		t.Error(d)
-	}
-}
-
-func TestBasicAuth(t *testing.T) {
-	dsn, err := url.Parse(dsn(t))
-	if err != nil {
-		t.Fatalf("Failed to parse DSN '%s': %s", dsn, err)
-	}
-	user := dsn.User
-	dsn.User = nil
-	client, err := New(context.Background(), dsn.String())
-	if err != nil {
-		t.Fatalf("Failed to connect: %s", err)
-	}
-	if name := getAuthName(client, t); name != "" {
-		t.Errorf("Unexpected authentication name '%s'", name)
-	}
-
-	if err = client.Logout(context.Background()); err == nil {
-		t.Errorf("Logout should have failed prior to login")
-	}
-
-	password, _ := user.Password()
-	ba := &BasicAuth{
-		Username: user.Username(),
-		Password: password,
-	}
-	if err = client.Auth(context.Background(), ba); err != nil {
-		t.Errorf("Failed to authenticate: %s", err)
-	}
-	if err = client.Auth(context.Background(), ba); err == nil {
-		t.Errorf("Expected error trying to double-auth")
-	}
-	if name := getAuthName(client, t); name != user.Username() {
-		t.Errorf("Unexpected auth name. Expected '%s', got '%s'", user.Username(), name)
-	}
-
-	if err = client.Logout(context.Background()); err != nil {
-		t.Errorf("Failed to de-authenticate: %s", err)
-	}
-
-	if name := getAuthName(client, t); name != "" {
-		t.Errorf("Unexpected authentication name after logout '%s'", name)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			res, err := test.auth.RoundTrip(test.req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res.Body = nil
+			res.Request = nil
+			if d := diff.Interface(test.expected, res); d != nil {
+				t.Error(d)
+			}
+		})
 	}
 }
 
