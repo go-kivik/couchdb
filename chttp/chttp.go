@@ -166,6 +166,9 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 // processing the request. In particular, an error status code, such as 400
 // or 500, does _not_ cause an error to be returned.
 func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) (*http.Response, error) {
+	if method == "" {
+		return nil, errors.Status(kivik.StatusBadRequest, "chttp: method required")
+	}
 	var body io.Reader
 	if opts != nil {
 		if opts.Body != nil {

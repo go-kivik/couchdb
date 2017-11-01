@@ -378,12 +378,14 @@ func TestDoJSON(t *testing.T) {
 	}{
 		{
 			name:   "network error",
+			method: "GET",
 			client: newTestClient(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com: net error",
 		},
 		{
-			name: "error response",
+			name:   "error response",
+			method: "GET",
 			client: newTestClient(&http.Response{
 				StatusCode: 401,
 				Header: http.Header{
@@ -398,7 +400,8 @@ func TestDoJSON(t *testing.T) {
 			err:    "Unauthorized: Name or password is incorrect.",
 		},
 		{
-			name: "invalid JSON in response",
+			name:   "invalid JSON in response",
+			method: "GET",
 			client: newTestClient(&http.Response{
 				StatusCode: 200,
 				Header: http.Header{
@@ -413,7 +416,8 @@ func TestDoJSON(t *testing.T) {
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
-			name: "success",
+			name:   "success",
+			method: "GET",
 			client: newTestClient(&http.Response{
 				StatusCode: 200,
 				Header: http.Header{
@@ -518,7 +522,13 @@ func TestDoReq(t *testing.T) {
 		err          string
 	}{
 		{
+			name:   "no method",
+			status: kivik.StatusBadRequest,
+			err:    "chttp: method required",
+		},
+		{
 			name:   "invalid url",
+			method: "GET",
 			path:   "%xx",
 			client: newTestClient(nil, nil),
 			status: kivik.StatusBadRequest,
@@ -526,14 +536,16 @@ func TestDoReq(t *testing.T) {
 		},
 		{
 			name:   "network error",
+			method: "GET",
 			path:   "foo",
 			client: newTestClient(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com/foo: net error",
 		},
 		{
-			name: "error response",
-			path: "foo",
+			name:   "error response",
+			method: "GET",
+			path:   "foo",
 			client: newTestClient(&http.Response{
 				StatusCode: 400,
 				Body:       Body(""),
@@ -541,8 +553,9 @@ func TestDoReq(t *testing.T) {
 			// No error here
 		},
 		{
-			name: "success",
-			path: "foo",
+			name:   "success",
+			method: "GET",
+			path:   "foo",
 			client: newTestClient(&http.Response{
 				StatusCode: 200,
 				Body:       Body(""),
