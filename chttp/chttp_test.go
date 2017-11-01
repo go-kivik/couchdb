@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -347,7 +348,7 @@ func TestGetRev(t *testing.T) {
 				StatusCode: 200,
 				Request:    &http.Request{Method: "POST"},
 				Header:     http.Header{"ETag": {`"12345"`}},
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       Body(""),
 			},
 			expected: `12345`,
 		},
@@ -358,6 +359,93 @@ func TestGetRev(t *testing.T) {
 			testy.Error(t, test.err, err)
 			if result != test.expected {
 				t.Errorf("Got %s, expected %s", result, test.expected)
+			}
+		})
+	}
+}
+
+func TestDoJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		opts         *Options
+		client       *Client
+		expected     interface{}
+		response     *http.Response
+		status       int
+		err          string
+	}{
+		{
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com: net error",
+		},
+		{
+			name: "error response",
+			client: newTestClient(&http.Response{
+				StatusCode: 401,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"67"},
+				},
+				ContentLength: 67,
+				Body:          Body(`{"error":"unauthorized","reason":"Name or password is incorrect."}`),
+				Request:       &http.Request{Method: "GET"},
+			}, nil),
+			status: kivik.StatusUnauthorized,
+			err:    "Unauthorized: Name or password is incorrect.",
+		},
+		{
+			name: "invalid JSON in response",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"67"},
+				},
+				ContentLength: 67,
+				Body:          Body(`invalid response`),
+				Request:       &http.Request{Method: "GET"},
+			}, nil),
+			status: kivik.StatusBadResponse,
+			err:    "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name: "success",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"15"},
+				},
+				ContentLength: 15,
+				Body:          Body(`{"foo":"bar"}`),
+				Request:       &http.Request{Method: "GET"},
+			}, nil),
+			expected: map[string]interface{}{"foo": "bar"},
+			response: &http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"15"},
+				},
+				ContentLength: 15,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var i interface{}
+			response, err := test.client.DoJSON(context.Background(), test.method, test.path, test.opts, &i)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, i); d != nil {
+				t.Errorf("JSON result differs:\n%s\n", d)
+			}
+			response.Request = nil
+			response.Body = nil
+			if d := diff.Interface(test.response, response); d != nil {
+				t.Errorf("Response differs:\n%s\n", d)
 			}
 		})
 	}

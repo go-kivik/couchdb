@@ -1,8 +1,11 @@
 package chttp
 
 import (
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type customTransport func(*http.Request) (*http.Response, error)
@@ -30,4 +33,8 @@ func newTestClient(resp *http.Response, err error) *Client {
 	return newCustomClient(func(_ *http.Request) (*http.Response, error) {
 		return resp, err
 	})
+}
+
+func Body(str string) io.ReadCloser {
+	return ioutil.NopCloser(strings.NewReader(str))
 }
