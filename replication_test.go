@@ -503,3 +503,87 @@ func TestUpdateActiveTasks(t *testing.T) {
 		})
 	}
 }
+
+func TestSetFromReplicatorDoc(t *testing.T) {
+	tests := []struct {
+		name     string
+		rep      *replication
+		doc      *replicatorDoc
+		expected *replication
+	}{
+		{
+			name: "started",
+			rep:  &replication{},
+			doc: &replicatorDoc{
+				State:     string(kivik.ReplicationStarted),
+				StateTime: replicationStateTime(parseTime(t, "2017-01-01T01:01:01Z")),
+			},
+			expected: &replication{
+				state:     "triggered",
+				startTime: parseTime(t, "2017-01-01T01:01:01Z"),
+			},
+		},
+		{
+			name: "errored",
+			rep:  &replication{},
+			doc: &replicatorDoc{
+				State:     string(kivik.ReplicationError),
+				StateTime: replicationStateTime(parseTime(t, "2017-01-01T01:01:01Z")),
+			},
+			expected: &replication{
+				state:   "error",
+				endTime: parseTime(t, "2017-01-01T01:01:01Z"),
+			},
+		},
+		{
+			name: "completed",
+			rep:  &replication{},
+			doc: &replicatorDoc{
+				State:     string(kivik.ReplicationComplete),
+				StateTime: replicationStateTime(parseTime(t, "2017-01-01T01:01:01Z")),
+			},
+			expected: &replication{
+				state:   "completed",
+				endTime: parseTime(t, "2017-01-01T01:01:01Z"),
+			},
+		},
+		{
+			name: "set fields",
+			rep:  &replication{},
+			doc: &replicatorDoc{
+				Source:        "foo",
+				Target:        "bar",
+				ReplicationID: "oink",
+				Error:         &replicationError{status: 500, reason: "unf"},
+			},
+			expected: &replication{
+				source:        "foo",
+				target:        "bar",
+				replicationID: "oink",
+				err:           &replicationError{status: 500, reason: "unf"},
+			},
+		},
+		{
+			name: "validate that existing fields aren't re-set",
+			rep:  &replication{source: "a", target: "b", replicationID: "c", err: errors.New("foo")},
+			doc: &replicatorDoc{
+				Source:        "foo",
+				Target:        "bar",
+				ReplicationID: "oink",
+			},
+			expected: &replication{
+				source:        "a",
+				target:        "b",
+				replicationID: "c",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.rep.setFromReplicatorDoc(test.doc)
+			if d := diff.Interface(test.expected, test.rep); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
