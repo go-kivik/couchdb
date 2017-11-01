@@ -421,3 +421,85 @@ func TestReplicationDelete(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateActiveTasks(t *testing.T) {
+	tests := []struct {
+		name     string
+		rep      *replication
+		expected *activeTask
+		status   int
+		err      string
+	}{
+		{
+			name: "network error",
+			rep: &replication{
+				db: newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/_active_tasks: net error",
+		},
+		{
+			name: "error response",
+			rep: &replication{
+				db: newTestDB(&http.Response{
+					StatusCode: 500,
+					Request:    &http.Request{Method: "GET"},
+					Body:       Body(""),
+				}, nil),
+			},
+			status: kivik.StatusInternalServerError,
+			err:    "Internal Server Error",
+		},
+		{
+			name: "invalid json response",
+			rep: &replication{
+				db: newTestDB(&http.Response{
+					StatusCode: 200,
+					Body:       Body("invalid json"),
+				}, nil),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name: "rep not found",
+			rep: &replication{
+				replicationID: "foo",
+				db: newTestDB(&http.Response{
+					StatusCode: 200,
+					Body:       Body("[]"),
+				}, nil),
+			},
+			status: kivik.StatusNotFound,
+			err:    "task not found",
+		},
+		{
+			name: "rep found",
+			rep: &replication{
+				replicationID: "foo",
+				db: newTestDB(&http.Response{
+					StatusCode: 200,
+					Body: Body(`[
+						{"type":"foo"},
+						{"type":"replication","replication_id":"unf"},
+						{"type":"replication","replication_id":"foo","docs_written":1}
+					]`),
+				}, nil),
+			},
+			expected: &activeTask{
+				Type:          "replication",
+				ReplicationID: "foo",
+				DocsWritten:   1,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.rep.updateActiveTasks(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
