@@ -148,7 +148,7 @@ func ValidateAuth(ctx context.Context, username string, client *Client) error {
 		return err
 	}
 	if result.Ctx.Name != username {
-		return errors.New("authentication failed")
+		return errors.Status(kivik.StatusBadResponse, "auth response for unexpected user")
 	}
 	return nil
 }

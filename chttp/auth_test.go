@@ -109,6 +109,7 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 		name           string
 		auth           *CookieAuth
 		client         *Client
+		status         int
 		err            string
 		expectedCookie *http.Cookie
 	}{
@@ -155,22 +156,38 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 				},
 				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
 			},
-			err: "invalid character '}' after object key",
+			status: kivik.StatusBadResponse,
+			err:    "invalid character '}' after object key",
+		},
+		{
+			name: "names don't match",
+			auth: &CookieAuth{
+				Username: "foo",
+				Password: "bar",
+			},
+			client: &Client{
+				Client: &http.Client{
+					Transport: &mockRT{
+						resp: &http.Response{
+							Header: http.Header{
+								"Set-Cookie": []string{
+									"AuthSession=cm9vdDo1MEJCRkYwMjq0LO0ylOIwShrgt8y-UkhI-c6BGw; Version=1; Path=/; HttpOnly",
+								},
+							},
+							Body: ioutil.NopCloser(strings.NewReader(`{"userCtx":{"name":"notfoo"}}`)),
+						},
+					},
+				},
+				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
+			},
+			status: kivik.StatusBadResponse,
+			err:    "auth response for unexpected user",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.auth.Authenticate(context.Background(), test.client)
-			var errMsg string
-			if err != nil {
-				errMsg = err.Error()
-			}
-			if errMsg != test.err {
-				t.Errorf("Unexpected error: %s", errMsg)
-			}
-			if err != nil {
-				return
-			}
+			testy.StatusError(t, test.err, test.status, err)
 			cookie, ok := test.auth.Cookie()
 			if !ok {
 				t.Errorf("Expected cookie")
