@@ -4,16 +4,114 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 
+	"golang.org/x/net/publicsuffix"
+
 	"github.com/flimzy/diff"
+	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
 )
+
+func TestNew(t *testing.T) {
+	type newTest struct {
+		name     string
+		dsn      string
+		expected *Client
+		status   int
+		err      string
+	}
+	tests := []newTest{
+		{
+			name:   "invalid url",
+			dsn:    "http://foo.com/%xx",
+			status: kivik.StatusBadRequest,
+			err:    `parse http://foo.com/%xx: invalid URL escape "%xx"`,
+		},
+		{
+			name: "no auth",
+			dsn:  "http://foo.com/",
+			expected: &Client{
+				Client: &http.Client{},
+				rawDSN: "http://foo.com/",
+				dsn: &url.URL{
+					Scheme: "http",
+					Host:   "foo.com",
+					Path:   "/",
+				},
+			},
+		},
+		func() newTest {
+			h := func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(kivik.StatusUnauthorized)
+			}
+			s := httptest.NewServer(http.HandlerFunc(h))
+			dsn, _ := url.Parse(s.URL)
+			dsn.User = url.UserPassword("user", "password")
+			return newTest{
+				name:   "auth failed",
+				dsn:    dsn.String(),
+				status: kivik.StatusUnauthorized,
+				err:    "Unauthorized",
+			}
+		}(),
+		func() newTest {
+			h := func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(kivik.StatusOK)
+				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`)
+			}
+			s := httptest.NewServer(http.HandlerFunc(h))
+			authDSN, _ := url.Parse(s.URL)
+			dsn, _ := url.Parse(s.URL)
+			authDSN.User = url.UserPassword("user", "password")
+			jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+			return newTest{
+				name: "auth success",
+				dsn:  authDSN.String(),
+				expected: &Client{
+					Client: &http.Client{Jar: jar},
+					rawDSN: authDSN.String(),
+					dsn:    dsn,
+					auth: &CookieAuth{
+						Username: "user",
+						Password: "password",
+						dsn:      dsn,
+						setJar:   true,
+						jar:      jar,
+					},
+				},
+			}
+		}(),
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := New(context.Background(), test.dsn)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestDSN(t *testing.T) {
+	expected := "foo"
+	client := &Client{rawDSN: expected}
+	result := client.DSN()
+	if result != expected {
+		t.Errorf("Unexpected result: %s", result)
+	}
+}
 
 func dsn(t *testing.T) string {
 	for _, env := range []string{"KIVIK_TEST_DSN_COUCH16", "KIVIK_TEST_DSN_COUCH20", "KIVIK_TEST_DSN_CLOUDANT"} {
@@ -250,7 +348,7 @@ func TestGetRev(t *testing.T) {
 				StatusCode: 200,
 				Request:    &http.Request{Method: "POST"},
 				Header:     http.Header{"ETag": {`"12345"`}},
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       Body(""),
 			},
 			expected: `12345`,
 		},
@@ -261,6 +359,93 @@ func TestGetRev(t *testing.T) {
 			testy.Error(t, test.err, err)
 			if result != test.expected {
 				t.Errorf("Got %s, expected %s", result, test.expected)
+			}
+		})
+	}
+}
+
+func TestDoJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		opts         *Options
+		client       *Client
+		expected     interface{}
+		response     *http.Response
+		status       int
+		err          string
+	}{
+		{
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com: net error",
+		},
+		{
+			name: "error response",
+			client: newTestClient(&http.Response{
+				StatusCode: 401,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"67"},
+				},
+				ContentLength: 67,
+				Body:          Body(`{"error":"unauthorized","reason":"Name or password is incorrect."}`),
+				Request:       &http.Request{Method: "GET"},
+			}, nil),
+			status: kivik.StatusUnauthorized,
+			err:    "Unauthorized: Name or password is incorrect.",
+		},
+		{
+			name: "invalid JSON in response",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"67"},
+				},
+				ContentLength: 67,
+				Body:          Body(`invalid response`),
+				Request:       &http.Request{Method: "GET"},
+			}, nil),
+			status: kivik.StatusBadResponse,
+			err:    "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name: "success",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"15"},
+				},
+				ContentLength: 15,
+				Body:          Body(`{"foo":"bar"}`),
+				Request:       &http.Request{Method: "GET"},
+			}, nil),
+			expected: map[string]interface{}{"foo": "bar"},
+			response: &http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"15"},
+				},
+				ContentLength: 15,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var i interface{}
+			response, err := test.client.DoJSON(context.Background(), test.method, test.path, test.opts, &i)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, i); d != nil {
+				t.Errorf("JSON result differs:\n%s\n", d)
+			}
+			response.Request = nil
+			response.Body = nil
+			if d := diff.Interface(test.response, response); d != nil {
+				t.Errorf("Response differs:\n%s\n", d)
 			}
 		})
 	}

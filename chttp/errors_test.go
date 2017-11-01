@@ -1,7 +1,6 @@
 package chttp
 
 import (
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -175,8 +174,4 @@ func xTestErrors(t *testing.T) {
 			})
 		}(test)
 	}
-}
-
-func Body(str string) io.ReadCloser {
-	return ioutil.NopCloser(strings.NewReader(str))
 }

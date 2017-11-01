@@ -35,7 +35,7 @@ type Client struct {
 func New(ctx context.Context, dsn string) (*Client, error) {
 	dsnURL, err := url.Parse(dsn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	user := dsnURL.User
 	dsnURL.User = nil
