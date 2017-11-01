@@ -48,7 +48,7 @@ func (a *BasicAuth) Authenticate(ctx context.Context, c *Client) error {
 	// First see if the credentials seem good
 	req, err := c.NewRequest(ctx, kivik.MethodGet, "/_session", nil)
 	if err != nil {
-		return err
+		return err // impossible error
 	}
 	req.SetBasicAuth(a.Username, a.Password)
 	res, err := c.Do(req)
@@ -106,13 +106,13 @@ var _ Authenticator = &CookieAuth{}
 // Authenticate initiates a session with the CouchDB server.
 func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 	if err := a.setCookieJar(c); err != nil {
-		return err
+		return err // impossible error
 	}
 	a.jar = c.Jar
 	a.dsn = c.dsn
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(a); err != nil {
-		return err
+		return err // impossible error
 	}
 	if _, err := c.DoError(ctx, kivik.MethodPost, "/_session", &Options{Body: buf}); err != nil {
 		return err
@@ -160,7 +160,7 @@ func (a *CookieAuth) setCookieJar(c *Client) error {
 	}
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
-		return err
+		return err // impossible error
 	}
 	c.Jar = jar
 	a.setJar = true
