@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/net/publicsuffix"
+
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
@@ -278,6 +280,68 @@ func TestBasicAuthAuthenticate(t *testing.T) {
 			testy.StatusError(t, test.err, test.status, err)
 			if test.client.Client.Transport != test.auth {
 				t.Errorf("transport not set as expected")
+			}
+		})
+	}
+}
+
+func TestCookie(t *testing.T) {
+	tests := []struct {
+		name     string
+		auth     *CookieAuth
+		expected *http.Cookie
+		found    bool
+	}{
+		{
+			name:     "No cookie jar",
+			auth:     &CookieAuth{},
+			expected: nil,
+			found:    false,
+		},
+		{
+			name:     "No dsn",
+			auth:     &CookieAuth{jar: &cookiejar.Jar{}},
+			expected: nil,
+			found:    false,
+		},
+		{
+			name:     "no cookies",
+			auth:     &CookieAuth{jar: &cookiejar.Jar{}, dsn: &url.URL{}},
+			expected: nil,
+			found:    false,
+		},
+		{
+			name: "cookie found",
+			auth: func() *CookieAuth {
+				dsn, err := url.Parse("http://example.com/")
+				if err != nil {
+					t.Fatal(err)
+				}
+				jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+				if err != nil {
+					t.Fatal(err)
+				}
+				jar.SetCookies(dsn, []*http.Cookie{
+					{Name: kivik.SessionCookieName, Value: "foo"},
+					{Name: "other", Value: "bar"},
+				})
+				return &CookieAuth{
+					jar: jar,
+					dsn: dsn,
+				}
+			}(),
+			expected: &http.Cookie{Name: kivik.SessionCookieName, Value: "foo"},
+			found:    true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, found := test.auth.Cookie()
+			if found != test.found {
+				t.Errorf("Unexpected found: %T", found)
+			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
 			}
 		})
 	}
