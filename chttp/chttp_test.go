@@ -570,3 +570,49 @@ func TestDoReq(t *testing.T) {
 		})
 	}
 }
+
+func TestDoError(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		opts         *Options
+		client       *Client
+		status       int
+		err          string
+	}{
+		{
+			name:   "no method",
+			status: kivik.StatusBadRequest,
+			err:    "chttp: method required",
+		},
+		{
+			name:   "error response",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       Body(""),
+				Request:    &http.Request{Method: "GET"},
+			}, nil),
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
+		},
+		{
+			name:   "success",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       Body(""),
+				Request:    &http.Request{Method: "GET"},
+			}, nil),
+			// No error
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.client.DoError(context.Background(), test.method, test.path, test.opts)
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
