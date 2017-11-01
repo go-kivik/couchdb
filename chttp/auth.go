@@ -17,7 +17,6 @@ import (
 // Authenticator is an interface that provides authentication to a server.
 type Authenticator interface {
 	Authenticate(context.Context, *Client) error
-	Logout(context.Context, *Client) error
 }
 
 // BasicAuth provides HTTP Basic Auth for a client.
@@ -73,15 +72,6 @@ func (a *BasicAuth) Authenticate(ctx context.Context, c *Client) error {
 	// Everything looks good, lets make this official
 	a.transport = c.Transport
 	c.Transport = a
-	return nil
-}
-
-// Logout unsets BasicAuthentication
-func (a *BasicAuth) Logout(_ context.Context, c *Client) error {
-	if c.Transport != a {
-		return errors.New("Not registered as authenticator")
-	}
-	c.Transport = a.transport
 	return nil
 }
 
@@ -165,13 +155,4 @@ func (a *CookieAuth) setCookieJar(c *Client) error {
 	c.Jar = jar
 	a.setJar = true
 	return nil
-}
-
-// Logout deletes the remote session.
-func (a *CookieAuth) Logout(ctx context.Context, c *Client) error {
-	_, err := c.DoError(ctx, kivik.MethodDelete, "/_session", nil)
-	if a.setJar {
-		c.Jar = nil
-	}
-	return err
 }
