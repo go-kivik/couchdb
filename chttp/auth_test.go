@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -17,24 +18,30 @@ import (
 	"github.com/flimzy/testy"
 )
 
-func TestDefaultAuth(t *testing.T) {
-	dsn, err := url.Parse(dsn(t))
+func TestBasicAuthRoundTrip(t *testing.T) {
+	user, pass := "foo", "bar"
+	expected := &http.Response{StatusCode: 200}
+	auth := &BasicAuth{
+		Username: user,
+		Password: pass,
+		transport: customTransport(func(req *http.Request) (*http.Response, error) {
+			u, p, ok := req.BasicAuth()
+			if !ok {
+				t.Error("BasicAuth not set in request")
+			}
+			if u != user || p != pass {
+				t.Errorf("Unexpected user/password: %s/%s", u, p)
+			}
+			return expected, nil
+		}),
+	}
+	req := httptest.NewRequest("GET", "/", nil)
+	res, err := auth.RoundTrip(req)
 	if err != nil {
-		t.Fatalf("Failed to parse DSN '%s': %s", dsn, err)
+		t.Fatal(err)
 	}
-	user := dsn.User.Username()
-	client := getClient(t)
-
-	if name := getAuthName(client, t); name != user {
-		t.Errorf("Unexpected authentication name. Expected '%s', got '%s'", user, name)
-	}
-
-	if err = client.Logout(context.Background()); err != nil {
-		t.Errorf("Failed to de-authenticate: %s", err)
-	}
-
-	if name := getAuthName(client, t); name != "" {
-		t.Errorf("Unexpected authentication name after logout '%s'", name)
+	if d := diff.Interface(expected, res); d != nil {
+		t.Error(d)
 	}
 }
 
