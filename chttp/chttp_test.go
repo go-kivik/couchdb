@@ -11,7 +11,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 
@@ -110,26 +109,6 @@ func TestDSN(t *testing.T) {
 	if result != expected {
 		t.Errorf("Unexpected result: %s", result)
 	}
-}
-
-func dsn(t *testing.T) string {
-	for _, env := range []string{"KIVIK_TEST_DSN_COUCH16", "KIVIK_TEST_DSN_COUCH20", "KIVIK_TEST_DSN_CLOUDANT"} {
-		dsn := os.Getenv(env)
-		if dsn != "" {
-			return dsn
-		}
-	}
-	t.Skip("DSN not set")
-	return ""
-}
-
-func getClient(t *testing.T) *Client {
-	dsn := dsn(t)
-	client, err := New(context.Background(), dsn)
-	if err != nil {
-		t.Fatalf("Failed to connect to '%s': %s", dsn, err)
-	}
-	return client
 }
 
 func TestFixPath(t *testing.T) {
