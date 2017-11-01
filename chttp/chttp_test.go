@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -446,6 +447,62 @@ func TestDoJSON(t *testing.T) {
 			response.Body = nil
 			if d := diff.Interface(test.response, response); d != nil {
 				t.Errorf("Response differs:\n%s\n", d)
+			}
+		})
+	}
+}
+
+func TestNewRequest(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		body         io.Reader
+		expected     *http.Request
+		client       *Client
+		status       int
+		err          string
+	}{
+		{
+			name:   "invalid URL",
+			method: "GET",
+			path:   "%xx",
+			status: kivik.StatusBadRequest,
+			err:    `parse %xx: invalid URL escape "%xx"`,
+		},
+		{
+			name:   "invlaid method",
+			method: "FOO BAR",
+			client: newTestClient(nil, nil),
+			status: kivik.StatusBadRequest,
+			err:    `net/http: invalid method "FOO BAR"`,
+		},
+		{
+			name:   "success",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(nil, nil),
+			expected: &http.Request{
+				Method: "GET",
+				URL: func() *url.URL {
+					url := newTestClient(nil, nil).dsn
+					url.Path = "/foo"
+					return url
+				}(),
+				Proto:      "HTTP/1.1",
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header:     http.Header{},
+				Host:       "example.com",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
+			testy.StatusError(t, test.err, test.status, err)
+			test.expected = test.expected.WithContext(req.Context()) // determinism
+			if d := diff.Interface(test.expected, req); d != nil {
+				t.Error(d)
 			}
 		})
 	}

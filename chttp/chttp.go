@@ -150,14 +150,14 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	reqPath, err := url.Parse(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	url := *c.dsn // Make a copy
 	url.Path = reqPath.Path
 	url.RawQuery = reqPath.RawQuery
 	req, err := http.NewRequest(method, url.String(), body)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	return req.WithContext(ctx), nil
 }
