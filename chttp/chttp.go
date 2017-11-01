@@ -150,14 +150,14 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	reqPath, err := url.Parse(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	url := *c.dsn // Make a copy
 	url.Path = reqPath.Path
 	url.RawQuery = reqPath.RawQuery
 	req, err := http.NewRequest(method, url.String(), body)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
 	return req.WithContext(ctx), nil
 }
@@ -166,6 +166,9 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 // processing the request. In particular, an error status code, such as 400
 // or 500, does _not_ cause an error to be returned.
 func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) (*http.Response, error) {
+	if method == "" {
+		return nil, errors.Status(kivik.StatusBadRequest, "chttp: method required")
+	}
 	var body io.Reader
 	if opts != nil {
 		if opts.Body != nil {

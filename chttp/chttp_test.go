@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -377,12 +378,14 @@ func TestDoJSON(t *testing.T) {
 	}{
 		{
 			name:   "network error",
+			method: "GET",
 			client: newTestClient(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
 			err:    "Get http://example.com: net error",
 		},
 		{
-			name: "error response",
+			name:   "error response",
+			method: "GET",
 			client: newTestClient(&http.Response{
 				StatusCode: 401,
 				Header: http.Header{
@@ -397,7 +400,8 @@ func TestDoJSON(t *testing.T) {
 			err:    "Unauthorized: Name or password is incorrect.",
 		},
 		{
-			name: "invalid JSON in response",
+			name:   "invalid JSON in response",
+			method: "GET",
 			client: newTestClient(&http.Response{
 				StatusCode: 200,
 				Header: http.Header{
@@ -412,7 +416,8 @@ func TestDoJSON(t *testing.T) {
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
-			name: "success",
+			name:   "success",
+			method: "GET",
 			client: newTestClient(&http.Response{
 				StatusCode: 200,
 				Header: http.Header{
@@ -447,6 +452,167 @@ func TestDoJSON(t *testing.T) {
 			if d := diff.Interface(test.response, response); d != nil {
 				t.Errorf("Response differs:\n%s\n", d)
 			}
+		})
+	}
+}
+
+func TestNewRequest(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		body         io.Reader
+		expected     *http.Request
+		client       *Client
+		status       int
+		err          string
+	}{
+		{
+			name:   "invalid URL",
+			method: "GET",
+			path:   "%xx",
+			status: kivik.StatusBadRequest,
+			err:    `parse %xx: invalid URL escape "%xx"`,
+		},
+		{
+			name:   "invlaid method",
+			method: "FOO BAR",
+			client: newTestClient(nil, nil),
+			status: kivik.StatusBadRequest,
+			err:    `net/http: invalid method "FOO BAR"`,
+		},
+		{
+			name:   "success",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(nil, nil),
+			expected: &http.Request{
+				Method: "GET",
+				URL: func() *url.URL {
+					url := newTestClient(nil, nil).dsn
+					url.Path = "/foo"
+					return url
+				}(),
+				Proto:      "HTTP/1.1",
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header:     http.Header{},
+				Host:       "example.com",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
+			testy.StatusError(t, test.err, test.status, err)
+			test.expected = test.expected.WithContext(req.Context()) // determinism
+			if d := diff.Interface(test.expected, req); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestDoReq(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		opts         *Options
+		client       *Client
+		status       int
+		err          string
+	}{
+		{
+			name:   "no method",
+			status: kivik.StatusBadRequest,
+			err:    "chttp: method required",
+		},
+		{
+			name:   "invalid url",
+			method: "GET",
+			path:   "%xx",
+			client: newTestClient(nil, nil),
+			status: kivik.StatusBadRequest,
+			err:    `parse %xx: invalid URL escape "%xx"`,
+		},
+		{
+			name:   "network error",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/foo: net error",
+		},
+		{
+			name:   "error response",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 400,
+				Body:       Body(""),
+			}, nil),
+			// No error here
+		},
+		{
+			name:   "success",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body(""),
+			}, nil),
+			// success!
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.client.DoReq(context.Background(), test.method, test.path, test.opts)
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
+
+func TestDoError(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		opts         *Options
+		client       *Client
+		status       int
+		err          string
+	}{
+		{
+			name:   "no method",
+			status: kivik.StatusBadRequest,
+			err:    "chttp: method required",
+		},
+		{
+			name:   "error response",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       Body(""),
+				Request:    &http.Request{Method: "GET"},
+			}, nil),
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
+		},
+		{
+			name:   "success",
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       Body(""),
+				Request:    &http.Request{Method: "GET"},
+			}, nil),
+			// No error
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.client.DoError(context.Background(), test.method, test.path, test.opts)
+			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
 }
