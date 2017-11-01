@@ -507,3 +507,53 @@ func TestNewRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestDoReq(t *testing.T) {
+	tests := []struct {
+		name         string
+		method, path string
+		opts         *Options
+		client       *Client
+		status       int
+		err          string
+	}{
+		{
+			name:   "invalid url",
+			path:   "%xx",
+			client: newTestClient(nil, nil),
+			status: kivik.StatusBadRequest,
+			err:    `parse %xx: invalid URL escape "%xx"`,
+		},
+		{
+			name:   "network error",
+			path:   "foo",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/foo: net error",
+		},
+		{
+			name: "error response",
+			path: "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 400,
+				Body:       Body(""),
+			}, nil),
+			// No error here
+		},
+		{
+			name: "success",
+			path: "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body(""),
+			}, nil),
+			// success!
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.client.DoReq(context.Background(), test.method, test.path, test.opts)
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
