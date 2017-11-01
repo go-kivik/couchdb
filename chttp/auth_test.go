@@ -6,33 +6,42 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/publicsuffix"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
 )
 
-func TestDefaultAuth(t *testing.T) {
-	dsn, err := url.Parse(dsn(t))
+func TestBasicAuthRoundTrip(t *testing.T) {
+	user, pass := "foo", "bar"
+	expected := &http.Response{StatusCode: 200}
+	auth := &BasicAuth{
+		Username: user,
+		Password: pass,
+		transport: customTransport(func(req *http.Request) (*http.Response, error) {
+			u, p, ok := req.BasicAuth()
+			if !ok {
+				t.Error("BasicAuth not set in request")
+			}
+			if u != user || p != pass {
+				t.Errorf("Unexpected user/password: %s/%s", u, p)
+			}
+			return expected, nil
+		}),
+	}
+	req := httptest.NewRequest("GET", "/", nil)
+	res, err := auth.RoundTrip(req)
 	if err != nil {
-		t.Fatalf("Failed to parse DSN '%s': %s", dsn, err)
+		t.Fatal(err)
 	}
-	user := dsn.User.Username()
-	client := getClient(t)
-
-	if name := getAuthName(client, t); name != user {
-		t.Errorf("Unexpected authentication name. Expected '%s', got '%s'", user, name)
-	}
-
-	if err = client.Logout(context.Background()); err != nil {
-		t.Errorf("Failed to de-authenticate: %s", err)
-	}
-
-	if name := getAuthName(client, t); name != "" {
-		t.Errorf("Unexpected authentication name after logout '%s'", name)
+	if d := diff.Interface(expected, res); d != nil {
+		t.Error(d)
 	}
 }
 
@@ -107,6 +116,7 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 		name           string
 		auth           *CookieAuth
 		client         *Client
+		status         int
 		err            string
 		expectedCookie *http.Cookie
 	}{
@@ -153,22 +163,38 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 				},
 				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
 			},
-			err: "invalid character '}' after object key",
+			status: kivik.StatusBadResponse,
+			err:    "invalid character '}' after object key",
+		},
+		{
+			name: "names don't match",
+			auth: &CookieAuth{
+				Username: "foo",
+				Password: "bar",
+			},
+			client: &Client{
+				Client: &http.Client{
+					Transport: &mockRT{
+						resp: &http.Response{
+							Header: http.Header{
+								"Set-Cookie": []string{
+									"AuthSession=cm9vdDo1MEJCRkYwMjq0LO0ylOIwShrgt8y-UkhI-c6BGw; Version=1; Path=/; HttpOnly",
+								},
+							},
+							Body: ioutil.NopCloser(strings.NewReader(`{"userCtx":{"name":"notfoo"}}`)),
+						},
+					},
+				},
+				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
+			},
+			status: kivik.StatusBadResponse,
+			err:    "auth response for unexpected user",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.auth.Authenticate(context.Background(), test.client)
-			var errMsg string
-			if err != nil {
-				errMsg = err.Error()
-			}
-			if errMsg != test.err {
-				t.Errorf("Unexpected error: %s", errMsg)
-			}
-			if err != nil {
-				return
-			}
+			testy.StatusError(t, test.err, test.status, err)
 			cookie, ok := test.auth.Cookie()
 			if !ok {
 				t.Errorf("Expected cookie")
@@ -278,6 +304,68 @@ func TestBasicAuthAuthenticate(t *testing.T) {
 			testy.StatusError(t, test.err, test.status, err)
 			if test.client.Client.Transport != test.auth {
 				t.Errorf("transport not set as expected")
+			}
+		})
+	}
+}
+
+func TestCookie(t *testing.T) {
+	tests := []struct {
+		name     string
+		auth     *CookieAuth
+		expected *http.Cookie
+		found    bool
+	}{
+		{
+			name:     "No cookie jar",
+			auth:     &CookieAuth{},
+			expected: nil,
+			found:    false,
+		},
+		{
+			name:     "No dsn",
+			auth:     &CookieAuth{jar: &cookiejar.Jar{}},
+			expected: nil,
+			found:    false,
+		},
+		{
+			name:     "no cookies",
+			auth:     &CookieAuth{jar: &cookiejar.Jar{}, dsn: &url.URL{}},
+			expected: nil,
+			found:    false,
+		},
+		{
+			name: "cookie found",
+			auth: func() *CookieAuth {
+				dsn, err := url.Parse("http://example.com/")
+				if err != nil {
+					t.Fatal(err)
+				}
+				jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+				if err != nil {
+					t.Fatal(err)
+				}
+				jar.SetCookies(dsn, []*http.Cookie{
+					{Name: kivik.SessionCookieName, Value: "foo"},
+					{Name: "other", Value: "bar"},
+				})
+				return &CookieAuth{
+					jar: jar,
+					dsn: dsn,
+				}
+			}(),
+			expected: &http.Cookie{Name: kivik.SessionCookieName, Value: "foo"},
+			found:    true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, found := test.auth.Cookie()
+			if found != test.found {
+				t.Errorf("Unexpected found: %T", found)
+			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
 			}
 		})
 	}
