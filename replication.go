@@ -147,7 +147,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 	defer func() { _ = resp.Body.Close() }()
 	var tasks []*activeTask
 	if err = json.NewDecoder(resp.Body).Decode(&tasks); err != nil {
-		return nil, err
+		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
 	}
 	for _, task := range tasks {
 		if task.Type != "replication" {
