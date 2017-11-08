@@ -76,10 +76,6 @@ type replication struct {
 	// mu protects the above values
 	mu sync.RWMutex
 
-	// useScheduler is true if the new (in 2.1) _scheduler interface should be
-	// used for updates to this replication.
-	useScheduler bool
-
 	*db
 }
 
@@ -186,22 +182,6 @@ func (r *replication) getReplicatorDoc(ctx context.Context) (*replicatorDoc, err
 	return &doc, err
 }
 
-func (r *replication) setFromSchedulerDoc(doc *schedulerDoc) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.useScheduler = true
-	r.docID = doc.DocID
-	r.replicationID = doc.ReplicationID
-	r.source = doc.Source
-	r.target = doc.Target
-	r.startTime = doc.StartTime
-	r.state = doc.State
-	switch doc.State {
-	case "completed", "failed":
-		r.endTime = doc.LastUpdated
-	}
-}
-
 func (r *replication) setFromReplicatorDoc(doc *replicatorDoc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -256,48 +236,6 @@ func (c *client) GetReplications(ctx context.Context, options map[string]interfa
 		c.noScheduler = true
 	}
 	return c.legacyGetReplications(ctx, options)
-}
-
-type schedulerDoc struct {
-	Database      string    `json:"database"`
-	DocID         string    `json:"doc_id"`
-	ReplicationID string    `json:"id"`
-	Source        string    `json:"source"`
-	Target        string    `json:"target"`
-	StartTime     time.Time `json:"start_time"`
-	LastUpdated   time.Time `json:"last_updated"`
-	State         string    `json:"state"`
-}
-
-// errSchedulerNotImplemented is used internally only, and signals that a
-// fallback should occur to the legacy replicator database.
-var errSchedulerNotImplemented = errors.Status(kivik.StatusNotImplemented, "_scheduler interface not implemented")
-
-func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
-	params, err := optionsToParams(options)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Docs []schedulerDoc `json:"docs"`
-	}
-	path := "/_scheduler/docs"
-	if params != nil {
-		path = path + "?" + params.Encode()
-	}
-	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
-		if code := kivik.StatusCode(err); code == kivik.StatusNotFound || code == kivik.StatusBadRequest {
-			return nil, errSchedulerNotImplemented
-		}
-		return nil, err
-	}
-	reps := make([]driver.Replication, 0, len(result.Docs))
-	for _, row := range result.Docs {
-		rep := c.newReplication(row.DocID)
-		rep.setFromSchedulerDoc(&row)
-		reps = append(reps, rep)
-	}
-	return reps, nil
 }
 
 func (c *client) legacyGetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
