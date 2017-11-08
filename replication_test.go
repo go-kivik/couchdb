@@ -180,23 +180,12 @@ func TestReplicate(t *testing.T) {
 	}
 }
 
-type replicationRow struct {
-	ReplicationID string
-	Source        string
-	Target        string
-	StartTime     time.Time
-	EndTime       time.Time
-	State         string
-	Status        int
-	Err           string
-}
-
 func TestGetReplicationsFromScheduler(t *testing.T) {
 	tests := []struct {
 		name     string
 		options  map[string]interface{}
 		client   *client
-		expected []replicationRow
+		expected []*replication
 		status   int
 		err      string
 	}{
@@ -268,20 +257,24 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 {"database":"_replicator","doc_id":"foo2","id":null,"source":"http://admin:*****@localhost:5984/foo/","target":"http://admin:*****@localhost:5984/bar/","state":"completed","error_count":0,"info":{"revisions_checked":23,"missing_revisions_found":23,"docs_read":23,"docs_written":23,"changes_pending":null,"doc_write_failures":0,"checkpointed_source_seq":"27-g1AAAAIbeJyV0EsOgjAQBuAGMOLCM-gRSoUKK7mJ9kWQYLtQ13oTvYneRG-CfZAYSUjqZppM5v_SmRYAENchB3OppOKilKpWx1Or2wEBdNF1XVOHJD7oxnTFKMOcDYdH4nSpK930wsQKAmYIVdBXKI2w_RGQyFJYFb7CzgiXXgDuDywXKUk4mJ0lF9VeCj6SlpGu4KofDdyMEFoBk3QtMt87OOXulIdRAqvABHPO0F_K0ymv7zYU5UVe-W_zdoK9R2QFxhjBUAwzzQch86VT"},"start_time":"2017-11-01T21:05:03Z","last_updated":"2017-11-01T21:05:06Z"}
 ]}`),
 			}, nil),
-			expected: []replicationRow{
+			expected: []*replication{
 				{
-					ReplicationID: "81cc3633ee8de1332e412ef9052c7b6f",
-					Source:        "foo",
-					Target:        "bar",
-					StartTime:     parseTime(t, "2017-11-08T17:51:52Z"),
-					State:         "crashing",
+					docID:         "foo",
+					replicationID: "81cc3633ee8de1332e412ef9052c7b6f",
+					state:         "crashing",
+					source:        "foo",
+					target:        "bar",
+					startTime:     parseTime(t, "2017-11-08T17:51:52Z"),
+					useScheduler:  true,
 				},
 				{
-					Source:    "http://admin:*****@localhost:5984/foo/",
-					Target:    "http://admin:*****@localhost:5984/bar/",
-					StartTime: parseTime(t, "2017-11-01T21:05:03Z"),
-					EndTime:   parseTime(t, "2017-11-01T21:05:06Z"),
-					State:     "completed",
+					docID:        "foo2",
+					source:       "http://admin:*****@localhost:5984/foo/",
+					target:       "http://admin:*****@localhost:5984/bar/",
+					state:        "completed",
+					startTime:    parseTime(t, "2017-11-01T21:05:03Z"),
+					endTime:      parseTime(t, "2017-11-01T21:05:06Z"),
+					useScheduler: true,
 				},
 			},
 		},
@@ -290,22 +283,10 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reps, err := test.client.getReplicationsFromScheduler(context.Background(), test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			result := make([]replicationRow, len(reps))
+			result := make([]*replication, len(reps))
 			for i, rep := range reps {
-				var msg string
-				if e := rep.Err(); e != nil {
-					msg = e.Error()
-				}
-				result[i] = replicationRow{
-					ReplicationID: rep.ReplicationID(),
-					Source:        rep.Source(),
-					Target:        rep.Target(),
-					StartTime:     rep.StartTime(),
-					EndTime:       rep.EndTime(),
-					State:         rep.State(),
-					Status:        kivik.StatusCode(rep.Err()),
-					Err:           msg,
-				}
+				result[i] = rep.(*replication)
+				result[i].db = nil
 			}
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
@@ -319,7 +300,7 @@ func TestLegacyGetReplications(t *testing.T) {
 		name     string
 		options  map[string]interface{}
 		client   *client
-		expected []replicationRow
+		expected []*replication
 		status   int
 		err      string
 	}{
@@ -352,15 +333,15 @@ func TestLegacyGetReplications(t *testing.T) {
 				{"id":"_design/_replicator","key":"_design/_replicator","value":{"rev":"1-5bfa2c99eefe2b2eb4962db50aa3cfd4"},"doc":{"_id":"_design/_replicator","_rev":"1-5bfa2c99eefe2b2eb4962db50aa3cfd4","language":"javascript","validate_doc_update":"..."}}
 				]}`),
 			}, nil),
-			expected: []replicationRow{
+			expected: []*replication{
 				{
-					ReplicationID: "548507fbb9fb9fcd8a3b27050b9ba5bf",
-					Source:        "foo",
-					Target:        "bar",
-					State:         "error",
-					Status:        kivik.StatusUnauthorized,
-					EndTime:       parseTime(t, "2017-10-30T20:03:34+00:00"),
-					Err:           "unauthorized: unauthorized to access or create database foo",
+					docID:         "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+					replicationID: "548507fbb9fb9fcd8a3b27050b9ba5bf",
+					source:        "foo",
+					target:        "bar",
+					endTime:       parseTime(t, "2017-10-30T20:03:34+00:00"),
+					state:         "error",
+					err:           &replicationError{status: 401, reason: "unauthorized: unauthorized to access or create database foo"},
 				},
 			},
 		},
@@ -369,22 +350,10 @@ func TestLegacyGetReplications(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reps, err := test.client.legacyGetReplications(context.Background(), test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			result := make([]replicationRow, len(reps))
+			result := make([]*replication, len(reps))
 			for i, rep := range reps {
-				var msg string
-				if e := rep.Err(); e != nil {
-					msg = e.Error()
-				}
-				result[i] = replicationRow{
-					ReplicationID: rep.ReplicationID(),
-					Source:        rep.Source(),
-					Target:        rep.Target(),
-					StartTime:     rep.StartTime(),
-					EndTime:       rep.EndTime(),
-					State:         rep.State(),
-					Status:        kivik.StatusCode(rep.Err()),
-					Err:           msg,
-				}
+				result[i] = rep.(*replication)
+				result[i].db = nil
 			}
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)

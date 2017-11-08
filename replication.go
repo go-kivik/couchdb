@@ -76,6 +76,10 @@ type replication struct {
 	// mu protects the above values
 	mu sync.RWMutex
 
+	// useScheduler is true if the new (in 2.1) _scheduler interface should be
+	// used for updates to this replication.
+	useScheduler bool
+
 	*db
 }
 
@@ -185,6 +189,7 @@ func (r *replication) getReplicatorDoc(ctx context.Context) (*replicatorDoc, err
 func (r *replication) setFromSchedulerDoc(doc *schedulerDoc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.useScheduler = true
 	r.docID = doc.DocID
 	r.replicationID = doc.ReplicationID
 	r.source = doc.Source
