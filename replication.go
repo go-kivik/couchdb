@@ -245,7 +245,10 @@ type replicatorDoc struct {
 func (c *client) GetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
 	if !c.noScheduler {
 		result, err := c.getReplicationsFromScheduler(ctx, options)
-		return result, err
+		if err != errSchedulerNotImplemented {
+			return result, err
+		}
+		c.noScheduler = true
 	}
 	return c.legacyGetReplications(ctx, options)
 }
@@ -261,6 +264,10 @@ type schedulerDoc struct {
 	State         string    `json:"state"`
 }
 
+// errSchedulerNotImplemented is used internally only, and signals that a
+// fallback should occur to the legacy replicator database.
+var errSchedulerNotImplemented = errors.Status(kivik.StatusNotImplemented, "_scheduler interface not implemented")
+
 func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
 	params, err := optionsToParams(options)
 	if err != nil {
@@ -275,7 +282,7 @@ func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[s
 	}
 	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
 		if code := kivik.StatusCode(err); code == kivik.StatusNotFound || code == kivik.StatusBadRequest {
-			return nil, errors.Status(kivik.StatusNotImplemented, "_scheduler interface not implemented")
+			return nil, errSchedulerNotImplemented
 		}
 		return nil, err
 	}

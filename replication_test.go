@@ -393,6 +393,44 @@ func TestLegacyGetReplications(t *testing.T) {
 	}
 }
 
+func TestGetReplications(t *testing.T) {
+	tests := []struct {
+		name        string
+		client      *client
+		status      int
+		err         string
+		noScheduler bool
+	}{
+		{
+			name:        "network error",
+			client:      newTestClient(nil, errors.New("net error")),
+			noScheduler: false,
+			status:      kivik.StatusNetworkError,
+			err:         "Get http://example.com/_scheduler/docs: net error",
+		},
+		{
+			name: "not found, 2.0",
+			client: newTestClient(&http.Response{
+				StatusCode: 404,
+				Request:    &http.Request{Method: "GET"},
+				Body:       Body(""),
+			}, nil),
+			noScheduler: true,
+			status:      kivik.StatusNotFound,
+			err:         "Not Found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.client.GetReplications(context.Background(), nil)
+			if test.client.noScheduler != test.noScheduler {
+				t.Errorf("Unexpected noScheduler state: %t", test.client.noScheduler)
+			}
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
+
 func TestReplicationUpdate(t *testing.T) {
 	tests := []struct {
 		name     string
