@@ -182,6 +182,21 @@ func (r *replication) getReplicatorDoc(ctx context.Context) (*replicatorDoc, err
 	return &doc, err
 }
 
+func (r *replication) setFromSchedulerDoc(doc *schedulerDoc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.docID = doc.DocID
+	r.replicationID = doc.ReplicationID
+	r.source = doc.Source
+	r.target = doc.Target
+	r.startTime = doc.StartTime
+	r.state = doc.State
+	switch doc.State {
+	case "completed", "failed":
+		r.endTime = doc.LastUpdated
+	}
+}
+
 func (r *replication) setFromReplicatorDoc(doc *replicatorDoc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -228,7 +243,49 @@ type replicatorDoc struct {
 }
 
 func (c *client) GetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
+	if !c.noScheduler {
+		result, err := c.getReplicationsFromScheduler(ctx, options)
+		return result, err
+	}
 	return c.legacyGetReplications(ctx, options)
+}
+
+type schedulerDoc struct {
+	Database      string    `json:"database"`
+	DocID         string    `json:"doc_id"`
+	ReplicationID string    `json:"id"`
+	Source        string    `json:"source"`
+	Target        string    `json:"target"`
+	StartTime     time.Time `json:"start_time"`
+	LastUpdated   time.Time `json:"last_updated"`
+	State         string    `json:"state"`
+}
+
+func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
+	params, err := optionsToParams(options)
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		Docs []schedulerDoc `json:"docs"`
+	}
+	path := "/_scheduler/docs"
+	if params != nil {
+		path = path + "?" + params.Encode()
+	}
+	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
+		if code := kivik.StatusCode(err); code == kivik.StatusNotFound || code == kivik.StatusBadRequest {
+			return nil, errors.Status(kivik.StatusNotImplemented, "_scheduler interface not implemented")
+		}
+		return nil, err
+	}
+	reps := make([]driver.Replication, 0, len(result.Docs))
+	for _, row := range result.Docs {
+		rep := c.newReplication(row.DocID)
+		rep.setFromSchedulerDoc(&row)
+		reps = append(reps, rep)
+	}
+	return reps, nil
 }
 
 func (c *client) legacyGetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
