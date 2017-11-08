@@ -191,7 +191,7 @@ type replicationRow struct {
 	Err           string
 }
 
-func TestGetReplications(t *testing.T) {
+func TestLegacyGetReplications(t *testing.T) {
 	tests := []struct {
 		name     string
 		options  map[string]interface{}
@@ -244,7 +244,7 @@ func TestGetReplications(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			reps, err := test.client.GetReplications(context.Background(), test.options)
+			reps, err := test.client.legacyGetReplications(context.Background(), test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			result := make([]replicationRow, len(reps))
 			for i, rep := range reps {

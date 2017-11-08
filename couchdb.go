@@ -39,6 +39,10 @@ const (
 type client struct {
 	*chttp.Client
 	Compat CompatMode
+
+	// noScheduler will be set true if the /_scheduler endpoint (added in 2.1.0)
+	// is found to be not supported.
+	noScheduler bool
 }
 
 var _ driver.Client = &client{}
