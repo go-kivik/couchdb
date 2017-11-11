@@ -14,6 +14,13 @@ import (
 	"github.com/flimzy/testy"
 )
 
+func TestReplicationError(t *testing.T) {
+	status := 404
+	reason := "not found"
+	err := &replicationError{status: status, reason: reason}
+	testy.StatusError(t, reason, status, err)
+}
+
 func TestStateTime(t *testing.T) {
 	type stTest struct {
 		Name     string
@@ -180,23 +187,12 @@ func TestReplicate(t *testing.T) {
 	}
 }
 
-type replicationRow struct {
-	ReplicationID string
-	Source        string
-	Target        string
-	StartTime     time.Time
-	EndTime       time.Time
-	State         string
-	Status        int
-	Err           string
-}
-
-func TestGetReplications(t *testing.T) {
+func TestLegacyGetReplications(t *testing.T) {
 	tests := []struct {
 		name     string
 		options  map[string]interface{}
 		client   *client
-		expected []replicationRow
+		expected []*replication
 		status   int
 		err      string
 	}{
@@ -229,43 +225,69 @@ func TestGetReplications(t *testing.T) {
 				{"id":"_design/_replicator","key":"_design/_replicator","value":{"rev":"1-5bfa2c99eefe2b2eb4962db50aa3cfd4"},"doc":{"_id":"_design/_replicator","_rev":"1-5bfa2c99eefe2b2eb4962db50aa3cfd4","language":"javascript","validate_doc_update":"..."}}
 				]}`),
 			}, nil),
-			expected: []replicationRow{
+			expected: []*replication{
 				{
-					ReplicationID: "548507fbb9fb9fcd8a3b27050b9ba5bf",
-					Source:        "foo",
-					Target:        "bar",
-					State:         "error",
-					Status:        kivik.StatusUnauthorized,
-					EndTime:       parseTime(t, "2017-10-30T20:03:34+00:00"),
-					Err:           "unauthorized: unauthorized to access or create database foo",
+					docID:         "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
+					replicationID: "548507fbb9fb9fcd8a3b27050b9ba5bf",
+					source:        "foo",
+					target:        "bar",
+					endTime:       parseTime(t, "2017-10-30T20:03:34+00:00"),
+					state:         "error",
+					err:           &replicationError{status: 401, reason: "unauthorized: unauthorized to access or create database foo"},
 				},
 			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			reps, err := test.client.GetReplications(context.Background(), test.options)
+			reps, err := test.client.legacyGetReplications(context.Background(), test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			result := make([]replicationRow, len(reps))
+			result := make([]*replication, len(reps))
 			for i, rep := range reps {
-				var msg string
-				if e := rep.Err(); e != nil {
-					msg = e.Error()
-				}
-				result[i] = replicationRow{
-					ReplicationID: rep.ReplicationID(),
-					Source:        rep.Source(),
-					Target:        rep.Target(),
-					StartTime:     rep.StartTime(),
-					EndTime:       rep.EndTime(),
-					State:         rep.State(),
-					Status:        kivik.StatusCode(rep.Err()),
-					Err:           msg,
-				}
+				result[i] = rep.(*replication)
+				result[i].db = nil
 			}
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
+		})
+	}
+}
+
+func TestGetReplications(t *testing.T) {
+	tests := []struct {
+		name        string
+		client      *client
+		status      int
+		err         string
+		noScheduler bool
+	}{
+		{
+			name:        "network error",
+			client:      newTestClient(nil, errors.New("net error")),
+			noScheduler: false,
+			status:      kivik.StatusNetworkError,
+			err:         "Get http://example.com/_scheduler/docs: net error",
+		},
+		{
+			name: "not found, 2.0",
+			client: newTestClient(&http.Response{
+				StatusCode: 404,
+				Request:    &http.Request{Method: "GET"},
+				Body:       Body(""),
+			}, nil),
+			noScheduler: true,
+			status:      kivik.StatusNotFound,
+			err:         "Not Found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.client.GetReplications(context.Background(), nil)
+			if test.client.noScheduler != test.noScheduler {
+				t.Errorf("Unexpected noScheduler state: %t", test.client.noScheduler)
+			}
+			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
 }
@@ -586,4 +608,42 @@ func TestSetFromReplicatorDoc(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReplicationGetters(t *testing.T) {
+	repID := "a"
+	source := "b"
+	target := "c"
+	state := "d"
+	err := "e"
+	start := parseTime(t, "2017-01-01T01:01:01Z")
+	end := parseTime(t, "2017-01-01T01:01:02Z")
+	rep := &replication{
+		replicationID: repID,
+		source:        source,
+		target:        target,
+		startTime:     start,
+		endTime:       end,
+		state:         state,
+		err:           errors.New(err),
+	}
+	if result := rep.ReplicationID(); result != repID {
+		t.Errorf("Unexpected replication ID: %s", result)
+	}
+	if result := rep.Source(); result != source {
+		t.Errorf("Unexpected source: %s", result)
+	}
+	if result := rep.Target(); result != target {
+		t.Errorf("Unexpected target: %s", result)
+	}
+	if result := rep.StartTime(); !result.Equal(start) {
+		t.Errorf("Unexpected start time: %v", result)
+	}
+	if result := rep.EndTime(); !result.Equal(end) {
+		t.Errorf("Unexpected end time: %v", result)
+	}
+	if result := rep.State(); result != state {
+		t.Errorf("Unexpected state: %s", result)
+	}
+	testy.Error(t, err, rep.Err())
 }

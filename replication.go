@@ -228,6 +228,17 @@ type replicatorDoc struct {
 }
 
 func (c *client) GetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
+	if !c.noScheduler {
+		result, err := c.getReplicationsFromScheduler(ctx, options)
+		if err != errSchedulerNotImplemented {
+			return result, err
+		}
+		c.noScheduler = true
+	}
+	return c.legacyGetReplications(ctx, options)
+}
+
+func (c *client) legacyGetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
 	if options == nil {
 		options = map[string]interface{}{}
 	}
