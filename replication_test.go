@@ -14,6 +14,13 @@ import (
 	"github.com/flimzy/testy"
 )
 
+func TestReplicationError(t *testing.T) {
+	status := 404
+	reason := "not found"
+	err := &replicationError{status: status, reason: reason}
+	testy.StatusError(t, reason, status, err)
+}
+
 func TestStateTime(t *testing.T) {
 	type stTest struct {
 		Name     string
