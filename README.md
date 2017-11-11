@@ -20,7 +20,7 @@ import (
     "context"
 
     "github.com/flimzy/kivik"
-    _ "github.com/go-kivik/couchdb" // The PouchDB driver
+    _ "github.com/go-kivik/couchdb" // The CouchDB driver
 )
 
 func main() {
