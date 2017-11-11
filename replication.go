@@ -184,7 +184,7 @@ func (r *replication) getReplicatorDoc(ctx context.Context) (*replicatorDoc, err
 
 func (r *replication) setFromReplicatorDoc(doc *replicatorDoc) {
 	r.mu.Lock()
-	r.mu.Unlock()
+	defer r.mu.Unlock()
 	switch kivik.ReplicationState(doc.State) {
 	case kivik.ReplicationStarted:
 		r.startTime = time.Time(doc.StateTime)
