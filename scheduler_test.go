@@ -233,3 +233,83 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		})
 	}
 }
+
+func TestSchedulerReplicationDelete(t *testing.T) {
+	tests := []struct {
+		name   string
+		rep    *schedulerReplication
+		status int
+		err    string
+	}{
+		{
+			name: "HEAD network error",
+			rep: &schedulerReplication{
+				docID: "foo",
+				db:    newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusNetworkError,
+			err:    "Head http://example.com/testdb/foo: net error",
+		},
+		{
+			name: "DELETE network error",
+			rep: &schedulerReplication{
+				docID: "foo",
+				db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+					if r.Method == http.MethodHead {
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"ETag": {`"9-b38287cbde7623a328843f830f418c92"`},
+							},
+							Body: Body(""),
+						}, nil
+					}
+					return nil, errors.New("net error")
+				}),
+			},
+			status: kivik.StatusNetworkError,
+			err:    "(Delete http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92: )?net error",
+		},
+		{
+			name: "success",
+			rep: &schedulerReplication{
+				docID: "foo",
+				db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+					if r.Method == http.MethodHead {
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"ETag": {`"9-b38287cbde7623a328843f830f418c92"`},
+							},
+							Body: Body(""),
+						}, nil
+					}
+					expected := "http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92"
+					if r.URL.String() != expected {
+						panic("Unexpected url: " + r.URL.String())
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Header: http.Header{
+							"X-CouchDB-Body-Time": {"0"},
+							"X-Couch-Request-ID":  {"03b7ff8976"},
+							"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+							"ETag":                {`"10-a4f1941d02a2bcc6b4fe8a463dbea746"`},
+							"Date":                {"Sat, 11 Nov 2017 16:28:26 GMT"},
+							"Content-Type":        {"application/json"},
+							"Content-Length":      {"67"},
+							"Cache-Control":       {"must-revalidate"},
+						},
+						Body: Body(`{"ok":true,"id":"foo","rev":"10-a4f1941d02a2bcc6b4fe8a463dbea746"}`),
+					}, nil
+				}),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.rep.Delete(context.Background())
+			testy.StatusErrorRE(t, test.err, test.status, err)
+		})
+	}
+}

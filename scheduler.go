@@ -116,7 +116,12 @@ func (r *schedulerReplication) Update(ctx context.Context, rep *driver.Replicati
 }
 
 func (r *schedulerReplication) Delete(ctx context.Context) error {
-	return nil
+	rev, err := r.Rev(ctx, r.docID)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Delete(ctx, r.docID, rev)
+	return err
 }
 
 func (r *schedulerReplication) getSchedulerDoc(ctx context.Context) (*schedulerDoc, error) {
