@@ -16,7 +16,7 @@ import (
 var findNotImplemented = errors.Status(kivik.StatusNotImplemented, "kivik: Find interface not implemented prior to CouchDB 2.0.0")
 
 func (d *db) CreateIndex(ctx context.Context, ddoc, name string, index interface{}) error {
-	if d.client.Compat == CompatCouch16 {
+	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return findNotImplemented
 	}
 	indexObj, err := deJSONify(index)
@@ -41,7 +41,7 @@ func (d *db) CreateIndex(ctx context.Context, ddoc, name string, index interface
 }
 
 func (d *db) GetIndexes(ctx context.Context) ([]driver.Index, error) {
-	if d.client.Compat == CompatCouch16 {
+	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
 	var result struct {
@@ -52,7 +52,7 @@ func (d *db) GetIndexes(ctx context.Context) ([]driver.Index, error) {
 }
 
 func (d *db) DeleteIndex(ctx context.Context, ddoc, name string) error {
-	if d.client.Compat == CompatCouch16 {
+	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return findNotImplemented
 	}
 	if ddoc == "" {
@@ -67,7 +67,7 @@ func (d *db) DeleteIndex(ctx context.Context, ddoc, name string) error {
 }
 
 func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
-	if d.client.Compat == CompatCouch16 {
+	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
 	body, err := toJSON(query)
@@ -112,7 +112,7 @@ func (f *fields) UnmarshalJSON(data []byte) error {
 }
 
 func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan, error) {
-	if d.client.Compat == CompatCouch16 {
+	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
 	body, err := util.ToJSON(query)
