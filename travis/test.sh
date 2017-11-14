@@ -21,12 +21,10 @@ case "$1" in
         gometalinter.v1 --config .linter.json ./...
     ;;
     "coverage")
-        # Don't count integration tests in coverage reports
-        unset KIVIK_TEST_DSN_COUCH16
-        unset KIVIK_TEST_DSN_COUCH20
         echo "" > coverage.txt
 
-        TEST_PKGS=$(find -name "*_test.go" | grep -v /vendor/ | xargs dirname | sort -u | sed -e "s#^\.#github.com/go-kivik/couchdb#" )
+        # Filter /test/ to not count integration tests in coverage reports
+        TEST_PKGS=$(find -name "*_test.go" | grep -v /vendor/ | grep -v /test/ | xargs dirname | sort -u | sed -e "s#^\.#github.com/go-kivik/couchdb#" )
 
         for d in $TEST_PKGS; do
             go test -i $d

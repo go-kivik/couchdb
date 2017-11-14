@@ -17,6 +17,10 @@ func TestCouch16(t *testing.T) {
 	kiviktest.DoTest(kiviktest.SuiteCouch16, "KIVIK_TEST_DSN_COUCH16", t)
 }
 
+func TestCouch17(t *testing.T) {
+	kiviktest.DoTest(kiviktest.SuiteCouch17, "KIVIK_TEST_DSN_COUCH17", t)
+}
+
 func TestCouch20(t *testing.T) {
 	kiviktest.DoTest(kiviktest.SuiteCouch20, "KIVIK_TEST_DSN_COUCH20", t)
 }
