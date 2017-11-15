@@ -29,8 +29,8 @@ function setup_couch16 {
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         return
     fi
-    docker pull couchdb:1.6
-    docker run -d -p 6000:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb16 couchdb:1.6
+    docker pull couchdb:1.6.1
+    docker run -d -p 6000:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb16 couchdb:1.6.1
     wait_for_server http://localhost:6000/
     curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6000/_config/replicator/connection_timeout -d '"5000"'
 }
@@ -39,8 +39,8 @@ function setup_couch17 {
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         return
     fi
-    docker pull apache/couchdb:1.7
-    docker run -d -p 6003:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb17 apache/couchdb:1.7
+    docker pull apache/couchdb:1.7.1
+    docker run -d -p 6003:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb17 apache/couchdb:1.7.1
     wait_for_server http://localhost:6003/
     curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6003/_config/replicator/connection_timeout -d '"5000"'
 }
