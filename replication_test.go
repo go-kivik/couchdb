@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 )
 
@@ -256,37 +256,61 @@ func TestLegacyGetReplications(t *testing.T) {
 
 func TestGetReplications(t *testing.T) {
 	tests := []struct {
-		name        string
-		client      *client
-		status      int
-		err         string
-		noScheduler bool
+		name   string
+		client *client
+		status int
+		err    string
 	}{
 		{
-			name:        "network error",
-			client:      newTestClient(nil, errors.New("net error")),
-			noScheduler: false,
-			status:      kivik.StatusNetworkError,
-			err:         "Get http://example.com/_scheduler/docs: net error",
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Head http://example.com/_scheduler/jobs: net error",
 		},
 		{
-			name: "not found, 2.0",
-			client: newTestClient(&http.Response{
-				StatusCode: 404,
-				Request:    &http.Request{Method: "GET"},
-				Body:       Body(""),
-			}, nil),
-			noScheduler: true,
-			status:      kivik.StatusNotFound,
-			err:         "Not Found",
+			name: "no scheduler",
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					if req.URL.Path != "/_scheduler/docs" {
+						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+					}
+					return &http.Response{
+						StatusCode: 404,
+						Request:    &http.Request{Method: "GET"},
+						Body:       Body(""),
+					}, nil
+				})
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
+			status: kivik.StatusNotFound,
+			err:    "Not Found",
+		},
+		{
+			name: "scheduler detected",
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					if req.URL.Path != "/_replicator/_all_docs" {
+						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+					}
+					return &http.Response{
+						StatusCode: 404,
+						Request:    &http.Request{Method: "GET"},
+						Body:       Body(""),
+					}, nil
+				})
+				b := true
+				client.schedulerDetected = &b
+				return client
+			}(),
+			status: kivik.StatusNotFound,
+			err:    "Not Found",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.client.GetReplications(context.Background(), nil)
-			if test.client.noScheduler != test.noScheduler {
-				t.Errorf("Unexpected noScheduler state: %t", test.client.noScheduler)
-			}
 			testy.StatusError(t, test.err, test.status, err)
 		})
 	}

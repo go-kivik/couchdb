@@ -69,6 +69,32 @@ type schedulerReplication struct {
 
 var _ driver.Replication = &schedulerReplication{}
 
+func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
+	if c.schedulerDetected != nil {
+		return *c.schedulerDetected, nil
+	}
+	resp, err := c.DoReq(ctx, kivik.MethodHead, "_scheduler/jobs", nil)
+	if err != nil {
+		return false, err
+	}
+	var supported bool
+	switch resp.StatusCode {
+	case kivik.StatusBadRequest:
+		// 1.6.x, 1.7.x
+		supported = false
+	case kivik.StatusNotFound:
+		// 2.0.x
+		supported = false
+	case kivik.StatusOK:
+		// 2.1.x +
+		supported = true
+	default:
+		return false, errors.Statusf(kivik.StatusBadResponse, "Unknown response code %d", resp.StatusCode)
+	}
+	c.schedulerDetected = &supported
+	return supported, nil
+}
+
 func (c *client) newSchedulerReplication(doc *schedulerDoc) *schedulerReplication {
 	rep := &schedulerReplication{
 		docID:         doc.DocID,
@@ -131,10 +157,6 @@ func (r *schedulerReplication) getSchedulerDoc(ctx context.Context) (*schedulerD
 	return &doc, err
 }
 
-// errSchedulerNotImplemented is used internally only, and signals that a
-// fallback should occur to the legacy replicator database.
-var errSchedulerNotImplemented = errors.Status(kivik.StatusNotImplemented, "_scheduler interface not implemented")
-
 func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
 	params, err := optionsToParams(options)
 	if err != nil {
@@ -148,9 +170,6 @@ func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[s
 		path = path + "?" + params.Encode()
 	}
 	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
-		if code := kivik.StatusCode(err); code == kivik.StatusNotFound || code == kivik.StatusBadRequest {
-			return nil, errSchedulerNotImplemented
-		}
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Docs))

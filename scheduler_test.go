@@ -125,44 +125,6 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		err      string
 	}{
 		{
-			name: "scheduler not supported, 2.0",
-			client: newTestClient(&http.Response{
-				StatusCode: 404,
-				Header: http.Header{
-					"Cache-Control":       {"must-revalidate"},
-					"Content-Length":      {"58"},
-					"Content-Type":        {"application/json"},
-					"Date":                {"Wed, 08 Nov 2017 17:52:38 GMT"},
-					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
-					"X-Couch-Request-ID":  {"8b9574a6f8"},
-					"X-CouchDB-Body-Time": {"0"},
-				},
-				ContentLength: 58,
-				Body:          Body(`{"error":"not_found","reason":"Database does not exist."}`),
-			}, nil),
-			status: kivik.StatusNotImplemented,
-			err:    "_scheduler interface not implemented",
-		},
-		{
-			name: "scheduler not supported, 1.6",
-			client: newTestClient(&http.Response{
-				StatusCode: 400,
-				Header: http.Header{
-					"Cache-Control":       {"must-revalidate"},
-					"Content-Length":      {"201"},
-					"Content-Type":        {"application/json"},
-					"Date":                {"Wed, 08 Nov 2017 17:52:38 GMT"},
-					"Server":              {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"X-Couch-Request-ID":  {"8b9574a6f8"},
-					"X-CouchDB-Body-Time": {"0"},
-				},
-				ContentLength: 58,
-				Body:          Body(`{"error":"illegal_database_name","reason":"Name: '_scheduler'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter."}`),
-			}, nil),
-			status: kivik.StatusNotImplemented,
-			err:    "_scheduler interface not implemented",
-		},
-		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
@@ -350,4 +312,113 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 		t.Errorf("Unexpected state: %s", result)
 	}
 	testy.Error(t, err, rep.Err())
+}
+
+func TestDetectSchedulerSupport(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   *client
+		expected bool
+		status   int
+		err      string
+	}{
+		{
+			name:     "already set true",
+			client:   &client{schedulerDetected: func() *bool { b := true; return &b }()},
+			expected: true,
+		},
+		{
+			name: "1.6.1, not supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 400,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 16 Nov 2017 17:37:32 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"201"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected: false,
+		},
+		{
+			name: "1.7.1, not supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 400,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.7.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 16 Nov 2017 17:37:32 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"201"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected: false,
+		},
+		{
+			name: "2.0.0, not supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 404,
+				Header: http.Header{
+					"Cache-Control":       {"must-revalidate"},
+					"Content-Length":      {"58"},
+					"Content-Type":        {"application/json"},
+					"Date":                {"Thu, 16 Nov 2017 17:45:34 GMT"},
+					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+					"X-Couch-Request-ID":  {"027c1e7ffe"},
+					"X-CouchDB-Body-Time": {"0"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected: false,
+		},
+		{
+			name: "2.1.1, supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":           {"Thu, 16 Nov 2017 17:47:58 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"38"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected: true,
+		},
+		{
+			name:     "network error",
+			client:   newTestClient(nil, errors.New("net error")),
+			expected: false,
+			status:   kivik.StatusNetworkError,
+			err:      "Head http://example.com/_scheduler/jobs: net error",
+		},
+		{
+			name: "Unexpected response code",
+			client: newTestClient(&http.Response{
+				StatusCode: 500,
+				Request:    &http.Request{Method: "HEAD"},
+				Body:       Body(""),
+			}, nil),
+			expected: false,
+			status:   kivik.StatusBadResponse,
+			err:      "Unknown response code 500",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.schedulerSupported(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			if result != test.expected {
+				t.Errorf("Unexpected result: %v", result)
+			}
+		})
+	}
 }
