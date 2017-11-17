@@ -81,6 +81,15 @@ type replication struct {
 
 var _ driver.Replication = &replication{}
 
+func (c *client) fetchReplication(ctx context.Context, docID string) *replication {
+	rep := c.newReplication(docID)
+	rep.db = &db{client: c, dbName: "_replicator", forceCommit: true}
+	// Do an update to get the initial state, but don't fail if there's an error
+	// at this stage, because we successfully created the replication doc.
+	_ = rep.updateMain(ctx)
+	return rep
+}
+
 func (c *client) newReplication(docID string) *replication {
 	return &replication{
 		docID: docID,
@@ -297,10 +306,5 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub); e != nil {
 		return nil, e
 	}
-	rep := c.newReplication(repStub.ID)
-	rep.db = &db{client: c, dbName: "_replicator", forceCommit: true}
-	// Do an update to get the initial state, but don't fail if there's an error
-	// at this stage, because we successfully created the replication doc.
-	_ = rep.updateMain(ctx)
-	return rep, nil
+	return c.fetchReplication(ctx, repStub.ID), nil
 }
