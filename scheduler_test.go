@@ -515,6 +515,40 @@ func TestSRinnerUpdate(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "db not found",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "56d257bd2125c8f15870b3ddd202c4ca",
+				db: newTestDB(&http.Response{
+					StatusCode: 200,
+					Header: http.Header{
+						"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+						"Date":           {"Fri, 17 Nov 2017 13:05:52 GMT"},
+						"Content-Type":   {"application/json"},
+						"Content-Length": {"328"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd202c4ca","id":"c636d089fbdc3a9a937a466acf8f42c3","node":"nonode@nohost","source":"foo","target":"bar","state":"crashing","info":"db_not_found: could not open foo","error_count":7,"last_updated":"2017-11-17T12:59:35Z","start_time":"2017-11-17T12:22:25Z","proxy":null}`),
+				}, nil),
+			},
+			expected: &schedulerReplication{
+				docID:         "56d257bd2125c8f15870b3ddd202c4ca",
+				database:      "_replicator",
+				replicationID: "c636d089fbdc3a9a937a466acf8f42c3",
+				source:        "foo",
+				target:        "bar",
+				startTime:     parseTime(t, "2017-11-17T12:22:25Z"),
+				lastUpdated:   parseTime(t, "2017-11-17T12:59:35Z"),
+				state:         "crashing",
+				info: repInfo{
+					Error: &replicationError{
+						status: 404,
+						reason: "db_not_found: could not open foo",
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

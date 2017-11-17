@@ -179,7 +179,6 @@ func (r *schedulerReplication) update(ctx context.Context) error {
 				// This is a race condition bug in CouchDB 2.1.x. So try again.
 				// See https://github.com/apache/couchdb/issues/1000
 				return r.update(ctx)
-
 			}
 		}
 		return err
