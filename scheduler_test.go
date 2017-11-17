@@ -163,19 +163,26 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 					source:        "foo",
 					target:        "bar",
 					startTime:     parseTime(t, "2017-11-08T17:51:52Z"),
-					err: &replicationError{
-						status: 404,
-						reason: "db_not_found: could not open foo",
+					lastUpdated:   parseTime(t, "2017-11-08T18:07:38Z"),
+					info: repInfo{
+						Error: &replicationError{
+							status: 404,
+							reason: "db_not_found: could not open foo",
+						},
 					},
 				},
 				{
-					database:  "_replicator",
-					docID:     "foo2",
-					source:    "http://admin:*****@localhost:5984/foo/",
-					target:    "http://admin:*****@localhost:5984/bar/",
-					state:     "completed",
-					startTime: parseTime(t, "2017-11-01T21:05:03Z"),
-					endTime:   parseTime(t, "2017-11-01T21:05:06Z"),
+					database:    "_replicator",
+					docID:       "foo2",
+					source:      "http://admin:*****@localhost:5984/foo/",
+					target:      "http://admin:*****@localhost:5984/bar/",
+					state:       "completed",
+					startTime:   parseTime(t, "2017-11-01T21:05:03Z"),
+					lastUpdated: parseTime(t, "2017-11-01T21:05:06Z"),
+					info: repInfo{
+						DocsRead:    23,
+						DocsWritten: 23,
+					},
 				},
 			},
 		},
@@ -280,7 +287,7 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 	repID := "a"
 	source := "b"
 	target := "c"
-	state := "d"
+	state := "completed"
 	err := "e"
 	start := parseTime(t, "2017-01-01T01:01:01Z")
 	end := parseTime(t, "2017-01-01T01:01:02Z")
@@ -289,9 +296,9 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 		source:        source,
 		target:        target,
 		startTime:     start,
-		endTime:       end,
+		lastUpdated:   end,
 		state:         state,
-		err:           errors.New(err),
+		info:          repInfo{Error: errors.New(err)},
 	}
 	if result := rep.ReplicationID(); result != repID {
 		t.Errorf("Unexpected replication ID: %s", result)
@@ -315,17 +322,21 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 }
 
 func TestDetectSchedulerSupport(t *testing.T) {
+	supported := true
+	unsupported := false
 	tests := []struct {
-		name     string
-		client   *client
-		expected bool
-		status   int
-		err      string
+		name          string
+		client        *client
+		expected      bool
+		expectedState *bool
+		status        int
+		err           string
 	}{
 		{
-			name:     "already set true",
-			client:   &client{schedulerDetected: func() *bool { b := true; return &b }()},
-			expected: true,
+			name:          "already set true",
+			client:        &client{schedulerDetected: func() *bool { b := true; return &b }()},
+			expected:      true,
+			expectedState: &supported,
 		},
 		{
 			name: "1.6.1, not supported",
@@ -341,7 +352,8 @@ func TestDetectSchedulerSupport(t *testing.T) {
 				Request: &http.Request{Method: "HEAD"},
 				Body:    Body(""),
 			}, nil),
-			expected: false,
+			expected:      false,
+			expectedState: &unsupported,
 		},
 		{
 			name: "1.7.1, not supported",
@@ -357,7 +369,8 @@ func TestDetectSchedulerSupport(t *testing.T) {
 				Request: &http.Request{Method: "HEAD"},
 				Body:    Body(""),
 			}, nil),
-			expected: false,
+			expected:      false,
+			expectedState: &unsupported,
 		},
 		{
 			name: "2.0.0, not supported",
@@ -375,7 +388,8 @@ func TestDetectSchedulerSupport(t *testing.T) {
 				Request: &http.Request{Method: "HEAD"},
 				Body:    Body(""),
 			}, nil),
-			expected: false,
+			expected:      false,
+			expectedState: &unsupported,
 		},
 		{
 			name: "2.1.1, supported",
@@ -391,14 +405,15 @@ func TestDetectSchedulerSupport(t *testing.T) {
 				Request: &http.Request{Method: "HEAD"},
 				Body:    Body(""),
 			}, nil),
-			expected: true,
+			expected:      true,
+			expectedState: &supported,
 		},
 		{
-			name:     "network error",
-			client:   newTestClient(nil, errors.New("net error")),
-			expected: false,
-			status:   kivik.StatusNetworkError,
-			err:      "Head http://example.com/_scheduler/jobs: net error",
+			name:          "network error",
+			client:        newTestClient(nil, errors.New("net error")),
+			expectedState: nil,
+			status:        kivik.StatusNetworkError,
+			err:           "Head http://example.com/_scheduler/jobs: net error",
 		},
 		{
 			name: "Unexpected response code",
@@ -407,14 +422,17 @@ func TestDetectSchedulerSupport(t *testing.T) {
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			}, nil),
-			expected: false,
-			status:   kivik.StatusBadResponse,
-			err:      "Unknown response code 500",
+			expectedState: nil,
+			status:        kivik.StatusBadResponse,
+			err:           "Unknown response code 500",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.schedulerSupported(context.Background())
+			if d := diff.Interface(test.expectedState, test.client.schedulerDetected); d != nil {
+				t.Error(d)
+			}
 			testy.StatusError(t, test.err, test.status, err)
 			if result != test.expected {
 				t.Errorf("Unexpected result: %v", result)

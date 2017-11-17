@@ -300,11 +300,20 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if err := json.NewEncoder(body).Encode(options); err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
+
+	scheduler, err := c.schedulerSupported(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var repStub struct {
 		ID string `json:"id"`
 	}
 	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub); e != nil {
 		return nil, e
+	}
+	if scheduler {
+		return c.fetchSchedulerReplication(ctx, repStub.ID), nil
 	}
 	return c.fetchReplication(ctx, repStub.ID), nil
 }

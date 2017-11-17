@@ -152,28 +152,38 @@ func TestReplicate(t *testing.T) {
 		{
 			name:   "network error",
 			target: "foo", source: "bar",
-			client: newTestClient(nil, errors.New("net eror")),
+			client: func() *client {
+				client := newTestClient(nil, errors.New("net eror"))
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
 			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/_replicator: net eror",
 		},
 		{
 			name:   "1.6.1",
 			target: "foo", source: "bar",
-			client: newCustomClient(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: 201,
-					Header: http.Header{
-						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-						"Location":       {"http://localhost:5984/_replicator/4ab99e4d7d4b5a6c5a6df0d0ed01221d"},
-						"ETag":           {`"1-290800e5803500237075f9b08226cffd"`},
-						"Date":           {"Mon, 30 Oct 2017 20:03:34 GMT"},
-						"Content-Type":   {"application/json"},
-						"Content-Length": {"95"},
-						"Cache-Control":  {"must-revalidate"},
-					},
-					Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"1-290800e5803500237075f9b08226cffd"}`),
-				}, nil
-			}),
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: 201,
+						Header: http.Header{
+							"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+							"Location":       {"http://localhost:5984/_replicator/4ab99e4d7d4b5a6c5a6df0d0ed01221d"},
+							"ETag":           {`"1-290800e5803500237075f9b08226cffd"`},
+							"Date":           {"Mon, 30 Oct 2017 20:03:34 GMT"},
+							"Content-Type":   {"application/json"},
+							"Content-Length": {"95"},
+							"Cache-Control":  {"must-revalidate"},
+						},
+						Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"1-290800e5803500237075f9b08226cffd"}`),
+					}, nil
+				})
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
 		},
 	}
 	for _, test := range tests {
