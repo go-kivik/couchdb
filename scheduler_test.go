@@ -440,3 +440,90 @@ func TestDetectSchedulerSupport(t *testing.T) {
 		})
 	}
 }
+
+func TestSRinnerUpdate(t *testing.T) {
+	tests := []struct {
+		name     string
+		r        *schedulerReplication
+		status   int
+		err      string
+		expected *schedulerReplication
+	}{
+		{
+			name: "network error",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "foo",
+				db:       newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
+		},
+		{
+			name: "2.1.1 500 bug",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "foo",
+				db: func() *db {
+					var count int
+					db := newCustomDB(func(req *http.Request) (*http.Response, error) {
+						if count == 0 {
+							count++
+							return &http.Response{
+								StatusCode: 500,
+								Header: http.Header{
+									"Content-Length":      {"70"},
+									"Cache-Control":       {"must-revalidate"},
+									"Content-Type":        {"application/json"},
+									"Date":                {"Thu, 16 Nov 2017 20:14:25 GMT"},
+									"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+									"X-Couch-Request-Id":  {"65913f4727"},
+									"X-Couch-Stack-Hash":  {"3194022798"},
+									"X-Couchdb-Body-Time": {"0"},
+								},
+								Request:       &http.Request{Method: "GET"},
+								ContentLength: 70,
+								Body:          Body(`{"error":"unknown_error","reason":"function_clause","ref":3194022798}`),
+							}, nil
+						}
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+								"Date":           {"Thu, 09 Nov 2017 15:23:20 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"687"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(`{"database":"_replicator","doc_id":"foo2","id":null,"source":"http://localhost:5984/foo/","target":"http://localhost:5984/bar/","state":"completed","error_count":0,"info":{"revisions_checked":23,"missing_revisions_found":23,"docs_read":23,"docs_written":23,"changes_pending":null,"doc_write_failures":0,"checkpointed_source_seq":"27-g1AAAAIbeJyV0EsOgjAQBuAGMOLCM-gRSoUKK7mJ9kWQYLtQ13oTvYneRG-CfZAYSUjqZppM5v_SmRYAENchB3OppOKilKpWx1Or2wEBdNF1XVOHJD7oxnTFKMOcDYdH4nSpK930wsQKAmYIVdBXKI2w_RGQyFJYFb7CzgiXXgDuDywXKUk4mJ0lF9VeCj6SlpGu4KofDdyMEFoBk3QtMt87OOXulIdRAqvABHPO0F_K0ymv7zYU5UVe-W_zdoK9R2QFxhjBUAwzzQch86VT"},"start_time":"2017-11-01T21:05:03Z","last_updated":"2017-11-01T21:05:06Z"}`),
+						}, nil
+					})
+					return db
+				}(),
+			},
+			expected: &schedulerReplication{
+				docID:       "foo2",
+				database:    "_replicator",
+				source:      "http://localhost:5984/foo/",
+				target:      "http://localhost:5984/bar/",
+				startTime:   parseTime(t, "2017-11-01T21:05:03Z"),
+				lastUpdated: parseTime(t, "2017-11-01T21:05:06Z"),
+				state:       "completed",
+				info: repInfo{
+					DocsRead:    23,
+					DocsWritten: 23,
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.r.update(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			test.r.db = nil
+			if d := diff.Interface(test.expected, test.r); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
