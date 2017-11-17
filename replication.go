@@ -294,9 +294,8 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	var repStub struct {
 		ID string `json:"id"`
 	}
-	_, err := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub)
-	if err != nil {
-		return nil, err
+	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub); e != nil {
+		return nil, e
 	}
 	rep := c.newReplication(repStub.ID)
 	rep.db = &db{client: c, dbName: "_replicator", forceCommit: true}
