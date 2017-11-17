@@ -561,3 +561,66 @@ func TestSRinnerUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestFetchSchedulerReplication(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   *client
+		docID    string
+		expected *schedulerReplication
+		status   int
+		err      string
+	}{
+		{
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/_scheduler/docs/_replicator/: net error",
+		},
+		{
+			name: "loop wait",
+			client: func() *client {
+				var count int
+				return newCustomClient(func(_ *http.Request) (*http.Response, error) {
+					if count < 2 {
+						count++
+						return &http.Response{
+							StatusCode: 200,
+							Body:       Body(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2074759","id":null,"state":"initializing","info":null,"error_count":0,"node":"nonode@nohost","last_updated":"2017-11-17T19:56:09Z","start_time":"2017-11-17T19:56:09Z"}`),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       Body(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2074759","id":"c636d089fbdc3a9a937a466acf8f42c3","node":"nonode@nohost","source":"foo","target":"bar","state":"crashing","info":"db_not_found: could not open foo","error_count":1,"last_updated":"2017-11-17T19:57:09Z","start_time":"2017-11-17T19:56:09Z","proxy":null}`),
+					}, nil
+				})
+			}(),
+			expected: &schedulerReplication{
+				docID:         "56d257bd2125c8f15870b3ddd2074759",
+				database:      "_replicator",
+				replicationID: "c636d089fbdc3a9a937a466acf8f42c3",
+				source:        "foo",
+				target:        "bar",
+				startTime:     parseTime(t, "2017-11-17T19:56:09Z"),
+				lastUpdated:   parseTime(t, "2017-11-17T19:57:09Z"),
+				state:         "crashing",
+				info: repInfo{
+					Error: &replicationError{
+						status: 404,
+						reason: "db_not_found: could not open foo",
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.fetchSchedulerReplication(context.Background(), test.docID)
+			testy.StatusError(t, test.err, test.status, err)
+			result.db = nil
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
