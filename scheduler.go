@@ -107,18 +107,20 @@ func (c *client) newSchedulerReplication(doc *schedulerDoc) *schedulerReplicatio
 }
 
 func (r *schedulerReplication) setFromDoc(doc *schedulerDoc) {
-	r.docID = doc.DocID
-	r.database = doc.Database
-	r.replicationID = doc.ReplicationID
-	r.source = doc.Source
-	r.target = doc.Target
-	r.startTime = doc.StartTime
+	if r.source == "" {
+		r.docID = doc.DocID
+		r.database = doc.Database
+		r.replicationID = doc.ReplicationID
+		r.source = doc.Source
+		r.target = doc.Target
+		r.startTime = doc.StartTime
+	}
 	r.lastUpdated = doc.LastUpdated
 	r.state = doc.State
 	r.info = doc.Info
 }
 
-func (c *client) fetchSchedulerReplication(ctx context.Context, docID string) *schedulerReplication {
+func (c *client) fetchSchedulerReplication(ctx context.Context, docID string) (*schedulerReplication, error) {
 	rep := &schedulerReplication{
 		docID:    docID,
 		database: "_replicator",
@@ -127,8 +129,13 @@ func (c *client) fetchSchedulerReplication(ctx context.Context, docID string) *s
 			dbName: "_replicator",
 		},
 	}
-	_ = rep.update(ctx)
-	return rep
+	for rep.source == "" {
+		if err := rep.update(ctx); err != nil {
+			return rep, err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return rep, nil
 }
 
 func (r *schedulerReplication) StartTime() time.Time { return r.startTime }
@@ -169,7 +176,7 @@ func (r *schedulerReplication) update(ctx context.Context) error {
 	if _, err := r.db.Client.DoJSON(ctx, kivik.MethodGet, path, nil, &doc); err != nil {
 		if cerr, ok := err.(*chttp.HTTPError); ok {
 			if cerr.Code == 500 && cerr.Reason == "function_clause" {
-				// This is a race condition/bug in CouchDB 2.1.x. So try again.
+				// This is a race condition bug in CouchDB 2.1.x. So try again.
 				// See https://github.com/apache/couchdb/issues/1000
 				return r.update(ctx)
 

@@ -313,7 +313,7 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 		return nil, e
 	}
 	if scheduler {
-		return c.fetchSchedulerReplication(ctx, repStub.ID), nil
+		return c.fetchSchedulerReplication(ctx, repStub.ID)
 	}
 	return c.fetchReplication(ctx, repStub.ID), nil
 }
