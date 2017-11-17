@@ -85,7 +85,7 @@ func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
 	case kivik.StatusNotFound:
 		// 2.0.x
 		supported = false
-	case kivik.StatusOK:
+	case kivik.StatusOK, kivik.StatusUnauthorized:
 		// 2.1.x +
 		supported = true
 	default:
