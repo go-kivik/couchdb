@@ -241,7 +241,7 @@ func (c *client) GetReplications(ctx context.Context, options map[string]interfa
 	if err != nil {
 		return nil, err
 	}
-	if !scheduler {
+	if scheduler {
 		return c.getReplicationsFromScheduler(ctx, options)
 	}
 	return c.legacyGetReplications(ctx, options)

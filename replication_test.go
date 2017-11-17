@@ -281,7 +281,7 @@ func TestGetReplications(t *testing.T) {
 			name: "no scheduler",
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
-					if req.URL.Path != "/_scheduler/docs" {
+					if req.URL.Path != "/_replicator/_all_docs" {
 						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
 					}
 					return &http.Response{
@@ -301,7 +301,7 @@ func TestGetReplications(t *testing.T) {
 			name: "scheduler detected",
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
-					if req.URL.Path != "/_replicator/_all_docs" {
+					if req.URL.Path != "/_scheduler/docs" {
 						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
 					}
 					return &http.Response{
