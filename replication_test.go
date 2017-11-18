@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -185,14 +186,67 @@ func TestReplicate(t *testing.T) {
 				return client
 			}(),
 		},
+		{
+			name:   "2.1.0",
+			target: "foo", source: "bar",
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					switch req.URL.Path {
+					case "/_replicator":
+						return &http.Response{
+							StatusCode: 201,
+							Header: http.Header{
+								"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+								"Location":            {"http://localhost:6002/_replicator/56d257bd2125c8f15870b3ddd2078b23"},
+								"Date":                {"Sat, 18 Nov 2017 11:13:58 GMT"},
+								"Content-Type":        {"application/json"},
+								"Content-Length":      {"95"},
+								"Cache-Control":       {"must-revalidate"},
+								"X-CouchDB-Body-Time": {"0"},
+								"X-Couch-Request-ID":  {"a97b982715"},
+							},
+							Body: Body(`{"ok":true,"id":"56d257bd2125c8f15870b3ddd2078b23","rev":"1-290800e5803500237075f9b08226cffd"}`),
+						}, nil
+					case "/_scheduler/docs/_replicator/56d257bd2125c8f15870b3ddd2078b23":
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+								"Date":           {"Sat, 18 Nov 2017 11:18:33 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"427"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(fmt.Sprintf(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2078b23","id":null,"source":"foo","target":"bar","state":"failed","error_count":1,"info":"Replication %s specified by document %s already started, triggered by document %s from db %s","start_time":"2017-11-18T11:13:58Z","last_updated":"2017-11-18T11:13:58Z"}`, "`c636d089fbdc3a9a937a466acf8f42c3`", "`56d257bd2125c8f15870b3ddd2078b23`", "`56d257bd2125c8f15870b3ddd2074759`", "`_replicator`")),
+						}, nil
+					default:
+						return nil, errors.Errorf("Unexpected path: %s", req.URL.Path)
+					}
+				})
+				b := true
+				client.schedulerDetected = &b
+				return client
+			}(),
+		},
+		{
+			name:   "scheduler detection error",
+			target: "foo", source: "bar",
+			client: newTestClient(nil, errors.New("sched err")),
+			status: kivik.StatusNetworkError,
+			err:    "Head http://example.com/_scheduler/jobs: sched err",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := test.client.Replicate(context.Background(), test.target, test.source, test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			if _, ok := resp.(*replication); !ok {
-				t.Errorf("Unexpected response type: %T", resp)
+			if _, ok := resp.(*replication); ok {
+				return
 			}
+			if _, ok := resp.(*schedulerReplication); ok {
+				return
+			}
+			t.Errorf("Unexpected response type: %T", resp)
 		})
 	}
 }
