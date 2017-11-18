@@ -46,22 +46,20 @@ func registerSuiteCouch21() {
 			},
 			Selector: map[string]interface{}{"_id": map[string]interface{}{"$gt": nil}},
 			Options: map[string]interface{}{
-				"bookmark":  "nil",
-				"conflicts": false,
-				"r":         []int{49},
-				"sort":      map[string]interface{}{},
-				"use_index": []interface{}{},
-				"stable":    false,
-				"stale":     false,
-				"update":    true,
-				"skip":      0,
-				"limit":     25,
-				"fields":    "all_fields",
+				"bookmark":        "nil",
+				"conflicts":       false,
+				"execution_stats": false,
+				"r":               []int{49},
+				"sort":            map[string]interface{}{},
+				"use_index":       []interface{}{},
+				"stable":          false,
+				"stale":           false,
+				"update":          true,
+				"skip":            0,
+				"limit":           25,
+				"fields":          "all_fields",
 			},
-			Range: map[string]interface{}{
-				"start_key": nil,
-				"end_key":   "\xef\xbf\xbd",
-			},
+			Range: nil,
 			Limit: 25,
 		},
 
@@ -77,9 +75,9 @@ func registerSuiteCouch21() {
 
 		"Log.skip": true, // This was removed in CouchDB 2.0
 
-		"Version.version":        `^2\.1\.0$`,
+		"Version.version":        `^2\.1\.`,
 		"Version.vendor":         `^The Apache Software Foundation$`,
-		"Version.vendor_version": ``, // CouchDB 2.0 no longer has a vendor version
+		"Version.vendor_version": ``, // CouchDB 2.0+ no longer has a vendor version
 
 		"Get/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
@@ -124,8 +122,11 @@ func registerSuiteCouch21() {
 		"Session/Post/BadQueryParam.status":                         kivik.StatusUnauthorized,
 		"Session/Post/BadCredsJSON.status":                          kivik.StatusUnauthorized,
 		"Session/Post/BadCredsForm.status":                          kivik.StatusUnauthorized,
-		"Session/Post/GoodCredsJSONRemoteRedirHeaderInjection.skip": true, // CouchDB allows header injection
-		"Session/Post/GoodCredsJSONRemoteRedirInvalidURL.skip":      true, // CouchDB doesn't sanitize the Location value, so sends unparseable headers.
+		"Session/Post/GoodCredsJSONRemoteRedirAbsolute.status":      kivik.StatusBadRequest, // As of 2.1.1 all redirect paths must begin with '/'
+		"Session/Post/GoodCredsJSONRedirEmpty.status":               kivik.StatusBadRequest, // As of 2.1.1 all redirect paths must begin with '/'
+		"Session/Post/GoodCredsJSONRedirRelativeNoSlash.status":     kivik.StatusBadRequest, // As of 2.1.1 all redirect paths must begin with '/'
+		"Session/Post/GoodCredsJSONRemoteRedirHeaderInjection.skip": true,                   // CouchDB allows header injection
+		"Session/Post/GoodCredsJSONRemoteRedirInvalidURL.skip":      true,                   // CouchDB doesn't sanitize the Location value, so sends unparseable headers.
 
 		"Stats.databases":             []string{"_users", "chicken", "_duck"},
 		"Stats/Admin/chicken.status":  kivik.StatusNotFound,

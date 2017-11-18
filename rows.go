@@ -137,6 +137,10 @@ func (r *rows) parseMeta(key string) error {
 		return r.dec.Decode(&r.totalRows)
 	case "warning":
 		return r.dec.Decode(&r.warning)
+	case "bookmark":
+		// TODO: https://github.com/flimzy/kivik/issues/240
+		var bookmark string
+		return r.dec.Decode(&bookmark)
 	}
 	return errors.Statusf(kivik.StatusBadResponse, "Unexpected key: %s", key)
 }
