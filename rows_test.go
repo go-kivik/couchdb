@@ -137,7 +137,9 @@ var findInput = `
 {"id":"SpaghettiWithMeatballs","key":"meatballs","value":1},
 {"id":"SpaghettiWithMeatballs","key":"spaghetti","value":1},
 {"id":"SpaghettiWithMeatballs","key":"tomato sauce","value":1}
-]}
+],
+"bookmark": "nil"
+}
 `
 
 func TestFindRowsIterator(t *testing.T) {
@@ -167,5 +169,8 @@ func TestFindRowsIterator(t *testing.T) {
 	}
 	if rows.Warning() != "no matching index found, create an index to optimize query time" {
 		t.Errorf("Unexpected warning: %s", rows.Warning())
+	}
+	if rows.Bookmark() != "nil" {
+		t.Errorf("Unexpected bookmark: %s", rows.Bookmark())
 	}
 }
