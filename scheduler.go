@@ -70,6 +70,8 @@ type schedulerReplication struct {
 var _ driver.Replication = &schedulerReplication{}
 
 func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
+	c.sdMU.Lock()
+	defer c.sdMU.Unlock()
 	if c.schedulerDetected != nil {
 		return *c.schedulerDetected, nil
 	}
