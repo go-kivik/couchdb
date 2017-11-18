@@ -4,7 +4,6 @@ package couchdb
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -24,7 +23,6 @@ type nullTime time.Time
 
 // inspired by https://github.com/golang/go/issues/9037#issuecomment-270932787
 func (t *nullTime) UnmarshalJSON(data []byte) error {
-	fmt.Printf("input = `%s`\n", string(data))
 	if string(data) == "null" {
 		return nil
 	}
