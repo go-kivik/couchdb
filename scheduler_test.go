@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
@@ -547,6 +548,35 @@ func TestSRinnerUpdate(t *testing.T) {
 						reason: "db_not_found: could not open foo",
 					},
 				},
+			},
+		},
+		{
+			name: "null time",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "56d257bd2125c8f15870b3ddd202c4ca",
+				db: newTestDB(&http.Response{
+					StatusCode: 200,
+					Header: http.Header{
+						"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+						"Date":           {"Fri, 17 Nov 2017 13:05:52 GMT"},
+						"Content-Type":   {"application/json"},
+						"Content-Length": {"275"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"database":"_replicator","doc_id":"733c70a35768b7a8fc2e178bd9003f1b","id":null,"source":"http://localhost:5984/kivik$replicate_rw_admin$5fbcf68d8d9aaee0/","target":"http://localhost:5984/foo/","state":null,"error_count":0,"info":null,"start_time":null,"last_updated":null}`),
+				}, nil),
+			},
+			expected: &schedulerReplication{
+				docID:         "733c70a35768b7a8fc2e178bd9003f1b",
+				database:      "_replicator",
+				replicationID: "",
+				source:        "http://localhost:5984/kivik$replicate_rw_admin$5fbcf68d8d9aaee0/",
+				target:        "http://localhost:5984/foo/",
+				startTime:     time.Time{},
+				lastUpdated:   time.Time{},
+				state:         "",
+				info:          repInfo{},
 			},
 		},
 	}
