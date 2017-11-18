@@ -56,6 +56,7 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 					t.Errorf("Unexpected user/password: %s/%s", u, p)
 				}
 				w.Header().Set("Date", "Wed, 01 Nov 2017 19:32:41 GMT")
+				w.Header().Set("Content-Type", "application/json")
 			}
 			s := httptest.NewServer(http.HandlerFunc(h))
 			return rtTest{
@@ -70,7 +71,7 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 					ProtoMinor: 1,
 					Header: http.Header{
 						"Content-Length": {"0"},
-						"Content-Type":   {"text/plain; charset=utf-8"},
+						"Content-Type":   {"application/json"},
 						"Date":           {"Wed, 01 Nov 2017 19:32:41 GMT"},
 					},
 				},

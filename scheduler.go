@@ -60,58 +60,104 @@ type schedulerReplication struct {
 	source        string
 	target        string
 	startTime     time.Time
-	endTime       time.Time
+	lastUpdated   time.Time
 	state         string
-	err           error
+	info          repInfo
 
 	*db
 }
 
 var _ driver.Replication = &schedulerReplication{}
 
+func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
+	if c.schedulerDetected != nil {
+		return *c.schedulerDetected, nil
+	}
+	resp, err := c.DoReq(ctx, kivik.MethodHead, "_scheduler/jobs", nil)
+	if err != nil {
+		return false, err
+	}
+	var supported bool
+	switch resp.StatusCode {
+	case kivik.StatusBadRequest:
+		// 1.6.x, 1.7.x
+		supported = false
+	case kivik.StatusNotFound:
+		// 2.0.x
+		supported = false
+	case kivik.StatusOK, kivik.StatusUnauthorized:
+		// 2.1.x +
+		supported = true
+	default:
+		return false, errors.Statusf(kivik.StatusBadResponse, "Unknown response code %d", resp.StatusCode)
+	}
+	c.schedulerDetected = &supported
+	return supported, nil
+}
+
 func (c *client) newSchedulerReplication(doc *schedulerDoc) *schedulerReplication {
 	rep := &schedulerReplication{
-		docID:         doc.DocID,
-		database:      doc.Database,
-		replicationID: doc.ReplicationID,
-		source:        doc.Source,
-		target:        doc.Target,
-		startTime:     doc.StartTime,
-		state:         doc.State,
 		db: &db{
 			client: c,
 			dbName: doc.Database,
 		},
 	}
-	if doc.Info.Error != nil {
-		rep.err = doc.Info.Error
-	}
-	switch doc.State {
-	case "failed", "completed":
-		rep.endTime = doc.LastUpdated
-	}
+	rep.setFromDoc(doc)
 	return rep
 }
 
-func (r *schedulerReplication) StartTime() time.Time  { return r.startTime }
-func (r *schedulerReplication) EndTime() time.Time    { return r.endTime }
-func (r *schedulerReplication) Err() error            { return r.err }
+func (r *schedulerReplication) setFromDoc(doc *schedulerDoc) {
+	if r.source == "" {
+		r.docID = doc.DocID
+		r.database = doc.Database
+		r.replicationID = doc.ReplicationID
+		r.source = doc.Source
+		r.target = doc.Target
+		r.startTime = doc.StartTime
+	}
+	r.lastUpdated = doc.LastUpdated
+	r.state = doc.State
+	r.info = doc.Info
+}
+
+func (c *client) fetchSchedulerReplication(ctx context.Context, docID string) (*schedulerReplication, error) {
+	rep := &schedulerReplication{
+		docID:    docID,
+		database: "_replicator",
+		db: &db{
+			client: c,
+			dbName: "_replicator",
+		},
+	}
+	for rep.source == "" {
+		if err := rep.update(ctx); err != nil {
+			return rep, err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return rep, nil
+}
+
+func (r *schedulerReplication) StartTime() time.Time { return r.startTime }
+func (r *schedulerReplication) EndTime() time.Time {
+	if r.state == "failed" || r.state == "completed" {
+		return r.lastUpdated
+	}
+	return time.Time{}
+}
+func (r *schedulerReplication) Err() error            { return r.info.Error }
 func (r *schedulerReplication) ReplicationID() string { return r.replicationID }
 func (r *schedulerReplication) Source() string        { return r.source }
 func (r *schedulerReplication) Target() string        { return r.target }
 func (r *schedulerReplication) State() string         { return r.state }
 
 func (r *schedulerReplication) Update(ctx context.Context, rep *driver.ReplicationInfo) error {
-	doc, err := r.getSchedulerDoc(ctx)
-	if err != nil {
+	if err := r.update(ctx); err != nil {
 		return err
 	}
-	if doc.Info.Error == nil {
-		r.err = doc.Info.Error
-	}
-	rep.DocWriteFailures = doc.Info.DocWriteFailures
-	rep.DocsRead = doc.Info.DocsRead
-	rep.DocsWritten = doc.Info.DocsWritten
+	rep.DocWriteFailures = r.info.DocWriteFailures
+	rep.DocsRead = r.info.DocsRead
+	rep.DocsWritten = r.info.DocsWritten
 	return nil
 }
 
@@ -124,16 +170,22 @@ func (r *schedulerReplication) Delete(ctx context.Context) error {
 	return err
 }
 
-func (r *schedulerReplication) getSchedulerDoc(ctx context.Context) (*schedulerDoc, error) {
+func (r *schedulerReplication) update(ctx context.Context) error {
 	path := fmt.Sprintf("/_scheduler/docs/%s/%s", r.database, chttp.EncodeDocID(r.docID))
 	var doc schedulerDoc
-	_, err := r.db.Client.DoJSON(ctx, kivik.MethodGet, path, nil, &doc)
-	return &doc, err
+	if _, err := r.db.Client.DoJSON(ctx, kivik.MethodGet, path, nil, &doc); err != nil {
+		if cerr, ok := err.(*chttp.HTTPError); ok {
+			if cerr.Code == 500 && cerr.Reason == "function_clause" {
+				// This is a race condition bug in CouchDB 2.1.x. So try again.
+				// See https://github.com/apache/couchdb/issues/1000
+				return r.update(ctx)
+			}
+		}
+		return err
+	}
+	r.setFromDoc(&doc)
+	return nil
 }
-
-// errSchedulerNotImplemented is used internally only, and signals that a
-// fallback should occur to the legacy replicator database.
-var errSchedulerNotImplemented = errors.Status(kivik.StatusNotImplemented, "_scheduler interface not implemented")
 
 func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
 	params, err := optionsToParams(options)
@@ -148,9 +200,6 @@ func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[s
 		path = path + "?" + params.Encode()
 	}
 	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
-		if code := kivik.StatusCode(err); code == kivik.StatusNotFound || code == kivik.StatusBadRequest {
-			return nil, errSchedulerNotImplemented
-		}
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Docs))

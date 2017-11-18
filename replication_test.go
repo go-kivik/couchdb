@@ -3,7 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -11,6 +11,7 @@ import (
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 )
 
@@ -152,37 +153,100 @@ func TestReplicate(t *testing.T) {
 		{
 			name:   "network error",
 			target: "foo", source: "bar",
-			client: newTestClient(nil, errors.New("net eror")),
+			client: func() *client {
+				client := newTestClient(nil, errors.New("net eror"))
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
 			status: kivik.StatusNetworkError,
 			err:    "Post http://example.com/_replicator: net eror",
 		},
 		{
 			name:   "1.6.1",
 			target: "foo", source: "bar",
-			client: newCustomClient(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: 201,
-					Header: http.Header{
-						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-						"Location":       {"http://localhost:5984/_replicator/4ab99e4d7d4b5a6c5a6df0d0ed01221d"},
-						"ETag":           {`"1-290800e5803500237075f9b08226cffd"`},
-						"Date":           {"Mon, 30 Oct 2017 20:03:34 GMT"},
-						"Content-Type":   {"application/json"},
-						"Content-Length": {"95"},
-						"Cache-Control":  {"must-revalidate"},
-					},
-					Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"1-290800e5803500237075f9b08226cffd"}`),
-				}, nil
-			}),
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: 201,
+						Header: http.Header{
+							"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+							"Location":       {"http://localhost:5984/_replicator/4ab99e4d7d4b5a6c5a6df0d0ed01221d"},
+							"ETag":           {`"1-290800e5803500237075f9b08226cffd"`},
+							"Date":           {"Mon, 30 Oct 2017 20:03:34 GMT"},
+							"Content-Type":   {"application/json"},
+							"Content-Length": {"95"},
+							"Cache-Control":  {"must-revalidate"},
+						},
+						Body: Body(`{"ok":true,"id":"4ab99e4d7d4b5a6c5a6df0d0ed01221d","rev":"1-290800e5803500237075f9b08226cffd"}`),
+					}, nil
+				})
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
+		},
+		{
+			name:   "2.1.0",
+			target: "foo", source: "bar",
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					switch req.URL.Path {
+					case "/_replicator":
+						return &http.Response{
+							StatusCode: 201,
+							Header: http.Header{
+								"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+								"Location":            {"http://localhost:6002/_replicator/56d257bd2125c8f15870b3ddd2078b23"},
+								"Date":                {"Sat, 18 Nov 2017 11:13:58 GMT"},
+								"Content-Type":        {"application/json"},
+								"Content-Length":      {"95"},
+								"Cache-Control":       {"must-revalidate"},
+								"X-CouchDB-Body-Time": {"0"},
+								"X-Couch-Request-ID":  {"a97b982715"},
+							},
+							Body: Body(`{"ok":true,"id":"56d257bd2125c8f15870b3ddd2078b23","rev":"1-290800e5803500237075f9b08226cffd"}`),
+						}, nil
+					case "/_scheduler/docs/_replicator/56d257bd2125c8f15870b3ddd2078b23":
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+								"Date":           {"Sat, 18 Nov 2017 11:18:33 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"427"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(fmt.Sprintf(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2078b23","id":null,"source":"foo","target":"bar","state":"failed","error_count":1,"info":"Replication %s specified by document %s already started, triggered by document %s from db %s","start_time":"2017-11-18T11:13:58Z","last_updated":"2017-11-18T11:13:58Z"}`, "`c636d089fbdc3a9a937a466acf8f42c3`", "`56d257bd2125c8f15870b3ddd2078b23`", "`56d257bd2125c8f15870b3ddd2074759`", "`_replicator`")),
+						}, nil
+					default:
+						return nil, errors.Errorf("Unexpected path: %s", req.URL.Path)
+					}
+				})
+				b := true
+				client.schedulerDetected = &b
+				return client
+			}(),
+		},
+		{
+			name:   "scheduler detection error",
+			target: "foo", source: "bar",
+			client: newTestClient(nil, errors.New("sched err")),
+			status: kivik.StatusNetworkError,
+			err:    "Head http://example.com/_scheduler/jobs: sched err",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := test.client.Replicate(context.Background(), test.target, test.source, test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			if _, ok := resp.(*replication); !ok {
-				t.Errorf("Unexpected response type: %T", resp)
+			if _, ok := resp.(*replication); ok {
+				return
 			}
+			if _, ok := resp.(*schedulerReplication); ok {
+				return
+			}
+			t.Errorf("Unexpected response type: %T", resp)
 		})
 	}
 }
@@ -256,37 +320,61 @@ func TestLegacyGetReplications(t *testing.T) {
 
 func TestGetReplications(t *testing.T) {
 	tests := []struct {
-		name        string
-		client      *client
-		status      int
-		err         string
-		noScheduler bool
+		name   string
+		client *client
+		status int
+		err    string
 	}{
 		{
-			name:        "network error",
-			client:      newTestClient(nil, errors.New("net error")),
-			noScheduler: false,
-			status:      kivik.StatusNetworkError,
-			err:         "Get http://example.com/_scheduler/docs: net error",
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Head http://example.com/_scheduler/jobs: net error",
 		},
 		{
-			name: "not found, 2.0",
-			client: newTestClient(&http.Response{
-				StatusCode: 404,
-				Request:    &http.Request{Method: "GET"},
-				Body:       Body(""),
-			}, nil),
-			noScheduler: true,
-			status:      kivik.StatusNotFound,
-			err:         "Not Found",
+			name: "no scheduler",
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					if req.URL.Path != "/_replicator/_all_docs" {
+						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+					}
+					return &http.Response{
+						StatusCode: 404,
+						Request:    &http.Request{Method: "GET"},
+						Body:       Body(""),
+					}, nil
+				})
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
+			status: kivik.StatusNotFound,
+			err:    "Not Found",
+		},
+		{
+			name: "scheduler detected",
+			client: func() *client {
+				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
+					if req.URL.Path != "/_scheduler/docs" {
+						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+					}
+					return &http.Response{
+						StatusCode: 404,
+						Request:    &http.Request{Method: "GET"},
+						Body:       Body(""),
+					}, nil
+				})
+				b := true
+				client.schedulerDetected = &b
+				return client
+			}(),
+			status: kivik.StatusNotFound,
+			err:    "Not Found",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.client.GetReplications(context.Background(), nil)
-			if test.client.noScheduler != test.noScheduler {
-				t.Errorf("Unexpected noScheduler state: %t", test.client.noScheduler)
-			}
 			testy.StatusError(t, test.err, test.status, err)
 		})
 	}

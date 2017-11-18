@@ -40,9 +40,9 @@ type client struct {
 	*chttp.Client
 	Compat CompatMode
 
-	// noScheduler will be set true if the /_scheduler endpoint (added in 2.1.0)
-	// is found to be not supported.
-	noScheduler bool
+	// schedulerDetected will be set once the scheduler has been detected.
+	// It should only be accessed through the schedulerSupported() method.
+	schedulerDetected *bool
 
 	// noFind will be set to true if the Mango _find support is found not to be
 	// supported.
@@ -76,6 +76,7 @@ func (c *client) setCompatMode(ctx context.Context) {
 		// compat mode, so just return, defaulting to CompatUnknown.
 		return
 	}
+	schedulerSupported := false
 	switch info.Vendor {
 	case VendorCouchDB, VendorCloudant:
 		switch {
@@ -83,13 +84,14 @@ func (c *client) setCompatMode(ctx context.Context) {
 			c.Compat = CompatCouch20
 		case strings.HasPrefix(info.Version, "2.0"):
 			c.Compat = CompatCouch20
-			c.noScheduler = true
+			c.schedulerDetected = &schedulerSupported
 		case strings.HasPrefix(info.Version, "1.6"):
 			c.Compat = CompatCouch16
-			c.noScheduler = true
+			c.schedulerDetected = &schedulerSupported
 		case strings.HasPrefix(info.Version, "1.7"):
+			c.Compat = CompatCouch16
 			c.noFind = true
-			c.noScheduler = true
+			c.schedulerDetected = &schedulerSupported
 		}
 	}
 }

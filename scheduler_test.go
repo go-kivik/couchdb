@@ -125,44 +125,6 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		err      string
 	}{
 		{
-			name: "scheduler not supported, 2.0",
-			client: newTestClient(&http.Response{
-				StatusCode: 404,
-				Header: http.Header{
-					"Cache-Control":       {"must-revalidate"},
-					"Content-Length":      {"58"},
-					"Content-Type":        {"application/json"},
-					"Date":                {"Wed, 08 Nov 2017 17:52:38 GMT"},
-					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
-					"X-Couch-Request-ID":  {"8b9574a6f8"},
-					"X-CouchDB-Body-Time": {"0"},
-				},
-				ContentLength: 58,
-				Body:          Body(`{"error":"not_found","reason":"Database does not exist."}`),
-			}, nil),
-			status: kivik.StatusNotImplemented,
-			err:    "_scheduler interface not implemented",
-		},
-		{
-			name: "scheduler not supported, 1.6",
-			client: newTestClient(&http.Response{
-				StatusCode: 400,
-				Header: http.Header{
-					"Cache-Control":       {"must-revalidate"},
-					"Content-Length":      {"201"},
-					"Content-Type":        {"application/json"},
-					"Date":                {"Wed, 08 Nov 2017 17:52:38 GMT"},
-					"Server":              {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"X-Couch-Request-ID":  {"8b9574a6f8"},
-					"X-CouchDB-Body-Time": {"0"},
-				},
-				ContentLength: 58,
-				Body:          Body(`{"error":"illegal_database_name","reason":"Name: '_scheduler'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter."}`),
-			}, nil),
-			status: kivik.StatusNotImplemented,
-			err:    "_scheduler interface not implemented",
-		},
-		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
@@ -201,19 +163,26 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 					source:        "foo",
 					target:        "bar",
 					startTime:     parseTime(t, "2017-11-08T17:51:52Z"),
-					err: &replicationError{
-						status: 404,
-						reason: "db_not_found: could not open foo",
+					lastUpdated:   parseTime(t, "2017-11-08T18:07:38Z"),
+					info: repInfo{
+						Error: &replicationError{
+							status: 404,
+							reason: "db_not_found: could not open foo",
+						},
 					},
 				},
 				{
-					database:  "_replicator",
-					docID:     "foo2",
-					source:    "http://admin:*****@localhost:5984/foo/",
-					target:    "http://admin:*****@localhost:5984/bar/",
-					state:     "completed",
-					startTime: parseTime(t, "2017-11-01T21:05:03Z"),
-					endTime:   parseTime(t, "2017-11-01T21:05:06Z"),
+					database:    "_replicator",
+					docID:       "foo2",
+					source:      "http://admin:*****@localhost:5984/foo/",
+					target:      "http://admin:*****@localhost:5984/bar/",
+					state:       "completed",
+					startTime:   parseTime(t, "2017-11-01T21:05:03Z"),
+					lastUpdated: parseTime(t, "2017-11-01T21:05:06Z"),
+					info: repInfo{
+						DocsRead:    23,
+						DocsWritten: 23,
+					},
 				},
 			},
 		},
@@ -318,7 +287,7 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 	repID := "a"
 	source := "b"
 	target := "c"
-	state := "d"
+	state := "completed"
 	err := "e"
 	start := parseTime(t, "2017-01-01T01:01:01Z")
 	end := parseTime(t, "2017-01-01T01:01:02Z")
@@ -327,9 +296,9 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 		source:        source,
 		target:        target,
 		startTime:     start,
-		endTime:       end,
+		lastUpdated:   end,
 		state:         state,
-		err:           errors.New(err),
+		info:          repInfo{Error: errors.New(err)},
 	}
 	if result := rep.ReplicationID(); result != repID {
 		t.Errorf("Unexpected replication ID: %s", result)
@@ -350,4 +319,308 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 		t.Errorf("Unexpected state: %s", result)
 	}
 	testy.Error(t, err, rep.Err())
+}
+
+func TestDetectSchedulerSupport(t *testing.T) {
+	supported := true
+	unsupported := false
+	tests := []struct {
+		name          string
+		client        *client
+		expected      bool
+		expectedState *bool
+		status        int
+		err           string
+	}{
+		{
+			name:          "already set true",
+			client:        &client{schedulerDetected: func() *bool { b := true; return &b }()},
+			expected:      true,
+			expectedState: &supported,
+		},
+		{
+			name: "1.6.1, not supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 400,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 16 Nov 2017 17:37:32 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"201"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected:      false,
+			expectedState: &unsupported,
+		},
+		{
+			name: "1.7.1, not supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 400,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.7.1 (Erlang OTP/17)"},
+					"Date":           {"Thu, 16 Nov 2017 17:37:32 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"201"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected:      false,
+			expectedState: &unsupported,
+		},
+		{
+			name: "2.0.0, not supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 404,
+				Header: http.Header{
+					"Cache-Control":       {"must-revalidate"},
+					"Content-Length":      {"58"},
+					"Content-Type":        {"application/json"},
+					"Date":                {"Thu, 16 Nov 2017 17:45:34 GMT"},
+					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+					"X-Couch-Request-ID":  {"027c1e7ffe"},
+					"X-CouchDB-Body-Time": {"0"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected:      false,
+			expectedState: &unsupported,
+		},
+		{
+			name: "2.1.1, supported",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+					"Date":           {"Thu, 16 Nov 2017 17:47:58 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"38"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Request: &http.Request{Method: "HEAD"},
+				Body:    Body(""),
+			}, nil),
+			expected:      true,
+			expectedState: &supported,
+		},
+		{
+			name:          "network error",
+			client:        newTestClient(nil, errors.New("net error")),
+			expectedState: nil,
+			status:        kivik.StatusNetworkError,
+			err:           "Head http://example.com/_scheduler/jobs: net error",
+		},
+		{
+			name: "Unexpected response code",
+			client: newTestClient(&http.Response{
+				StatusCode: 500,
+				Request:    &http.Request{Method: "HEAD"},
+				Body:       Body(""),
+			}, nil),
+			expectedState: nil,
+			status:        kivik.StatusBadResponse,
+			err:           "Unknown response code 500",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.schedulerSupported(context.Background())
+			if d := diff.Interface(test.expectedState, test.client.schedulerDetected); d != nil {
+				t.Error(d)
+			}
+			testy.StatusError(t, test.err, test.status, err)
+			if result != test.expected {
+				t.Errorf("Unexpected result: %v", result)
+			}
+		})
+	}
+}
+
+func TestSRinnerUpdate(t *testing.T) {
+	tests := []struct {
+		name     string
+		r        *schedulerReplication
+		status   int
+		err      string
+		expected *schedulerReplication
+	}{
+		{
+			name: "network error",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "foo",
+				db:       newTestDB(nil, errors.New("net error")),
+			},
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
+		},
+		{
+			name: "2.1.1 500 bug",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "foo",
+				db: func() *db {
+					var count int
+					db := newCustomDB(func(req *http.Request) (*http.Response, error) {
+						if count == 0 {
+							count++
+							return &http.Response{
+								StatusCode: 500,
+								Header: http.Header{
+									"Content-Length":      {"70"},
+									"Cache-Control":       {"must-revalidate"},
+									"Content-Type":        {"application/json"},
+									"Date":                {"Thu, 16 Nov 2017 20:14:25 GMT"},
+									"Server":              {"CouchDB/2.1.0 (Erlang OTP/17)"},
+									"X-Couch-Request-Id":  {"65913f4727"},
+									"X-Couch-Stack-Hash":  {"3194022798"},
+									"X-Couchdb-Body-Time": {"0"},
+								},
+								Request:       &http.Request{Method: "GET"},
+								ContentLength: 70,
+								Body:          Body(`{"error":"unknown_error","reason":"function_clause","ref":3194022798}`),
+							}, nil
+						}
+						return &http.Response{
+							StatusCode: 200,
+							Header: http.Header{
+								"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+								"Date":           {"Thu, 09 Nov 2017 15:23:20 GMT"},
+								"Content-Type":   {"application/json"},
+								"Content-Length": {"687"},
+								"Cache-Control":  {"must-revalidate"},
+							},
+							Body: Body(`{"database":"_replicator","doc_id":"foo2","id":null,"source":"http://localhost:5984/foo/","target":"http://localhost:5984/bar/","state":"completed","error_count":0,"info":{"revisions_checked":23,"missing_revisions_found":23,"docs_read":23,"docs_written":23,"changes_pending":null,"doc_write_failures":0,"checkpointed_source_seq":"27-g1AAAAIbeJyV0EsOgjAQBuAGMOLCM-gRSoUKK7mJ9kWQYLtQ13oTvYneRG-CfZAYSUjqZppM5v_SmRYAENchB3OppOKilKpWx1Or2wEBdNF1XVOHJD7oxnTFKMOcDYdH4nSpK930wsQKAmYIVdBXKI2w_RGQyFJYFb7CzgiXXgDuDywXKUk4mJ0lF9VeCj6SlpGu4KofDdyMEFoBk3QtMt87OOXulIdRAqvABHPO0F_K0ymv7zYU5UVe-W_zdoK9R2QFxhjBUAwzzQch86VT"},"start_time":"2017-11-01T21:05:03Z","last_updated":"2017-11-01T21:05:06Z"}`),
+						}, nil
+					})
+					return db
+				}(),
+			},
+			expected: &schedulerReplication{
+				docID:       "foo2",
+				database:    "_replicator",
+				source:      "http://localhost:5984/foo/",
+				target:      "http://localhost:5984/bar/",
+				startTime:   parseTime(t, "2017-11-01T21:05:03Z"),
+				lastUpdated: parseTime(t, "2017-11-01T21:05:06Z"),
+				state:       "completed",
+				info: repInfo{
+					DocsRead:    23,
+					DocsWritten: 23,
+				},
+			},
+		},
+		{
+			name: "db not found",
+			r: &schedulerReplication{
+				database: "_replicator",
+				docID:    "56d257bd2125c8f15870b3ddd202c4ca",
+				db: newTestDB(&http.Response{
+					StatusCode: 200,
+					Header: http.Header{
+						"Server":         {"CouchDB/2.1.0 (Erlang OTP/17)"},
+						"Date":           {"Fri, 17 Nov 2017 13:05:52 GMT"},
+						"Content-Type":   {"application/json"},
+						"Content-Length": {"328"},
+						"Cache-Control":  {"must-revalidate"},
+					},
+					Body: Body(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd202c4ca","id":"c636d089fbdc3a9a937a466acf8f42c3","node":"nonode@nohost","source":"foo","target":"bar","state":"crashing","info":"db_not_found: could not open foo","error_count":7,"last_updated":"2017-11-17T12:59:35Z","start_time":"2017-11-17T12:22:25Z","proxy":null}`),
+				}, nil),
+			},
+			expected: &schedulerReplication{
+				docID:         "56d257bd2125c8f15870b3ddd202c4ca",
+				database:      "_replicator",
+				replicationID: "c636d089fbdc3a9a937a466acf8f42c3",
+				source:        "foo",
+				target:        "bar",
+				startTime:     parseTime(t, "2017-11-17T12:22:25Z"),
+				lastUpdated:   parseTime(t, "2017-11-17T12:59:35Z"),
+				state:         "crashing",
+				info: repInfo{
+					Error: &replicationError{
+						status: 404,
+						reason: "db_not_found: could not open foo",
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.r.update(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			test.r.db = nil
+			if d := diff.Interface(test.expected, test.r); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestFetchSchedulerReplication(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   *client
+		docID    string
+		expected *schedulerReplication
+		status   int
+		err      string
+	}{
+		{
+			name:   "network error",
+			client: newTestClient(nil, errors.New("net error")),
+			status: kivik.StatusNetworkError,
+			err:    "Get http://example.com/_scheduler/docs/_replicator/: net error",
+		},
+		{
+			name: "loop wait",
+			client: func() *client {
+				var count int
+				return newCustomClient(func(_ *http.Request) (*http.Response, error) {
+					if count < 2 {
+						count++
+						return &http.Response{
+							StatusCode: 200,
+							Body:       Body(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2074759","id":null,"state":"initializing","info":null,"error_count":0,"node":"nonode@nohost","last_updated":"2017-11-17T19:56:09Z","start_time":"2017-11-17T19:56:09Z"}`),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       Body(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2074759","id":"c636d089fbdc3a9a937a466acf8f42c3","node":"nonode@nohost","source":"foo","target":"bar","state":"crashing","info":"db_not_found: could not open foo","error_count":1,"last_updated":"2017-11-17T19:57:09Z","start_time":"2017-11-17T19:56:09Z","proxy":null}`),
+					}, nil
+				})
+			}(),
+			expected: &schedulerReplication{
+				docID:         "56d257bd2125c8f15870b3ddd2074759",
+				database:      "_replicator",
+				replicationID: "c636d089fbdc3a9a937a466acf8f42c3",
+				source:        "foo",
+				target:        "bar",
+				startTime:     parseTime(t, "2017-11-17T19:56:09Z"),
+				lastUpdated:   parseTime(t, "2017-11-17T19:57:09Z"),
+				state:         "crashing",
+				info: repInfo{
+					Error: &replicationError{
+						status: 404,
+						reason: "db_not_found: could not open foo",
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.fetchSchedulerReplication(context.Background(), test.docID)
+			testy.StatusError(t, test.err, test.status, err)
+			result.db = nil
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
 }

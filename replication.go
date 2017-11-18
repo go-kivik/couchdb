@@ -81,6 +81,15 @@ type replication struct {
 
 var _ driver.Replication = &replication{}
 
+func (c *client) fetchReplication(ctx context.Context, docID string) *replication {
+	rep := c.newReplication(docID)
+	rep.db = &db{client: c, dbName: "_replicator", forceCommit: true}
+	// Do an update to get the initial state, but don't fail if there's an error
+	// at this stage, because we successfully created the replication doc.
+	_ = rep.updateMain(ctx)
+	return rep
+}
+
 func (c *client) newReplication(docID string) *replication {
 	return &replication{
 		docID: docID,
@@ -228,12 +237,12 @@ type replicatorDoc struct {
 }
 
 func (c *client) GetReplications(ctx context.Context, options map[string]interface{}) ([]driver.Replication, error) {
-	if !c.noScheduler {
-		result, err := c.getReplicationsFromScheduler(ctx, options)
-		if err != errSchedulerNotImplemented {
-			return result, err
-		}
-		c.noScheduler = true
+	scheduler, err := c.schedulerSupported(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if scheduler {
+		return c.getReplicationsFromScheduler(ctx, options)
 	}
 	return c.legacyGetReplications(ctx, options)
 }
@@ -291,17 +300,20 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if err := json.NewEncoder(body).Encode(options); err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
 	}
-	var repStub struct {
-		ID string `json:"id"`
-	}
-	_, err := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub)
+
+	scheduler, err := c.schedulerSupported(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rep := c.newReplication(repStub.ID)
-	rep.db = &db{client: c, dbName: "_replicator", forceCommit: true}
-	// Do an update to get the initial state, but don't fail if there's an error
-	// at this stage, because we successfully created the replication doc.
-	_ = rep.updateMain(ctx)
-	return rep, nil
+
+	var repStub struct {
+		ID string `json:"id"`
+	}
+	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub); e != nil {
+		return nil, e
+	}
+	if scheduler {
+		return c.fetchSchedulerReplication(ctx, repStub.ID)
+	}
+	return c.fetchReplication(ctx, repStub.ID), nil
 }

@@ -79,6 +79,36 @@ func TestSetCompatMode(t *testing.T) {
 			expected: CompatCouch16,
 		},
 		{
+			name: "1.7.0",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.7.0 (Erlang OTP/17)"},
+					"Date":           {"Fri, 27 Oct 2017 17:32:13 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"151"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"couchdb":"Welcome","uuid":"7962695b9f542ce8693fa209044d051d","version":"1.7.0","vendor":{"version":"1.7.0","name":"The Apache Software Foundation"}}`),
+			}, nil),
+			expected: CompatCouch16,
+		},
+		{
+			name: "1.7.1",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.7.1 (Erlang OTP/17)"},
+					"Date":           {"Fri, 27 Oct 2017 17:32:13 GMT"},
+					"Content-Type":   {"application/json"},
+					"Content-Length": {"151"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"couchdb":"Welcome","uuid":"7962695b9f542ce8693fa209044d051d","version":"1.7.1","vendor":{"version":"1.7.1","name":"The Apache Software Foundation"}}`),
+			}, nil),
+			expected: CompatCouch16,
+		},
+		{
 			name: "2.0.0",
 			client: newTestClient(&http.Response{
 				StatusCode: 200,
