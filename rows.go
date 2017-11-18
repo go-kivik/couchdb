@@ -16,6 +16,7 @@ type rows struct {
 	totalRows int64
 	updateSeq string
 	warning   string
+	bookmark  string
 	body      io.ReadCloser
 	dec       *json.Decoder
 	// closed is true after all rows have been processed
@@ -42,6 +43,10 @@ func (r *rows) TotalRows() int64 {
 
 func (r *rows) Warning() string {
 	return r.warning
+}
+
+func (r *rows) Bookmark() string {
+	return r.bookmark
 }
 
 func (r *rows) UpdateSeq() string {
@@ -138,9 +143,7 @@ func (r *rows) parseMeta(key string) error {
 	case "warning":
 		return r.dec.Decode(&r.warning)
 	case "bookmark":
-		// TODO: https://github.com/flimzy/kivik/issues/240
-		var bookmark string
-		return r.dec.Decode(&bookmark)
+		return r.dec.Decode(&r.bookmark)
 	}
 	return errors.Statusf(kivik.StatusBadResponse, "Unexpected key: %s", key)
 }
