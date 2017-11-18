@@ -321,7 +321,7 @@ func TestSchedulerReplicationGetters(t *testing.T) {
 	testy.Error(t, err, rep.Err())
 }
 
-func TestDetectSchedulerSupport(t *testing.T) {
+func TestSchedulerSupported(t *testing.T) {
 	supported := true
 	unsupported := false
 	tests := []struct {

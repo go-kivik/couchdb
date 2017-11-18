@@ -4,6 +4,7 @@ package couchdb
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
@@ -43,6 +44,7 @@ type client struct {
 	// schedulerDetected will be set once the scheduler has been detected.
 	// It should only be accessed through the schedulerSupported() method.
 	schedulerDetected *bool
+	sdMU              sync.Mutex
 
 	// noFind will be set to true if the Mango _find support is found not to be
 	// supported.
@@ -77,6 +79,8 @@ func (c *client) setCompatMode(ctx context.Context) {
 		return
 	}
 	schedulerSupported := false
+	c.sdMU.Lock()
+	defer c.sdMU.Unlock()
 	switch info.Vendor {
 	case VendorCouchDB, VendorCloudant:
 		switch {
