@@ -89,6 +89,7 @@ func (c *client) setCompatMode(ctx context.Context) {
 			c.Compat = CompatCouch16
 			c.schedulerDetected = &schedulerSupported
 		case strings.HasPrefix(info.Version, "1.7"):
+			c.Compat = CompatCouch16
 			c.noFind = true
 			c.schedulerDetected = &schedulerSupported
 		}
