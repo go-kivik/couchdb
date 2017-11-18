@@ -200,6 +200,19 @@ func registerSuiteCouch21() {
 		"GetIndexes/NoAuth/_global_changes.indexes": []kivik.Index{kt.AllDocsIndex},
 		"GetIndexes/NoAuth/chicken.status":          kivik.StatusNotFound,
 		"GetIndexes/NoAuth/_duck.status":            kivik.StatusNotFound,
+		"GetIndexes/RW.indexes": []kivik.Index{kt.AllDocsIndex,
+			{
+				DesignDoc: "_design/foo",
+				Name:      "bar",
+				Type:      "json",
+				Definition: map[string]interface{}{
+					"fields": []map[string]string{
+						{"foo": "asc"},
+					},
+					"partial_filter_selector": map[string]string{},
+				},
+			},
+		},
 
 		"DeleteIndex/RW/Admin/group/NotFoundDdoc.status":  kivik.StatusNotFound,
 		"DeleteIndex/RW/Admin/group/NotFoundName.status":  kivik.StatusNotFound,
