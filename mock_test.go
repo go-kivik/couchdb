@@ -36,11 +36,8 @@ func newCustomDB(fn func(*http.Request) (*http.Response, error)) *db {
 
 func newTestClient(response *http.Response, err error) *client {
 	return newCustomClient(func(req *http.Request) (*http.Response, error) {
-		if req.Body != nil {
-			defer req.Body.Close() // nolint: errcheck
-			if _, e := ioutil.ReadAll(req.Body); e != nil {
-				return nil, e
-			}
+		if e := consume(req.Body); e != nil {
+			return nil, e
 		}
 		if err != nil {
 			return nil, err
@@ -86,4 +83,14 @@ func parseTime(t *testing.T, str string) time.Time {
 		t.Fatal(err)
 	}
 	return ts
+}
+
+// consume consumes and closes r or does nothing if it is nil.
+func consume(r io.ReadCloser) error {
+	if r == nil {
+		return nil
+	}
+	defer r.Close() // nolint: errcheck
+	_, e := ioutil.ReadAll(r)
+	return e
 }

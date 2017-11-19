@@ -15,6 +15,10 @@ import (
 )
 
 func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentType string, body io.Reader) (newRev string, err error) {
+	return d.PutAttachmentOpts(ctx, docID, rev, filename, contentType, body, nil)
+}
+
+func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, contentType string, body io.Reader, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -24,16 +28,26 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentTyp
 	if contentType == "" {
 		return "", missingArg("contentType")
 	}
-	opts := &chttp.Options{
-		Body:        body,
-		ContentType: contentType,
+
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
 	}
-	query := url.Values{}
+
+	query, err := optionsToParams(options)
+	if err != nil {
+		return "", err
+	}
 	if rev != "" {
-		query.Add("rev", rev)
+		query.Set("rev", rev)
 	}
 	var response struct {
 		Rev string `json:"rev"`
+	}
+	opts := &chttp.Options{
+		Body:        body,
+		ContentType: contentType,
+		FullCommit:  fullCommit,
 	}
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts, &response)
 	if err != nil {
@@ -115,6 +129,10 @@ func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
 }
 
 func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string) (newRev string, err error) {
+	return d.DeleteAttachmentOpts(ctx, docID, rev, filename, nil)
+}
+
+func (d *db) DeleteAttachmentOpts(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -124,11 +142,25 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string) 
 	if filename == "" {
 		return "", missingArg("filename")
 	}
-	query := url.Values{"rev": {rev}}
+
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
+	}
+
+	query, err := optionsToParams(options)
+	if err != nil {
+		return "", err
+	}
+	query.Set("rev", rev)
 	var response struct {
 		Rev string `json:"rev"`
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), nil, &response)
+
+	opts := &chttp.Options{
+		FullCommit: fullCommit,
+	}
+	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts, &response)
 	if err != nil {
 		return "", err
 	}

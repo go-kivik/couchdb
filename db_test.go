@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,9 +13,11 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
+
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/testy"
+	"github.com/flimzy/kivik/errors"
 )
 
 func TestAllDocs(t *testing.T) {
@@ -102,10 +103,17 @@ func TestGet(t *testing.T) {
 }
 
 func TestCreateDoc(t *testing.T) {
+	db := newTestDB(nil, errors.New("error"))
+	_, _, err := db.CreateDoc(context.Background(), map[string]string{"foo": "bar"})
+	testy.Error(t, "Post http://example.com/testdb: error", err)
+}
+
+func TestCreateDocOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
 		doc     interface{}
+		options map[string]interface{}
 		id, rev string
 		status  int
 		err     string
@@ -163,10 +171,47 @@ func TestCreateDoc(t *testing.T) {
 			id:  "43734cf3ce6d5a37050c050bb600006b",
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
+		{
+			name:    "batch mode",
+			db:      newTestDB(nil, errors.New("success")),
+			doc:     map[string]string{"foo": "bar"},
+			options: map[string]interface{}{"batch": "ok"},
+			status:  kivik.StatusNetworkError,
+			err:     "Post http://example.com/testdb?batch=ok: success",
+		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "Post http://example.com/testdb: success",
+		},
+		{
+			name:    "invalid options",
+			db:      &db{},
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name:    "invalid full commit type",
+			db:      &db{},
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			id, rev, err := test.db.CreateDoc(context.Background(), test.doc)
+			id, rev, err := test.db.CreateDocOpts(context.Background(), test.doc, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
@@ -433,14 +478,21 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
+	db := &db{}
+	_, err := db.Put(context.Background(), "", nil)
+	testy.Error(t, "kivik: docID required", err)
+}
+
+func TestPutOpts(t *testing.T) {
 	tests := []struct {
-		name   string
-		db     *db
-		id     string
-		doc    interface{}
-		rev    string
-		status int
-		err    string
+		name    string
+		db      *db
+		id      string
+		doc     interface{}
+		options map[string]interface{}
+		rev     string
+		status  int
+		err     string
 	}{
 		{
 			name:   "missing docID",
@@ -515,10 +567,36 @@ func TestPut(t *testing.T) {
 			status: kivik.StatusBadResponse,
 			err:    "modified document ID (unexpected) does not match that requested (foo)",
 		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			id:      "foo",
+			doc:     map[string]string{"foo": "bar"},
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "Put http://example.com/testdb/foo: success",
+		},
+		{
+			name:    "invalid full commit",
+			db:      &db{},
+			id:      "foo",
+			doc:     map[string]string{"foo": "bar"},
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Put(context.Background(), test.id, test.doc)
+			rev, err := test.db.PutOpts(context.Background(), test.id, test.doc, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
@@ -528,10 +606,17 @@ func TestPut(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	db := &db{}
+	_, err := db.Delete(context.Background(), "", "")
+	testy.Error(t, "kivik: docID required", err)
+}
+
+func TestDeleteOpts(t *testing.T) {
 	tests := []struct {
 		name    string
-		id, rev string
 		db      *db
+		id, rev string
+		options map[string]interface{}
 		newrev  string
 		status  int
 		err     string
@@ -542,8 +627,15 @@ func TestDelete(t *testing.T) {
 			err:    "kivik: docID required",
 		},
 		{
+			name:   "no rev",
+			id:     "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: rev required",
+		},
+		{
 			name:   "network error",
 			id:     "foo",
+			rev:    "1-xxx",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
 			err:    "(Delete http://example.com/testdb/foo?rev=: )?net error",
@@ -551,6 +643,7 @@ func TestDelete(t *testing.T) {
 		{
 			name: "1.6.1 conflict",
 			id:   "43734cf3ce6d5a37050c050bb600006b",
+			rev:  "1-xxx",
 			db: newTestDB(&http.Response{
 				StatusCode: 409,
 				Header: http.Header{
@@ -583,10 +676,62 @@ func TestDelete(t *testing.T) {
 			}, nil),
 			newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
 		},
+		{
+			name: "batch mode",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if batch := req.URL.Query().Get("batch"); batch != "ok" {
+					return nil, errors.Errorf("Unexpected query batch=%s", batch)
+				}
+				return nil, errors.New("success")
+			}),
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{"batch": "ok"},
+			status:  kivik.StatusNetworkError,
+			err:     "success",
+		},
+		{
+			name:    "invalid options",
+			db:      &db{},
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "success",
+		},
+		{
+			name:    "invalid full commit type",
+			db:      &db{},
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newrev, err := test.db.Delete(context.Background(), test.id, test.rev)
+			newrev, err := test.db.DeleteOpts(context.Background(), test.id, test.rev, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newrev != test.newrev {
 				t.Errorf("Unexpected new rev: %s", newrev)
@@ -1046,6 +1191,7 @@ func TestCopy(t *testing.T) {
 		},
 		{
 			name:    "invalid options",
+			db:      &db{},
 			source:  "foo",
 			target:  "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
