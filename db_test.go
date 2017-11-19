@@ -1077,7 +1077,7 @@ func TestCopy(t *testing.T) {
 			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
 		},
 		{
-			name:   "force commit 1.6.1",
+			name:   "full commit 1.6.1",
 			source: "foo",
 			target: "bar",
 			options: map[string]interface{}{

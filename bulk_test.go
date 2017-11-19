@@ -100,16 +100,16 @@ func TestBulkDocs(t *testing.T) {
 			}),
 		},
 		{
-			name:    "force_commit",
-			options: map[string]interface{}{"force_commit": true},
+			name:    "full commit",
+			options: map[string]interface{}{OptionFullCommit: true},
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
 				defer req.Body.Close() // nolint: errcheck
 				var body map[string]interface{}
 				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 					return nil, err
 				}
-				if _, ok := body["force_commit"]; ok {
-					return nil, errors.New("force_commit key found in body")
+				if _, ok := body[OptionFullCommit]; ok {
+					return nil, errors.New("Full Commit key found in body")
 				}
 				if value := req.Header.Get("X-Couch-Full-Commit"); value != "true" {
 					return nil, errors.New("X-Couch-Full-Commit not set to true")

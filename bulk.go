@@ -74,16 +74,16 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	if options == nil {
 		options = make(map[string]interface{})
 	}
-	forceCommit := d.forceCommit
+	fullCommit := d.fullCommit
 	if fc, ok := options[OptionFullCommit].(bool); ok {
-		forceCommit = fc
+		fullCommit = fc
 	}
 	delete(options, OptionFullCommit)
 	options["docs"] = docs
 	body, errFunc := chttp.EncodeBody(options, cancel)
 	opts := &chttp.Options{
-		Body:        body,
-		ForceCommit: forceCommit,
+		Body:       body,
+		FullCommit: fullCommit,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs", nil), opts)
 	if jsonErr := errFunc(); jsonErr != nil {
