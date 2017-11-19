@@ -2,7 +2,6 @@ package couchdb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +13,7 @@ import (
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 )
 
@@ -57,7 +57,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 			id:   "foo", rev: "1-xxx", filename: "x.jpg", ctype: "image/jpeg",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
-			err:    "Put http://example.com/testdb/foo/x.jpg?rev=1-xxx: net error",
+			err:    "Put http://example.com/testdb/foo/x.jpg\\?rev=1-xxx: net error",
 		},
 		{
 			name:     "1.6.1",
@@ -113,11 +113,63 @@ func TestPutAttachmentOpts(t *testing.T) {
 			status: 601,
 			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
 		},
+		{
+			name:     "with options",
+			db:       newTestDB(nil, errors.New("success")),
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			ctype:    "text/plain",
+			options:  map[string]interface{}{"foo": "oink"},
+			status:   kivik.StatusNetworkError,
+			err:      "foo=oink",
+		},
+		{
+			name:     "invalid options",
+			db:       &db{},
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			ctype:    "text/plain",
+			options:  map[string]interface{}{"foo": make(chan int)},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: invalid type chan int for options",
+		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			ctype:    "text/plain",
+			options:  map[string]interface{}{OptionFullCommit: true},
+			status:   kivik.StatusNetworkError,
+			err:      "success",
+		},
+		{
+			name:     "invalid full commit type",
+			db:       &db{},
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			ctype:    "text/plain",
+			options:  map[string]interface{}{OptionFullCommit: 123},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			newRev, err := test.db.PutAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.ctype, test.body, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
 			}
@@ -464,7 +516,7 @@ func TestDeleteAttachmentOpts(t *testing.T) {
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
 			status:   kivik.StatusNetworkError,
-			err:      "(Delete http://example.com/testdb/foo/foo.txt?rev=1-xxx: )?net error",
+			err:      "(Delete http://example.com/testdb/foo/foo.txt\\?rev=1-xxx: )?net error",
 		},
 		{
 			name:     "success 1.6.1",

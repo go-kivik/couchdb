@@ -28,16 +28,26 @@ func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, conten
 	if contentType == "" {
 		return "", missingArg("contentType")
 	}
-	opts := &chttp.Options{
-		Body:        body,
-		ContentType: contentType,
+
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
 	}
-	query := url.Values{}
+
+	query, err := optionsToParams(options)
+	if err != nil {
+		return "", err
+	}
 	if rev != "" {
-		query.Add("rev", rev)
+		query.Set("rev", rev)
 	}
 	var response struct {
 		Rev string `json:"rev"`
+	}
+	opts := &chttp.Options{
+		Body:        body,
+		ContentType: contentType,
+		FullCommit:  fullCommit,
 	}
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts, &response)
 	if err != nil {
