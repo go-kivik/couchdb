@@ -291,11 +291,11 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if targetID == "" {
 		return "", errors.Status(kivik.StatusBadRequest, "kivik: targetID required")
 	}
-	params, err := optionsToParams(options)
+	fullCommit, err := fullCommit(d.fullCommit, options)
 	if err != nil {
 		return "", err
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	params, err := optionsToParams(options)
 	if err != nil {
 		return "", err
 	}

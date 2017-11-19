@@ -1094,6 +1094,7 @@ func TestCopy(t *testing.T) {
 		},
 		{
 			name:    "invalid options",
+			db:      &db{},
 			source:  "foo",
 			target:  "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
