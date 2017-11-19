@@ -11,10 +11,11 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
+
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/kivik/errors"
-	"github.com/flimzy/testy"
 )
 
 func TestPutAttachment(t *testing.T) {
@@ -538,14 +539,22 @@ func TestDeleteAttachmentOpts(t *testing.T) {
 			newRev: "3-231a932924f61816915289fecd35b14a",
 		},
 		{
-			name:     "with options",
-			db:       newTestDB(nil, errors.New("success")),
+			name: "with options",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if foo := req.URL.Query().Get("foo"); foo != "oink" {
+					return nil, errors.Errorf("Unexpected query foo=%s", foo)
+				}
+				return nil, errors.New("success")
+			}),
 			id:       "foo",
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": "oink"},
 			status:   kivik.StatusNetworkError,
-			err:      "foo=oink",
+			err:      "success",
 		},
 		{
 			name:     "invalid option",

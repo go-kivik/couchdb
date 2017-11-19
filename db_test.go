@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,9 +13,11 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
+
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/testy"
+	"github.com/flimzy/kivik/errors"
 )
 
 func TestAllDocs(t *testing.T) {
@@ -676,13 +677,21 @@ func TestDeleteOpts(t *testing.T) {
 			newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
 		},
 		{
-			name:    "batch mode",
-			db:      newTestDB(nil, errors.New("success")),
+			name: "batch mode",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if batch := req.URL.Query().Get("batch"); batch != "ok" {
+					return nil, errors.Errorf("Unexpected query batch=%s", batch)
+				}
+				return nil, errors.New("success")
+			}),
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{"batch": "ok"},
 			status:  kivik.StatusNetworkError,
-			err:     "batch=ok",
+			err:     "success",
 		},
 		{
 			name:    "invalid options",
