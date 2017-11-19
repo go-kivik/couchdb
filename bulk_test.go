@@ -125,7 +125,7 @@ func TestBulkDocs(t *testing.T) {
 			db:      &db{},
 			options: map[string]interface{}{OptionFullCommit: 123},
 			status:  kivik.StatusBadRequest,
-			err:     "kivik: option 'full-commit' must be bool, not int",
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
 	for _, test := range tests {

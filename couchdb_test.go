@@ -173,7 +173,7 @@ func TestDB(t *testing.T) {
 			dbName:  "foo",
 			options: map[string]interface{}{OptionFullCommit: 123},
 			status:  kivik.StatusBadRequest,
-			err:     "kivik: option 'full-commit' must be bool, not int",
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
 			name:    "full commit",

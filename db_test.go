@@ -1059,7 +1059,7 @@ func TestCopy(t *testing.T) {
 			target:  "bar",
 			options: map[string]interface{}{OptionFullCommit: 123},
 			status:  kivik.StatusBadRequest,
-			err:     "kivik: option 'full-commit' must be bool, not int",
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
 			name:   "create 1.6.1",

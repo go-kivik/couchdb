@@ -18,31 +18,31 @@ func TestFullCommit(t *testing.T) {
 	}{
 		{
 			name:     "legacy",
-			input:    map[string]interface{}{"force_commit": true},
+			input:    map[string]interface{}{optionForceCommit: true},
 			expected: true,
 		},
 		{
 			name:   "legacy error",
-			input:  map[string]interface{}{"force_commit": 123},
+			input:  map[string]interface{}{optionForceCommit: 123},
 			status: kivik.StatusBadRequest,
 			err:    "kivik: option 'force_commit' must be bool, not int",
 		},
 		{
 			name:     "new",
-			input:    map[string]interface{}{"full-commit": true},
+			input:    map[string]interface{}{OptionFullCommit: true},
 			expected: true,
 		},
 		{
 			name:   "new error",
-			input:  map[string]interface{}{"full-commit": 123},
+			input:  map[string]interface{}{OptionFullCommit: 123},
 			status: kivik.StatusBadRequest,
-			err:    "kivik: option 'full-commit' must be bool, not int",
+			err:    "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
 			name: "new priority over old",
 			input: map[string]interface{}{
-				"full-commit":  false,
-				"force_commit": true,
+				OptionFullCommit:  false,
+				optionForceCommit: true,
 			},
 			expected: false,
 		},
@@ -60,13 +60,13 @@ func TestFullCommit(t *testing.T) {
 		{
 			name:     "override default",
 			def:      true,
-			input:    map[string]interface{}{"full-commit": false},
+			input:    map[string]interface{}{OptionFullCommit: false},
 			expected: false,
 		},
 		{
 			name:     "default and option agree",
 			def:      true,
-			input:    map[string]interface{}{"full-commit": true},
+			input:    map[string]interface{}{OptionFullCommit: true},
 			expected: true,
 		},
 	}

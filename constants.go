@@ -6,7 +6,7 @@ package couchdb
 // Example:
 //
 //    db.Put(ctx, "doc_id", doc, kivik.Options{couchdb.ForceCommitOptionKey: true})
-const OptionFullCommit = "full-commit"
+const OptionFullCommit = "X-Couch-Full-Commit"
 
 // optionForceCommit is an unfortunately mispelled version of "full-commit",
 // retained for backward compatibility.
