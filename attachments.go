@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/flimzy/kivik"
@@ -56,8 +55,8 @@ func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, conten
 	return response.Rev, nil
 }
 
-func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, err error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename)
+func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (cType string, md5sum driver.MD5sum, err error) {
+	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename, options)
 	if err != nil {
 		return "", driver.MD5sum{}, err
 	}
@@ -67,14 +66,18 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string)
 }
 
 func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename)
+	return d.GetAttachmentOpts(ctx, docID, rev, filename, nil)
+}
+
+func (d *db) GetAttachmentOpts(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
+	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename, options)
 	if err != nil {
 		return "", driver.MD5sum{}, nil, err
 	}
 	return decodeAttachment(resp)
 }
 
-func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename string) (*http.Response, error) {
+func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename string, options map[string]interface{}) (*http.Response, error) {
 	if method == "" {
 		return nil, errors.New("method required")
 	}
@@ -84,11 +87,23 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	if filename == "" {
 		return nil, missingArg("filename")
 	}
-	query := url.Values{}
+
+	inm, err := ifNoneMatch(options)
+	if err != nil {
+		return nil, err
+	}
+
+	query, err := optionsToParams(options)
+	if err != nil {
+		return nil, err
+	}
 	if rev != "" {
 		query.Add("rev", rev)
 	}
-	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), nil)
+	opts := &chttp.Options{
+		IfNoneMatch: inm,
+	}
+	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts)
 	if err != nil {
 		return nil, err
 	}

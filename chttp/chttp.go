@@ -89,10 +89,13 @@ type Options struct {
 	// Accept sets the request's Accept header. Defaults to "application/json".
 	// To specify any, use "*/*".
 	Accept string
+
 	// ContentType sets the requests's Content-Type header. Defaults to "application/json".
 	ContentType string
+
 	// Body sets the body of the request.
 	Body io.Reader
+
 	// JSON is an arbitrary data type which is marshaled to the request's body.
 	// It an error to set both Body and JSON on the same request. When this is
 	// set, ContentType is unconditionally set to 'application/json'. Note that
@@ -100,8 +103,13 @@ type Options struct {
 	// encoding, so that the request can be live on the wire during JSON
 	// encoding.
 	JSON interface{}
+
 	// FullCommit adds the X-Couch-Full-Commit: true header to requests
 	FullCommit bool
+
+	// IfNoneMatch adds the If-None-Match header.
+	IfNoneMatch string
+
 	// Destination is the target ID for COPY
 	Destination string
 }
@@ -218,6 +226,9 @@ func setHeaders(req *http.Request, opts *Options) {
 		}
 		if opts.Destination != "" {
 			req.Header.Add("Destination", opts.Destination)
+		}
+		if opts.IfNoneMatch != "" {
+			req.Header.Set("If-None-Match", opts.IfNoneMatch)
 		}
 	}
 	req.Header.Add("Accept", accept)

@@ -181,12 +181,14 @@ func TestPutAttachmentOpts(t *testing.T) {
 func TestGetAttachmentMeta(t *testing.T) {
 	tests := []struct {
 		name              string
-		id, rev, filename string
 		db                *db
-		ctype             string
-		md5               driver.MD5sum
-		status            int
-		err               string
+		id, rev, filename string
+		options           map[string]interface{}
+
+		ctype  string
+		md5    driver.MD5sum
+		status int
+		err    string
 	}{
 		{
 			name:     "network error",
@@ -219,7 +221,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctype, md5sum, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename)
+			ctype, md5sum, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if ctype != test.ctype {
 				t.Errorf("Unexpected Content-Type: %s", ctype)
@@ -280,15 +282,23 @@ func TestGetMD5Checksum(t *testing.T) {
 }
 
 func TestGetAttachment(t *testing.T) {
+	db := &db{}
+	_, _, _, err := db.GetAttachment(context.Background(), "", "", "")
+	testy.Error(t, "kivik: docID required", err)
+}
+
+func TestGetAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name              string
-		id, rev, filename string
 		db                *db
-		ctype             string
-		md5               driver.MD5sum
-		content           string
-		status            int
-		err               string
+		id, rev, filename string
+		options           map[string]interface{}
+
+		ctype   string
+		md5     driver.MD5sum
+		content string
+		status  int
+		err     string
 	}{
 		{
 			name:     "network error",
@@ -324,7 +334,7 @@ func TestGetAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctype, md5, content, err := test.db.GetAttachment(context.Background(), test.id, test.rev, test.filename)
+			ctype, md5, content, err := test.db.GetAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			defer content.Close() // nolint: errcheck
 			if ctype != test.ctype {
@@ -347,11 +357,13 @@ func TestGetAttachment(t *testing.T) {
 func TestFetchAttachment(t *testing.T) {
 	tests := []struct {
 		name                      string
-		method, id, rev, filename string
 		db                        *db
-		resp                      *http.Response
-		status                    int
-		err                       string
+		method, id, rev, filename string
+		options                   map[string]interface{}
+
+		resp   *http.Response
+		status int
+		err    string
 	}{
 		{
 			name:   "no method",
@@ -403,10 +415,58 @@ func TestFetchAttachment(t *testing.T) {
 				StatusCode: 200,
 			},
 		},
+		{
+			name:     "options",
+			db:       newTestDB(nil, errors.New("success")),
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			options:  map[string]interface{}{"foo": "bar"},
+			status:   kivik.StatusNetworkError,
+			err:      "foo=bar",
+		},
+		{
+			name:     "invalid option",
+			db:       &db{},
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			options:  map[string]interface{}{"foo": make(chan int)},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: invalid type chan int for options",
+		},
+		{
+			name: "If-None-Match",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
+					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+				}
+				return nil, errors.New("success")
+			}),
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			options:  map[string]interface{}{OptionIfNoneMatch: "foo"},
+			status:   kivik.StatusNetworkError,
+			err:      "success",
+		},
+		{
+			name:     "invalid if-none-match type",
+			db:       &db{},
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			options:  map[string]interface{}{OptionIfNoneMatch: 123},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: option 'If-None-Match' must be string, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.rev, test.filename)
+			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.rev, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			resp.Request = nil
 			if d := diff.Interface(test.resp, resp); d != nil {

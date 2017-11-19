@@ -188,42 +188,51 @@ func TestSetHeaders(t *testing.T) {
 		{
 			Name: "NoOpts",
 			Expected: http.Header{
-				"Accept":       []string{"application/json"},
-				"Content-Type": []string{"application/json"},
+				"Accept":       {"application/json"},
+				"Content-Type": {"application/json"},
 			},
 		},
 		{
 			Name:    "Content-Type",
 			Options: &Options{ContentType: "image/gif"},
 			Expected: http.Header{
-				"Accept":       []string{"application/json"},
-				"Content-Type": []string{"image/gif"},
+				"Accept":       {"application/json"},
+				"Content-Type": {"image/gif"},
 			},
 		},
 		{
 			Name:    "Accept",
 			Options: &Options{Accept: "image/gif"},
 			Expected: http.Header{
-				"Accept":       []string{"image/gif"},
-				"Content-Type": []string{"application/json"},
+				"Accept":       {"image/gif"},
+				"Content-Type": {"application/json"},
 			},
 		},
 		{
 			Name:    "FullCommit",
 			Options: &Options{FullCommit: true},
 			Expected: http.Header{
-				"Accept":              []string{"application/json"},
-				"Content-Type":        []string{"application/json"},
-				"X-Couch-Full-Commit": []string{"true"},
+				"Accept":              {"application/json"},
+				"Content-Type":        {"application/json"},
+				"X-Couch-Full-Commit": {"true"},
 			},
 		},
 		{
 			Name:    "Destination",
 			Options: &Options{Destination: "somewhere nice"},
 			Expected: http.Header{
-				"Accept":       []string{"application/json"},
-				"Content-Type": []string{"application/json"},
-				"Destination":  []string{"somewhere nice"},
+				"Accept":       {"application/json"},
+				"Content-Type": {"application/json"},
+				"Destination":  {"somewhere nice"},
+			},
+		},
+		{
+			Name:    "If-None-Match",
+			Options: &Options{IfNoneMatch: `"foo"`},
+			Expected: http.Header{
+				"Accept":        {"application/json"},
+				"Content-Type":  {"application/json"},
+				"If-None-Match": {`"foo"`},
 			},
 		},
 	}

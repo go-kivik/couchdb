@@ -81,15 +81,25 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 }
 
 // Get fetches the requested document.
-func (d *db) Get(ctx context.Context, docID string, opts map[string]interface{}) (json.RawMessage, error) {
+func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (json.RawMessage, error) {
 	if docID == "" {
 		return nil, missingArg("docID")
 	}
-	params, err := optionsToParams(opts)
+
+	inm, err := ifNoneMatch(options)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := d.Client.DoReq(ctx, http.MethodGet, d.path(chttp.EncodeDocID(docID), params), &chttp.Options{Accept: "application/json; multipart/mixed"})
+
+	params, err := optionsToParams(options)
+	if err != nil {
+		return nil, err
+	}
+	opts := &chttp.Options{
+		Accept:      "application/json; multipart/mixed",
+		IfNoneMatch: inm,
+	}
+	resp, err := d.Client.DoReq(ctx, http.MethodGet, d.path(chttp.EncodeDocID(docID), params), opts)
 	if err != nil {
 		return nil, err
 	}

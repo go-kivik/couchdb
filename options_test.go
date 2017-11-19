@@ -77,6 +77,61 @@ func TestFullCommit(t *testing.T) {
 			if result != test.expected {
 				t.Errorf("Unexpected result: %v", result)
 			}
+			if _, ok := test.input[OptionFullCommit]; ok {
+				t.Errorf("%s still set in options", OptionFullCommit)
+			}
+			if _, ok := test.input[optionForceCommit]; ok {
+				t.Errorf("%s still set in options", optionForceCommit)
+			}
+		})
+	}
+}
+
+func TestIfNoneMatch(t *testing.T) {
+	tests := []struct {
+		name     string
+		opts     map[string]interface{}
+		expected string
+		status   int
+		err      string
+	}{
+		{
+			name:     "nil",
+			opts:     nil,
+			expected: "",
+		},
+		{
+			name:     "inm not set",
+			opts:     map[string]interface{}{"foo": "bar"},
+			expected: "",
+		},
+		{
+			name:   "wrong type",
+			opts:   map[string]interface{}{OptionIfNoneMatch: 123},
+			status: kivik.StatusBadRequest,
+			err:    "kivik: option 'If-None-Match' must be string, not int",
+		},
+		{
+			name:     "valid",
+			opts:     map[string]interface{}{OptionIfNoneMatch: "foo"},
+			expected: `"foo"`,
+		},
+		{
+			name:     "valid, pre-quoted",
+			opts:     map[string]interface{}{OptionIfNoneMatch: `"foo"`},
+			expected: `"foo"`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := ifNoneMatch(test.opts)
+			testy.StatusError(t, test.err, test.status, err)
+			if result != test.expected {
+				t.Errorf("Unexpected result: %s", result)
+			}
+			if _, ok := test.opts[OptionIfNoneMatch]; ok {
+				t.Errorf("%s still set in options", OptionIfNoneMatch)
+			}
 		})
 	}
 }

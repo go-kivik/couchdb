@@ -90,6 +90,29 @@ func TestGet(t *testing.T) {
 			status: kivik.StatusUnknownError,
 			err:    "read error",
 		},
+		{
+			name: "If-None-Match",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
+					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+				}
+				return nil, errors.New("success")
+			}),
+			id:      "foo",
+			options: map[string]interface{}{OptionIfNoneMatch: "foo"},
+			status:  kivik.StatusNetworkError,
+			err:     "Get http://example.com/testdb/foo: success",
+		},
+		{
+			name:    "invalid If-None-Match value",
+			id:      "foo",
+			options: map[string]interface{}{OptionIfNoneMatch: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'If-None-Match' must be string, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
