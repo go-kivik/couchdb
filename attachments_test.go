@@ -18,14 +18,22 @@ import (
 )
 
 func TestPutAttachment(t *testing.T) {
+	db := &db{}
+	_, err := db.PutAttachment(context.Background(), "", "", "", "", nil)
+	testy.StatusError(t, "kivik: docID required", kivik.StatusBadRequest, err)
+}
+
+func TestPutAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name                     string
 		db                       *db
 		id, rev, filename, ctype string
 		body                     io.Reader
-		newRev                   string
-		status                   int
-		err                      string
+		options                  map[string]interface{}
+
+		newRev string
+		status int
+		err    string
 	}{
 		{
 			name:   "missing docID",
@@ -108,7 +116,7 @@ func TestPutAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.PutAttachment(context.Background(), test.id, test.rev, test.filename, test.ctype, test.body)
+			newRev, err := test.db.PutAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.ctype, test.body, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
