@@ -102,10 +102,17 @@ func TestGet(t *testing.T) {
 }
 
 func TestCreateDoc(t *testing.T) {
+	db := newTestDB(nil, errors.New("error"))
+	_, _, err := db.CreateDoc(context.Background(), map[string]string{"foo": "bar"})
+	testy.Error(t, "Post http://example.com/testdb: error", err)
+}
+
+func TestCreateDocOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
 		doc     interface{}
+		options map[string]interface{}
 		id, rev string
 		status  int
 		err     string
@@ -166,7 +173,7 @@ func TestCreateDoc(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			id, rev, err := test.db.CreateDoc(context.Background(), test.doc)
+			id, rev, err := test.db.CreateDocOpts(context.Background(), test.doc, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
