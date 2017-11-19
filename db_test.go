@@ -440,14 +440,21 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
+	db := &db{}
+	_, err := db.Put(context.Background(), "", nil)
+	testy.Error(t, "kivik: docID required", err)
+}
+
+func TestPutOpts(t *testing.T) {
 	tests := []struct {
-		name   string
-		db     *db
-		id     string
-		doc    interface{}
-		rev    string
-		status int
-		err    string
+		name    string
+		db      *db
+		id      string
+		doc     interface{}
+		options map[string]interface{}
+		rev     string
+		status  int
+		err     string
 	}{
 		{
 			name:   "missing docID",
@@ -525,7 +532,7 @@ func TestPut(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Put(context.Background(), test.id, test.doc)
+			rev, err := test.db.PutOpts(context.Background(), test.id, test.doc, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
