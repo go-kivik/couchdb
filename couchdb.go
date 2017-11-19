@@ -104,14 +104,14 @@ func (c *client) DB(_ context.Context, dbName string, options map[string]interfa
 	if dbName == "" {
 		return nil, missingArg("dbName")
 	}
-	forceCommit, err := forceCommit(options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return nil, err
 	}
 	return &db{
-		client:      c,
-		dbName:      dbName,
-		forceCommit: forceCommit,
+		client:     c,
+		dbName:     dbName,
+		fullCommit: fullCommit,
 	}, nil
 }
 

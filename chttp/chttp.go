@@ -100,8 +100,8 @@ type Options struct {
 	// encoding, so that the request can be live on the wire during JSON
 	// encoding.
 	JSON interface{}
-	// ForceCommit adds the X-Couch-Full-Commit: true header to requests
-	ForceCommit bool
+	// FullCommit adds the X-Couch-Full-Commit: true header to requests
+	FullCommit bool
 	// Destination is the target ID for COPY
 	Destination string
 }
@@ -213,7 +213,7 @@ func setHeaders(req *http.Request, opts *Options) {
 		if opts.ContentType != "" {
 			contentType = opts.ContentType
 		}
-		if opts.ForceCommit {
+		if opts.FullCommit {
 			req.Header.Add("X-Couch-Full-Commit", "true")
 		}
 		if opts.Destination != "" {

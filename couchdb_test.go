@@ -169,23 +169,23 @@ func TestDB(t *testing.T) {
 			err:    "kivik: dbName required",
 		},
 		{
-			name:    "invalid force type",
+			name:    "invalid full commit type",
 			dbName:  "foo",
 			options: map[string]interface{}{OptionFullCommit: 123},
 			status:  kivik.StatusBadRequest,
-			err:     "kivik: option 'force_commit' must be bool, not int",
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
-			name:    "force commit",
+			name:    "full commit",
 			dbName:  "foo",
 			options: map[string]interface{}{OptionFullCommit: true},
 			expected: &db{
-				dbName:      "foo",
-				forceCommit: true,
+				dbName:     "foo",
+				fullCommit: true,
 			},
 		},
 		{
-			name:   "no force commit",
+			name:   "no full commit",
 			dbName: "foo",
 			expected: &db{
 				dbName: "foo",

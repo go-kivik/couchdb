@@ -5,15 +5,17 @@ import (
 	"github.com/flimzy/kivik/errors"
 )
 
-func forceCommit(opts map[string]interface{}) (bool, error) {
-	fc, ok := opts[OptionFullCommit]
-	if !ok {
-		return false, nil
+func fullCommit(fullCommit bool, opts map[string]interface{}) (bool, error) {
+	for _, key := range []string{optionForceCommit, OptionFullCommit} {
+		fc, ok := opts[key]
+		if ok {
+			fcBool, ok := fc.(bool)
+			if !ok {
+				return false, errors.Statusf(kivik.StatusBadRequest, "kivik: option '%s' must be bool, not %T", key, fc)
+			}
+			fullCommit = fcBool
+			delete(opts, key)
+		}
 	}
-	fcBool, ok := fc.(bool)
-	if !ok {
-		return false, errors.Statusf(kivik.StatusBadRequest, "kivik: option '%s' must be bool, not %T", OptionFullCommit, fc)
-	}
-	delete(opts, OptionFullCommit)
-	return fcBool, nil
+	return fullCommit, nil
 }

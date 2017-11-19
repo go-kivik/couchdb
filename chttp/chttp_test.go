@@ -209,8 +209,8 @@ func TestSetHeaders(t *testing.T) {
 			},
 		},
 		{
-			Name:    "ForceCommit",
-			Options: &Options{ForceCommit: true},
+			Name:    "FullCommit",
+			Options: &Options{FullCommit: true},
 			Expected: http.Header{
 				"Accept":              []string{"application/json"},
 				"Content-Type":        []string{"application/json"},

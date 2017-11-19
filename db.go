@@ -17,8 +17,8 @@ import (
 
 type db struct {
 	*client
-	dbName      string
-	forceCommit bool
+	dbName     string
+	fullCommit bool
 }
 
 func (d *db) path(path string, query url.Values) string {
@@ -114,8 +114,8 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}) (docID, rev string,
 	defer cancel()
 	body, errFunc := chttp.EncodeBody(doc, cancel)
 	opts := &chttp.Options{
-		Body:        body,
-		ForceCommit: d.forceCommit,
+		Body:       body,
+		FullCommit: d.fullCommit,
 	}
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, d.dbName, opts, &result)
 	if jsonErr := errFunc(); jsonErr != nil {
@@ -133,8 +133,8 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string
 	defer cancel()
 	body, errFunc := chttp.EncodeBody(doc, cancel)
 	opts := &chttp.Options{
-		Body:        body,
-		ForceCommit: d.forceCommit,
+		Body:       body,
+		FullCommit: d.fullCommit,
 	}
 	var result struct {
 		ID  string `json:"id"`
@@ -161,7 +161,7 @@ func (d *db) Delete(ctx context.Context, docID, rev string) (string, error) {
 	query := url.Values{}
 	query.Add("rev", rev)
 	opts := &chttp.Options{
-		ForceCommit: d.forceCommit,
+		FullCommit: d.fullCommit,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID), query), opts)
 	if err != nil {
@@ -279,13 +279,12 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if err != nil {
 		return "", err
 	}
-	forceCommit := d.forceCommit
-	if fc, ok := options[OptionFullCommit].(bool); ok {
-		forceCommit = fc
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
 	}
-	delete(options, OptionFullCommit)
 	opts := &chttp.Options{
-		ForceCommit: forceCommit,
+		FullCommit:  fullCommit,
 		Destination: targetID,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodCopy, d.path(chttp.EncodeDocID(sourceID), params), opts)
