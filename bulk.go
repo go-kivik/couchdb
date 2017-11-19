@@ -74,11 +74,10 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	if options == nil {
 		options = make(map[string]interface{})
 	}
-	fullCommit := d.fullCommit
-	if fc, ok := options[OptionFullCommit].(bool); ok {
-		fullCommit = fc
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return nil, err
 	}
-	delete(options, OptionFullCommit)
 	options["docs"] = docs
 	body, errFunc := chttp.EncodeBody(options, cancel)
 	opts := &chttp.Options{

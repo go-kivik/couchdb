@@ -5,8 +5,7 @@ import (
 	"github.com/flimzy/kivik/errors"
 )
 
-func fullCommit(opts map[string]interface{}) (bool, error) {
-	var fullCommit bool
+func fullCommit(fullCommit bool, opts map[string]interface{}) (bool, error) {
 	for _, key := range []string{optionForceCommit, OptionFullCommit} {
 		fc, ok := opts[key]
 		if ok {

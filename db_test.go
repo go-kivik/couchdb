@@ -1053,6 +1053,15 @@ func TestCopy(t *testing.T) {
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
+			name:    "invalid full commit type",
+			db:      &db{},
+			source:  "foo",
+			target:  "bar",
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'full-commit' must be bool, not int",
+		},
+		{
 			name:   "create 1.6.1",
 			source: "foo",
 			target: "bar",

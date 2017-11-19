@@ -279,11 +279,10 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if err != nil {
 		return "", err
 	}
-	fullCommit := d.fullCommit
-	if fc, ok := options[OptionFullCommit].(bool); ok {
-		fullCommit = fc
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
 	}
-	delete(options, OptionFullCommit)
 	opts := &chttp.Options{
 		FullCommit:  fullCommit,
 		Destination: targetID,

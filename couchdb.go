@@ -104,7 +104,7 @@ func (c *client) DB(_ context.Context, dbName string, options map[string]interfa
 	if dbName == "" {
 		return nil, missingArg("dbName")
 	}
-	fullCommit, err := fullCommit(options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return nil, err
 	}

@@ -120,6 +120,13 @@ func TestBulkDocs(t *testing.T) {
 				}, nil
 			}),
 		},
+		{
+			name:    "invalid full commit type",
+			db:      &db{},
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'full-commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
