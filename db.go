@@ -113,15 +113,30 @@ func (d *db) CreateDocOpts(ctx context.Context, doc interface{}, options map[str
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
 	}{}
+
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", "", err
+	}
+
+	path := d.dbName
+	if len(options) > 0 {
+		params, e := optionsToParams(options)
+		if e != nil {
+			return "", "", e
+		}
+		path += "?" + params.Encode()
+	}
+
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 	body, errFunc := chttp.EncodeBody(doc, cancel)
 	opts := &chttp.Options{
 		Body:       body,
-		FullCommit: d.fullCommit,
+		FullCommit: fullCommit,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, d.dbName, opts, &result)
+	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, path, opts, &result)
 	if jsonErr := errFunc(); jsonErr != nil {
 		return "", "", jsonErr
 	}

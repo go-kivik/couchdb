@@ -170,6 +170,43 @@ func TestCreateDocOpts(t *testing.T) {
 			id:  "43734cf3ce6d5a37050c050bb600006b",
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
+		{
+			name:    "batch mode",
+			db:      newTestDB(nil, errors.New("success")),
+			doc:     map[string]string{"foo": "bar"},
+			options: map[string]interface{}{"batch": true},
+			status:  kivik.StatusNetworkError,
+			err:     "Post http://example.com/testdb?batch=true: success",
+		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "Post http://example.com/testdb: success",
+		},
+		{
+			name:    "invalid options",
+			db:      &db{},
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name:    "invalid full commit type",
+			db:      &db{},
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -532,9 +569,8 @@ func TestPutOpts(t *testing.T) {
 		{
 			name: "full commit",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				defer req.Body.Close() // nolint: errcheck
-				if _, e := ioutil.ReadAll(req.Body); e != nil {
-					return nil, e
+				if err := consume(req.Body); err != nil {
+					return nil, err
 				}
 				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
 					return nil, errors.New("X-Couch-Full-Commit not true")
