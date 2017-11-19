@@ -423,13 +423,21 @@ func TestDecodeAttachment(t *testing.T) {
 }
 
 func TestDeleteAttachment(t *testing.T) {
+	db := &db{}
+	_, err := db.DeleteAttachment(context.Background(), "", "", "")
+	testy.Error(t, "kivik: docID required", err)
+}
+
+func TestDeleteAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name              string
-		id, rev, filename string
 		db                *db
-		newRev            string
-		status            int
-		err               string
+		id, rev, filename string
+		options           map[string]interface{}
+
+		newRev string
+		status int
+		err    string
 	}{
 		{
 			name:   "no doc id",
@@ -480,7 +488,7 @@ func TestDeleteAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.rev, test.filename)
+			newRev, err := test.db.DeleteAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Unexpected new rev: %s", newRev)
