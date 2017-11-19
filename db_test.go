@@ -529,6 +529,33 @@ func TestPutOpts(t *testing.T) {
 			status: kivik.StatusBadResponse,
 			err:    "modified document ID (unexpected) does not match that requested (foo)",
 		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close() // nolint: errcheck
+				if _, e := ioutil.ReadAll(req.Body); e != nil {
+					return nil, e
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			id:      "foo",
+			doc:     map[string]string{"foo": "bar"},
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "Put http://example.com/testdb/foo: success",
+		},
+		{
+			name:    "invalid full commit",
+			db:      &db{},
+			id:      "foo",
+			doc:     map[string]string{"foo": "bar"},
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

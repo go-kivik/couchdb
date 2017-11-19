@@ -140,9 +140,13 @@ func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 	body, errFunc := chttp.EncodeBody(doc, cancel)
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
+	}
 	opts := &chttp.Options{
 		Body:       body,
-		FullCommit: d.fullCommit,
+		FullCommit: fullCommit,
 	}
 	var result struct {
 		ID  string `json:"id"`
