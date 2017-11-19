@@ -542,10 +542,17 @@ func TestPutOpts(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	db := &db{}
+	_, err := db.Delete(context.Background(), "", "")
+	testy.Error(t, "kivik: docID required", err)
+}
+
+func TestDeleteOpts(t *testing.T) {
 	tests := []struct {
 		name    string
-		id, rev string
 		db      *db
+		id, rev string
+		options map[string]interface{}
 		newrev  string
 		status  int
 		err     string
@@ -600,7 +607,7 @@ func TestDelete(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newrev, err := test.db.Delete(context.Background(), test.id, test.rev)
+			newrev, err := test.db.DeleteOpts(context.Background(), test.id, test.rev, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newrev != test.newrev {
 				t.Errorf("Unexpected new rev: %s", newrev)
