@@ -435,6 +435,34 @@ func TestFetchAttachment(t *testing.T) {
 			status:   kivik.StatusBadRequest,
 			err:      "kivik: invalid type chan int for options",
 		},
+		{
+			name: "If-None-Match",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
+					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+				}
+				return nil, errors.New("success")
+			}),
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			options:  map[string]interface{}{OptionIfNoneMatch: "foo"},
+			status:   kivik.StatusNetworkError,
+			err:      "success",
+		},
+		{
+			name:     "invalid if-none-match type",
+			db:       &db{},
+			method:   "GET",
+			id:       "foo",
+			filename: "foo.txt",
+			options:  map[string]interface{}{OptionIfNoneMatch: 123},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: option 'If-None-Match' must be string, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

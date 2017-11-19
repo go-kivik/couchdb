@@ -87,15 +87,23 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	if filename == "" {
 		return nil, missingArg("filename")
 	}
+
+	inm, err := ifNoneMatch(options)
+	if err != nil {
+		return nil, err
+	}
+
 	query, err := optionsToParams(options)
 	if err != nil {
 		return nil, err
 	}
-	// query.Del("rev")
 	if rev != "" {
 		query.Add("rev", rev)
 	}
-	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), nil)
+	opts := &chttp.Options{
+		IfNoneMatch: inm,
+	}
+	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts)
 	if err != nil {
 		return nil, err
 	}
