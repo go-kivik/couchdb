@@ -537,6 +537,54 @@ func TestDeleteAttachmentOpts(t *testing.T) {
 			}, nil),
 			newRev: "3-231a932924f61816915289fecd35b14a",
 		},
+		{
+			name:     "with options",
+			db:       newTestDB(nil, errors.New("success")),
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			options:  map[string]interface{}{"foo": "oink"},
+			status:   kivik.StatusNetworkError,
+			err:      "foo=oink",
+		},
+		{
+			name:     "invalid option",
+			db:       &db{},
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			options:  map[string]interface{}{"foo": make(chan int)},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: invalid type chan int for options",
+		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			options:  map[string]interface{}{OptionFullCommit: true},
+			status:   kivik.StatusNetworkError,
+			err:      "success",
+		},
+		{
+			name:     "invalid full commit type",
+			db:       &db{},
+			id:       "foo",
+			rev:      "1-xxx",
+			filename: "foo.txt",
+			options:  map[string]interface{}{OptionFullCommit: 123},
+			status:   kivik.StatusBadRequest,
+			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

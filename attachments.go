@@ -142,11 +142,25 @@ func (d *db) DeleteAttachmentOpts(ctx context.Context, docID, rev, filename stri
 	if filename == "" {
 		return "", missingArg("filename")
 	}
-	query := url.Values{"rev": {rev}}
+
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
+	}
+
+	query, err := optionsToParams(options)
+	if err != nil {
+		return "", err
+	}
+	query.Set("rev", rev)
 	var response struct {
 		Rev string `json:"rev"`
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), nil, &response)
+
+	opts := &chttp.Options{
+		FullCommit: fullCommit,
+	}
+	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts, &response)
 	if err != nil {
 		return "", err
 	}
