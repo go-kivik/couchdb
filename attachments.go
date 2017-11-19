@@ -15,6 +15,10 @@ import (
 )
 
 func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentType string, body io.Reader) (newRev string, err error) {
+	return d.PutAttachmentOpts(ctx, docID, rev, filename, contentType, body, nil)
+}
+
+func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, contentType string, body io.Reader, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -115,6 +119,10 @@ func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
 }
 
 func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string) (newRev string, err error) {
+	return d.DeleteAttachmentOpts(ctx, docID, rev, filename, nil)
+}
+
+func (d *db) DeleteAttachmentOpts(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
