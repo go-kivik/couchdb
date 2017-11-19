@@ -189,10 +189,22 @@ func (d *db) DeleteOpts(ctx context.Context, docID, rev string, options map[stri
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	query := url.Values{}
+	if rev == "" {
+		return "", missingArg("rev")
+	}
+
+	fullCommit, err := fullCommit(d.fullCommit, options)
+	if err != nil {
+		return "", err
+	}
+
+	query, err := optionsToParams(options)
+	if err != nil {
+		return "", err
+	}
 	query.Add("rev", rev)
 	opts := &chttp.Options{
-		FullCommit: d.fullCommit,
+		FullCommit: fullCommit,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID), query), opts)
 	if err != nil {

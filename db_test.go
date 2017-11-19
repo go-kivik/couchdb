@@ -174,9 +174,9 @@ func TestCreateDocOpts(t *testing.T) {
 			name:    "batch mode",
 			db:      newTestDB(nil, errors.New("success")),
 			doc:     map[string]string{"foo": "bar"},
-			options: map[string]interface{}{"batch": true},
+			options: map[string]interface{}{"batch": "ok"},
 			status:  kivik.StatusNetworkError,
-			err:     "Post http://example.com/testdb?batch=true: success",
+			err:     "Post http://example.com/testdb?batch=ok: success",
 		},
 		{
 			name: "full commit",
@@ -626,8 +626,15 @@ func TestDeleteOpts(t *testing.T) {
 			err:    "kivik: docID required",
 		},
 		{
+			name:   "no rev",
+			id:     "foo",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: rev required",
+		},
+		{
 			name:   "network error",
 			id:     "foo",
+			rev:    "1-xxx",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
 			err:    "(Delete http://example.com/testdb/foo?rev=: )?net error",
@@ -635,6 +642,7 @@ func TestDeleteOpts(t *testing.T) {
 		{
 			name: "1.6.1 conflict",
 			id:   "43734cf3ce6d5a37050c050bb600006b",
+			rev:  "1-xxx",
 			db: newTestDB(&http.Response{
 				StatusCode: 409,
 				Header: http.Header{
@@ -666,6 +674,50 @@ func TestDeleteOpts(t *testing.T) {
 				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"2-185ccf92154a9f24a4f4fd12233bf463"}`)),
 			}, nil),
 			newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
+		},
+		{
+			name:    "batch mode",
+			db:      newTestDB(nil, errors.New("success")),
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{"batch": "ok"},
+			status:  kivik.StatusNetworkError,
+			err:     "batch=ok",
+		},
+		{
+			name:    "invalid options",
+			db:      &db{},
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name: "full commit",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if err := consume(req.Body); err != nil {
+					return nil, err
+				}
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+					return nil, errors.New("X-Couch-Full-Commit not true")
+				}
+				return nil, errors.New("success")
+			}),
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "success",
+		},
+		{
+			name:    "invalid full commit type",
+			db:      &db{},
+			id:      "foo",
+			rev:     "1-xxx",
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
 	for _, test := range tests {
