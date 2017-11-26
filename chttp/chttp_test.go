@@ -1,8 +1,8 @@
 package chttp
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -132,46 +132,59 @@ func TestFixPath(t *testing.T) {
 
 func TestEncodeBody(t *testing.T) {
 	type encodeTest struct {
-		Name     string
-		Input    interface{}
-		Error    string
-		Expected string
+		name  string
+		input interface{}
+
+		expected string
+		status   int
+		err      string
 	}
 	tests := []encodeTest{
 		{
-			Name:     "Null",
-			Expected: "null",
+			name:     "Null",
+			input:    nil,
+			expected: "null",
 		},
 		{
-			Name: "Struct",
-			Input: struct {
+			name: "Struct",
+			input: struct {
 				Foo string `json:"foo"`
 			}{Foo: "bar"},
-			Expected: `{"foo":"bar"}`,
+			expected: `{"foo":"bar"}`,
 		},
 		{
-			Name:  "JSONError",
-			Input: func() {}, // Functions cannot be marshaled to JSON
-			Error: "json: unsupported type: func()",
+			name:   "JSONError",
+			input:  func() {}, // Functions cannot be marshaled to JSON
+			status: kivik.StatusBadRequest,
+			err:    "json: unsupported type: func()",
+		},
+		{
+			name:     "raw json input",
+			input:    json.RawMessage(`{"foo":"bar"}`),
+			expected: `{"foo":"bar"}`,
+		},
+		{
+			name:     "byte slice input",
+			input:    []byte(`{"foo":"bar"}`),
+			expected: `{"foo":"bar"}`,
+		},
+		{
+			name:     "string input",
+			input:    `{"foo":"bar"}`,
+			expected: `{"foo":"bar"}`,
 		},
 	}
 	for _, test := range tests {
 		func(test encodeTest) {
-			t.Run(test.Name, func(t *testing.T) {
+			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
-				r, errFunc := EncodeBody(test.Input, func() {})
-				buf := &bytes.Buffer{}
-				_, _ = buf.ReadFrom(r)
-				var msg string
-				if err := errFunc(); err != nil {
-					msg = err.Error()
-				}
-				result := strings.TrimSpace(buf.String())
-				if result != test.Expected {
-					t.Errorf("Result\nExpected: %s\n  Actual: %s\n", test.Expected, result)
-				}
-				if msg != test.Error {
-					t.Errorf("Error\nExpected: %s\n  Actual: %s\n", test.Error, msg)
+				r := EncodeBody(test.input)
+				defer r.Close() // nolint: errcheck
+				body, err := ioutil.ReadAll(r)
+				testy.StatusError(t, test.err, test.status, err)
+				result := strings.TrimSpace(string(body))
+				if result != test.expected {
+					t.Errorf("Result\nExpected: %s\n  Actual: %s\n", test.expected, result)
 				}
 			})
 		}(test)
