@@ -581,3 +581,57 @@ func TestDoError(t *testing.T) {
 		})
 	}
 }
+
+func TestNetError(t *testing.T) {
+	tests := []struct {
+		name  string
+		input error
+
+		status int
+		err    string
+	}{
+		{
+			name:  "nil",
+			input: nil,
+			err:   "",
+		},
+		{
+			name: "url error",
+			input: &url.Error{
+				Op:  "Get",
+				URL: "http://foo.com/",
+				Err: errors.New("some error"),
+			},
+			status: kivik.StatusNetworkError,
+			err:    "Get http://foo.com/: some error",
+		},
+		{
+			name: "url error with embedded status",
+			input: &url.Error{
+				Op:  "Get",
+				URL: "http://foo.com/",
+				Err: errors.Status(kivik.StatusBadRequest, "some error"),
+			},
+			status: kivik.StatusBadRequest,
+			err:    "Get http://foo.com/: some error",
+		},
+		{
+			name:   "other error",
+			input:  errors.New("other error"),
+			status: kivik.StatusNetworkError,
+			err:    "other error",
+		},
+		{
+			name:   "other error with embedded status",
+			input:  errors.Status(kivik.StatusBadRequest, "bad req"),
+			status: kivik.StatusBadRequest,
+			err:    "bad req",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := netError(test.input)
+			testy.StatusError(t, test.err, test.status, err)
+		})
+	}
+}
