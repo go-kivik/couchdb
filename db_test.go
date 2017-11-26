@@ -14,6 +14,7 @@ import (
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
+	"github.com/go-kivik/couchdb/chttp"
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
@@ -152,7 +153,7 @@ func TestCreateDocOpts(t *testing.T) {
 			doc:    make(chan int),
 			db:     newTestDB(nil, errors.New("")),
 			status: kivik.StatusBadRequest,
-			err:    "json: unsupported type: chan int",
+			err:    "Post http://example.com/testdb: json: unsupported type: chan int",
 		},
 		{
 			name: "error response",
@@ -558,7 +559,7 @@ func TestPutOpts(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: kivik.StatusBadRequest,
-			err:    "json: unsupported type: chan int",
+			err:    "Put http://example.com/testdb/foo: json: unsupported type: chan int",
 		},
 		{
 			name: "doc created, 1.6.1",
@@ -588,7 +589,7 @@ func TestPutOpts(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"unexpected","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
 			}, nil),
 			status: kivik.StatusBadResponse,
-			err:    "modified document ID (unexpected) does not match that requested (foo)",
+			err:    "modified document ID \\(unexpected\\) does not match that requested \\(foo\\)",
 		},
 		{
 			name: "full commit",
@@ -616,11 +617,28 @@ func TestPutOpts(t *testing.T) {
 			status:  kivik.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
+		{
+			name: "connection refused",
+			db: func() *db {
+				c, err := chttp.New(context.Background(), "http://127.0.0.1:1/")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return &db{
+					client: &client{Client: c},
+					dbName: "animals",
+				}
+			}(),
+			id:     "cow",
+			doc:    map[string]interface{}{"feet": 4},
+			status: kivik.StatusNetworkError,
+			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: getsockopt: connection refused",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			rev, err := test.db.PutOpts(context.Background(), test.id, test.doc, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
 			}

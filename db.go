@@ -138,18 +138,11 @@ func (d *db) CreateDocOpts(ctx context.Context, doc interface{}, options map[str
 		path += "?" + params.Encode()
 	}
 
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	defer cancel()
-	body, errFunc := chttp.EncodeBody(doc, cancel)
 	opts := &chttp.Options{
-		Body:       body,
+		Body:       chttp.EncodeBody(doc),
 		FullCommit: fullCommit,
 	}
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, path, opts, &result)
-	if jsonErr := errFunc(); jsonErr != nil {
-		return "", "", jsonErr
-	}
 	return result.ID, result.Rev, err
 }
 
@@ -161,16 +154,12 @@ func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	defer cancel()
-	body, errFunc := chttp.EncodeBody(doc, cancel)
 	fullCommit, err := fullCommit(d.fullCommit, options)
 	if err != nil {
 		return "", err
 	}
 	opts := &chttp.Options{
-		Body:       body,
+		Body:       chttp.EncodeBody(doc),
 		FullCommit: fullCommit,
 	}
 	var result struct {
@@ -178,9 +167,6 @@ func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options
 		Rev string `json:"rev"`
 	}
 	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID), nil), opts, &result)
-	if jsonErr := errFunc(); jsonErr != nil {
-		return "", jsonErr
-	}
 	if err != nil {
 		return "", err
 	}
@@ -288,20 +274,10 @@ func (d *db) Security(ctx context.Context) (*driver.Security, error) {
 }
 
 func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	defer cancel()
-	body, errFunc := chttp.EncodeBody(security, cancel)
 	opts := &chttp.Options{
-		Body: body,
+		Body: chttp.EncodeBody(security),
 	}
 	res, err := d.Client.DoReq(ctx, kivik.MethodPut, d.path("/_security", nil), opts)
-	if jsonErr := errFunc(); jsonErr != nil {
-		if res != nil && res.Body != nil {
-			_ = res.Body.Close()
-		}
-		return jsonErr
-	}
 	if err != nil {
 		return err
 	}
@@ -344,6 +320,6 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	return chttp.GetRev(resp)
 }

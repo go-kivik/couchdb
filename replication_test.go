@@ -144,11 +144,17 @@ func TestReplicate(t *testing.T) {
 			err:    "kivik: sourceDSN required",
 		},
 		{
-			name:   "invalid options",
+			name: "invalid options",
+			client: func() *client {
+				client := newTestClient(nil, errors.New("net eror"))
+				b := false
+				client.schedulerDetected = &b
+				return client
+			}(),
 			target: "foo", source: "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
 			status:  kivik.StatusBadRequest,
-			err:     "json: unsupported type: chan int",
+			err:     "Post http://example.com/_replicator: json: unsupported type: chan int",
 		},
 		{
 			name:   "network error",

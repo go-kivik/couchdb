@@ -296,20 +296,19 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if s, _ := options["source"]; s == "" {
 		return nil, missingArg("sourceDSN")
 	}
-	body := &bytes.Buffer{}
-	if err := json.NewEncoder(body).Encode(options); err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
-	}
 
 	scheduler, err := c.schedulerSupported(ctx)
 	if err != nil {
 		return nil, err
 	}
+	opts := &chttp.Options{
+		Body: chttp.EncodeBody(options),
+	}
 
 	var repStub struct {
 		ID string `json:"id"`
 	}
-	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", &chttp.Options{Body: body}, &repStub); e != nil {
+	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", opts, &repStub); e != nil {
 		return nil, e
 	}
 	if scheduler {

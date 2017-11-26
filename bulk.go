@@ -68,9 +68,6 @@ func (r *bulkResults) Close() error {
 }
 
 func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[string]interface{}) (driver.BulkResults, error) {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	defer cancel()
 	if options == nil {
 		options = make(map[string]interface{})
 	}
@@ -79,18 +76,11 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		return nil, err
 	}
 	options["docs"] = docs
-	body, errFunc := chttp.EncodeBody(options, cancel)
 	opts := &chttp.Options{
-		Body:       body,
+		Body:       chttp.EncodeBody(options),
 		FullCommit: fullCommit,
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs", nil), opts)
-	if jsonErr := errFunc(); jsonErr != nil {
-		if resp != nil && resp.Body != nil {
-			_ = resp.Body.Close()
-		}
-		return nil, jsonErr
-	}
 	if err != nil {
 		return nil, err
 	}

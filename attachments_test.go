@@ -24,8 +24,20 @@ func TestPutAttachment(t *testing.T) {
 	testy.StatusError(t, "kivik: docID required", kivik.StatusBadRequest, err)
 }
 
+type closer struct {
+	io.Reader
+	closed bool
+}
+
+var _ io.ReadCloser = &closer{}
+
+func (c *closer) Close() error {
+	c.closed = true
+	return nil
+}
+
 func TestPutAttachmentOpts(t *testing.T) {
-	tests := []struct {
+	type paoTest struct {
 		name                     string
 		db                       *db
 		id, rev, filename, ctype string
@@ -35,7 +47,9 @@ func TestPutAttachmentOpts(t *testing.T) {
 		newRev string
 		status int
 		err    string
-	}{
+		final  func(*testing.T)
+	}
+	tests := []paoTest{
 		{
 			name:   "missing docID",
 			status: kivik.StatusBadRequest,
@@ -54,9 +68,16 @@ func TestPutAttachmentOpts(t *testing.T) {
 			err:    "kivik: contentType required",
 		},
 		{
+			name: "no body",
+			id:   "foo", rev: "1-xxx", filename: "x.jpg", ctype: "image.jpeg",
+			status: kivik.StatusBadRequest,
+			err:    "kivik: body is nil",
+		},
+		{
 			name: "network error",
 			id:   "foo", rev: "1-xxx", filename: "x.jpg", ctype: "image/jpeg",
 			db:     newTestDB(nil, errors.New("net error")),
+			body:   strings.NewReader("x"),
 			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/testdb/foo/x.jpg\\?rev=1-xxx: net error",
 		},
@@ -101,18 +122,19 @@ func TestPutAttachmentOpts(t *testing.T) {
 			newRev: "2-8ee3381d24ee4ac3e9f8c1f6c7395641",
 		},
 		{
-			name:     "no rev",
-			id:       "foo",
-			filename: "foo.txt",
-			ctype:    "text/plain",
+			name: "no rev",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
 				if _, ok := req.URL.Query()["rev"]; ok {
 					t.Errorf("'rev' should not be present in the query")
 				}
 				return nil, errors.New("ignore this error")
 			}),
-			status: 601,
-			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
+			id:       "foo",
+			filename: "foo.txt",
+			ctype:    "text/plain",
+			body:     strings.NewReader("x"),
+			status:   601,
+			err:      "Put http://example.com/testdb/foo/foo.txt: ignore this error",
 		},
 		{
 			name:     "with options",
@@ -121,6 +143,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			ctype:    "text/plain",
+			body:     strings.NewReader("x"),
 			options:  map[string]interface{}{"foo": "oink"},
 			status:   kivik.StatusNetworkError,
 			err:      "foo=oink",
@@ -132,6 +155,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			ctype:    "text/plain",
+			body:     strings.NewReader("x"),
 			options:  map[string]interface{}{"foo": make(chan int)},
 			status:   kivik.StatusBadRequest,
 			err:      "kivik: invalid type chan int for options",
@@ -151,6 +175,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			ctype:    "text/plain",
+			body:     strings.NewReader("x"),
 			options:  map[string]interface{}{OptionFullCommit: true},
 			status:   kivik.StatusNetworkError,
 			err:      "success",
@@ -162,10 +187,39 @@ func TestPutAttachmentOpts(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			ctype:    "text/plain",
+			body:     strings.NewReader("x"),
 			options:  map[string]interface{}{OptionFullCommit: 123},
 			status:   kivik.StatusBadRequest,
 			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
+		func() paoTest {
+			body := &closer{Reader: strings.NewReader("x")}
+			return paoTest{
+				name: "ReadCloser",
+				db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+					if err := consume(req.Body); err != nil {
+						return nil, err
+					}
+					if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+						return nil, errors.New("X-Couch-Full-Commit not true")
+					}
+					return nil, errors.New("success")
+				}),
+				id:       "foo",
+				rev:      "1-xxx",
+				filename: "foo.txt",
+				ctype:    "text/plain",
+				body:     body,
+				options:  map[string]interface{}{OptionFullCommit: true},
+				status:   kivik.StatusNetworkError,
+				err:      "success",
+				final: func(t *testing.T) {
+					if !body.closed {
+						t.Fatal("body wasn't closed")
+					}
+				},
+			}
+		}(),
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -173,6 +227,9 @@ func TestPutAttachmentOpts(t *testing.T) {
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
+			}
+			if test.final != nil {
+				test.final(t)
 			}
 		})
 	}

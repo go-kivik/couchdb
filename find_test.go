@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 )
 
@@ -34,10 +34,10 @@ func TestExplain(t *testing.T) {
 		},
 		{
 			name:   "invalid query",
-			db:     &db{client: &client{}},
+			db:     newTestDB(nil, nil),
 			query:  make(chan int),
 			status: kivik.StatusBadRequest,
-			err:    "json: unsupported type: chan int",
+			err:    "Post http://example.com/testdb/_explain: json: unsupported type: chan int",
 		},
 		{
 			name:   "network error",
@@ -61,6 +61,24 @@ func TestExplain(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader(`{"dbname":"foo"}`)),
 			}, nil),
 			expected: &driver.QueryPlan{DBName: "foo"},
+		},
+		{
+			name: "raw query",
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close() // nolint: errcheck
+				var result interface{}
+				if err := json.NewDecoder(req.Body).Decode(&result); err != nil {
+					return nil, errors.Errorf("decode error: %s", err)
+				}
+				expected := map[string]interface{}{"_id": "foo"}
+				if d := diff.Interface(expected, result); d != nil {
+					return nil, errors.Errorf("Unexpected result:\n%s\n", d)
+				}
+				return nil, errors.New("success")
+			}),
+			query:  []byte(`{"_id":"foo"}`),
+			status: kivik.StatusNetworkError,
+			err:    "Post http://example.com/testdb/_explain: success",
 		},
 	}
 	for _, test := range tests {
@@ -148,7 +166,7 @@ func TestCreateIndex(t *testing.T) {
 			db:     newTestDB(nil, nil),
 			index:  map[string]interface{}{"foo": make(chan int)},
 			status: kivik.StatusBadRequest,
-			err:    "json: unsupported type: chan int",
+			err:    "Post http://example.com/testdb/_index: json: unsupported type: chan int",
 		},
 		{
 			name:   "network error",
@@ -330,7 +348,7 @@ func TestFind(t *testing.T) {
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
 			status: kivik.StatusBadRequest,
-			err:    "json: unsupported type: chan int",
+			err:    "Post http://example.com/testdb/_find: json: unsupported type: chan int",
 		},
 		{
 			name:   "network error",
