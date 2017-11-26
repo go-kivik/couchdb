@@ -213,6 +213,8 @@ func EncodeBody(i interface{}) io.ReadCloser {
 		switch t := i.(type) {
 		case []byte:
 			_, err = w.Write(t)
+		case json.RawMessage: // Only needed for Go 1.7
+			_, err = w.Write(t)
 		case string:
 			_, err = w.Write([]byte(t))
 		default:
