@@ -94,7 +94,7 @@ type Options struct {
 	ContentType string
 
 	// Body sets the body of the request.
-	Body io.Reader
+	Body io.ReadCloser
 
 	// JSON is an arbitrary data type which is marshaled to the request's body.
 	// It an error to set both Body and JSON on the same request. When this is

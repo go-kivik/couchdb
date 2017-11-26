@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -27,6 +28,9 @@ func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, conten
 	if contentType == "" {
 		return "", missingArg("contentType")
 	}
+	if body == nil {
+		return "", errors.Status(kivik.StatusBadRequest, "kivik: body is nil")
+	}
 
 	fullCommit, err := fullCommit(d.fullCommit, options)
 	if err != nil {
@@ -43,8 +47,14 @@ func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, conten
 	var response struct {
 		Rev string `json:"rev"`
 	}
+	var bodyCloser io.ReadCloser
+	if rc, ok := body.(io.ReadCloser); ok {
+		bodyCloser = rc
+	} else {
+		bodyCloser = ioutil.NopCloser(body)
+	}
 	opts := &chttp.Options{
-		Body:        body,
+		Body:        bodyCloser,
 		ContentType: contentType,
 		FullCommit:  fullCommit,
 	}
