@@ -39,7 +39,7 @@ func TestBulkDocs(t *testing.T) {
 			}, nil),
 			docs:   []interface{}{make(chan int)},
 			status: kivik.StatusBadRequest,
-			err:    "json: unsupported type: chan int",
+			err:    "Post http://example.com/testdb/_bulk_docs: json: unsupported type: chan int",
 		},
 		{
 			name: "docs rejected",

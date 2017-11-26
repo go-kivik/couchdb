@@ -3,7 +3,6 @@ package chttp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
 )
 
@@ -518,6 +518,14 @@ func TestDoReq(t *testing.T) {
 				Body:       Body(""),
 			}, nil),
 			// success!
+		},
+		{
+			name:   "body error",
+			method: "PUT",
+			path:   "foo",
+			client: newTestClient(nil, errors.Status(kivik.StatusBadRequest, "bad request")),
+			status: kivik.StatusBadRequest,
+			err:    "Put http://example.com/foo: bad request",
 		},
 	}
 	for _, test := range tests {
