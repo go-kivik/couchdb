@@ -1,14 +1,12 @@
 package couchdb
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/driver/util"
 	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
 )
@@ -32,11 +30,10 @@ func (d *db) CreateIndex(ctx context.Context, ddoc, name string, index interface
 		Ddoc:  ddoc,
 		Name:  name,
 	}
-	body := &bytes.Buffer{}
-	if err = json.NewEncoder(body).Encode(parameters); err != nil {
-		return errors.WrapStatus(kivik.StatusBadRequest, err)
+	opts := &chttp.Options{
+		Body: chttp.EncodeBody(parameters),
 	}
-	_, err = d.Client.DoError(ctx, kivik.MethodPost, d.path("_index", nil), &chttp.Options{Body: body})
+	_, err = d.Client.DoError(ctx, kivik.MethodPost, d.path("_index", nil), opts)
 	return err
 }
 
@@ -70,11 +67,10 @@ func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
-	body, err := toJSON(query)
-	if err != nil {
-		return nil, err
+	opts := &chttp.Options{
+		Body: chttp.EncodeBody(query),
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_find", nil), &chttp.Options{Body: body})
+	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_find", nil), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -115,13 +111,11 @@ func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan,
 	if d.client.noFind || d.client.Compat == CompatCouch16 {
 		return nil, findNotImplemented
 	}
-	body, err := util.ToJSON(query)
-	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+	opts := &chttp.Options{
+		Body: chttp.EncodeBody(query),
 	}
 	var plan queryPlan
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_explain", nil), &chttp.Options{Body: body}, &plan)
-	if err != nil {
+	if _, err := d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_explain", nil), opts, &plan); err != nil {
 		return nil, err
 	}
 	return &driver.QueryPlan{
