@@ -320,6 +320,6 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	return chttp.GetRev(resp)
 }
