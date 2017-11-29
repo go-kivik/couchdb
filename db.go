@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -332,6 +333,113 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		return result.Rev, errors.Statusf(kivik.StatusBadResponse, "modified document ID (%s) does not match that requested (%s)", result.ID, docID)
 	}
 	return result.Rev, nil
+}
+
+func extractAttachments(doc interface{}) (*kivik.Attachments, bool) {
+	v := reflect.ValueOf(doc)
+	if v.Type().Kind() == reflect.Ptr {
+		return extractAttachments(v.Elem().Interface())
+	}
+	if stdMap, ok := doc.(map[string]interface{}); ok {
+		att, ok := stdMap["_attachments"].(kivik.Attachments)
+		return &att, ok
+	}
+	if v.Kind() != reflect.Struct {
+		return nil, false
+	}
+	for i := 0; i < v.NumField(); i++ {
+		if v.Type().Field(i).Tag.Get("json") == "_attachments" {
+			f := v.Field(i)
+			if att, ok := f.Interface().(kivik.Attachments); ok {
+				return &att, true
+			}
+			att, ok := f.Interface().(*kivik.Attachments)
+			return att, ok
+		}
+	}
+	return nil, false
+}
+
+// replaceAttachments reads a json stream on in, looking for the _attachments
+// key, then replaces its value with the marshaled version of att.
+func replaceAttachments(in io.ReadCloser, att *kivik.Attachments) io.ReadCloser {
+	r, w := io.Pipe()
+	go func() {
+		err := copyWithAttachments(w, in, att)
+		e := in.Close()
+		if err == nil {
+			err = e
+		}
+		_ = w.CloseWithError(err)
+	}()
+	return r
+}
+
+func copyWithAttachments(w io.Writer, r io.Reader, att *kivik.Attachments) error {
+	dec := json.NewDecoder(r)
+	t, err := dec.Token()
+	if err == nil {
+		if t != json.Delim('{') {
+			return fmt.Errorf("expected '{', found '%v'", t)
+		}
+	}
+	if err != nil {
+		if err != io.EOF {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(w, "%v", t); err != nil {
+		return err
+	}
+	first := true
+	for {
+		t, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch tp := t.(type) {
+		case string:
+			if !first {
+				if _, e := w.Write([]byte(",")); e != nil {
+					return e
+				}
+			}
+			first = false
+			if _, e := fmt.Fprintf(w, `"%s":`, tp); e != nil {
+				return e
+			}
+			var val json.RawMessage
+			if e := dec.Decode(&val); e != nil {
+				return e
+			}
+			if tp == "_attachments" {
+				if e := json.NewEncoder(w).Encode(att); e != nil {
+					return e
+				}
+				// Once we're here, we can just stream the rest of the input
+				// unaltered.
+				if _, e := io.Copy(w, dec.Buffered()); e != nil {
+					return e
+				}
+				_, e := io.Copy(w, r)
+				return e
+			}
+			if _, e := w.Write(val); e != nil {
+				return e
+			}
+		case json.Delim:
+			if tp != json.Delim('}') {
+				return fmt.Errorf("expected '}', found '%v'", t)
+			}
+			if _, err := fmt.Fprintf(w, "%v", t); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]interface{}) (string, error) {
