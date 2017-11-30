@@ -10,6 +10,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -358,6 +359,37 @@ func extractAttachments(doc interface{}) (*kivik.Attachments, bool) {
 		}
 	}
 	return nil, false
+}
+
+// newMultipartAttachments reads a json stream on in, and produces a
+// multipart/related output suitable for a PUT request.
+func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (string, io.ReadCloser) {
+	r, w := io.Pipe()
+	body := multipart.NewWriter(w)
+	go func() {
+		err := createMultipart(body, in, att)
+		e := in.Close()
+		if err == nil {
+			err = e
+		}
+		_ = w.CloseWithError(err)
+	}()
+	return body.Boundary(), r
+}
+
+func createMultipart(w *multipart.Writer, r io.ReadCloser, att *kivik.Attachments) error {
+	doc, err := w.CreatePart(textproto.MIMEHeader{
+		"Content-Type": {"application/json"},
+	})
+	if err != nil {
+		return err
+	}
+	attJSON := replaceAttachments(r, att)
+	if _, e := io.Copy(doc, attJSON); e != nil {
+		return e
+	}
+
+	return w.Close()
 }
 
 // replaceAttachments reads a json stream on in, looking for the _attachments
