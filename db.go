@@ -377,16 +377,30 @@ func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (string, 
 	return body.Boundary(), r
 }
 
-func createMultipart(w *multipart.Writer, r io.ReadCloser, att *kivik.Attachments) error {
+func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachments) error {
 	doc, err := w.CreatePart(textproto.MIMEHeader{
 		"Content-Type": {"application/json"},
 	})
 	if err != nil {
 		return err
 	}
-	attJSON := replaceAttachments(r, att)
+	attJSON := replaceAttachments(r, atts)
 	if _, e := io.Copy(doc, attJSON); e != nil {
 		return e
+	}
+
+	for filename, att := range *atts {
+		file, err := w.CreatePart(textproto.MIMEHeader{
+			"Content-Type":        {att.ContentType},
+			"Content-Disposition": {fmt.Sprintf(`attachment; filename=%q`, filename)},
+		})
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(file, att); err != nil {
+			return err
+		}
+		_ = att.Close()
 	}
 
 	return w.Close()
