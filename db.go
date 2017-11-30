@@ -394,10 +394,10 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, att *kivik.Attachment
 
 // replaceAttachments reads a json stream on in, looking for the _attachments
 // key, then replaces its value with the marshaled version of att.
-func replaceAttachments(in io.ReadCloser, att *kivik.Attachments) io.ReadCloser {
+func replaceAttachments(in io.ReadCloser, atts *kivik.Attachments) io.ReadCloser {
 	r, w := io.Pipe()
 	go func() {
-		err := copyWithAttachments(w, in, att)
+		err := copyWithAttachments(w, in, attachmentStubs(atts))
 		e := in.Close()
 		if err == nil {
 			err = e
@@ -407,7 +407,21 @@ func replaceAttachments(in io.ReadCloser, att *kivik.Attachments) io.ReadCloser 
 	return r
 }
 
-func copyWithAttachments(w io.Writer, r io.Reader, att *kivik.Attachments) error {
+func attachmentStubs(atts *kivik.Attachments) map[string]interface{} {
+	if atts == nil {
+		return nil
+	}
+	result := make(map[string]interface{}, len(*atts))
+	for filename, att := range *atts {
+		result[filename] = map[string]interface{}{
+			"content_type": att.ContentType,
+			"follows":      true,
+		}
+	}
+	return result
+}
+
+func copyWithAttachments(w io.Writer, r io.Reader, att map[string]interface{}) error {
 	dec := json.NewDecoder(r)
 	t, err := dec.Token()
 	if err == nil {
