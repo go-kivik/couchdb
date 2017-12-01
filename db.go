@@ -339,6 +339,9 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 const attachmentsKey = "_attachments"
 
 func extractAttachments(doc interface{}) (*kivik.Attachments, bool) {
+	if doc == nil {
+		return nil, false
+	}
 	v := reflect.ValueOf(doc)
 	if v.Type().Kind() == reflect.Ptr {
 		return extractAttachments(v.Elem().Interface())
@@ -411,10 +414,10 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachmen
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(file, att); err != nil {
+		if _, err := io.Copy(file, att.Content); err != nil {
 			return err
 		}
-		_ = att.Close()
+		_ = att.Content.Close()
 	}
 
 	return w.Close()

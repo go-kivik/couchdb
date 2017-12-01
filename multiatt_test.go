@@ -124,6 +124,21 @@ func TestExtractAttachments(t *testing.T) {
 			},
 			ok: true,
 		},
+		{
+			name: "pointer in map",
+			doc: map[string]interface{}{"_attachments": &kivik.Attachments{
+				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+			}},
+			expected: &kivik.Attachments{
+				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain"},
+			},
+			ok: true,
+		},
+		{
+			name: "nil doc",
+			doc:  nil,
+			ok:   false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
