@@ -1864,3 +1864,57 @@ func TestAttachmentStubs(t *testing.T) {
 		})
 	}
 }
+
+func TestInterfaceToAttachments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		output   interface{}
+		expected *kivik.Attachments
+		ok       bool
+	}{
+		{
+			name:     "non-attachment input",
+			input:    "foo",
+			output:   "foo",
+			expected: nil,
+			ok:       false,
+		},
+		{
+			name: "pointer input",
+			input: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			output: new(kivik.Attachments),
+			expected: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			ok: true,
+		},
+		{
+			name: "non-pointer input",
+			input: kivik.Attachments{
+				"foo.txt": nil,
+			},
+			output: kivik.Attachments{},
+			expected: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			ok: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, ok := interfaceToAttachments(test.input)
+			if ok != test.ok {
+				t.Errorf("Unexpected OK result: %v", result)
+			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Errorf("Unexpected result:\n%s\n", d)
+			}
+			if d := diff.Interface(test.output, test.input); d != nil {
+				t.Errorf("Input not properly modified:\n%s\n", d)
+			}
+		})
+	}
+}

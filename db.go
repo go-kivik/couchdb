@@ -336,27 +336,41 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 	return result.Rev, nil
 }
 
+const attachmentsKey = "_attachments"
+
 func extractAttachments(doc interface{}) (*kivik.Attachments, bool) {
 	v := reflect.ValueOf(doc)
 	if v.Type().Kind() == reflect.Ptr {
 		return extractAttachments(v.Elem().Interface())
 	}
 	if stdMap, ok := doc.(map[string]interface{}); ok {
-		att, ok := stdMap["_attachments"].(kivik.Attachments)
-		return &att, ok
+		return interfaceToAttachments(stdMap[attachmentsKey])
 	}
 	if v.Kind() != reflect.Struct {
 		return nil, false
 	}
 	for i := 0; i < v.NumField(); i++ {
-		if v.Type().Field(i).Tag.Get("json") == "_attachments" {
-			f := v.Field(i)
-			if att, ok := f.Interface().(kivik.Attachments); ok {
-				return &att, true
-			}
-			att, ok := f.Interface().(*kivik.Attachments)
-			return att, ok
+		if v.Type().Field(i).Tag.Get("json") == attachmentsKey {
+			return interfaceToAttachments(v.Field(i).Interface())
 		}
+	}
+	return nil, false
+}
+
+func interfaceToAttachments(i interface{}) (*kivik.Attachments, bool) {
+	switch t := i.(type) {
+	case kivik.Attachments:
+		atts := make(kivik.Attachments, len(t))
+		for k, v := range t {
+			atts[k] = v
+			delete(t, k)
+		}
+		return &atts, true
+	case *kivik.Attachments:
+		atts := new(kivik.Attachments)
+		*atts = *t
+		*t = nil
+		return atts, true
 	}
 	return nil, false
 }
@@ -475,7 +489,7 @@ func copyWithAttachments(w io.Writer, r io.Reader, att map[string]interface{}) e
 			if e := dec.Decode(&val); e != nil {
 				return e
 			}
-			if tp == "_attachments" {
+			if tp == attachmentsKey {
 				if e := json.NewEncoder(w).Encode(att); e != nil {
 					return e
 				}
