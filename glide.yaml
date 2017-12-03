@@ -6,7 +6,6 @@ import:
   version: ^1.6.0
   subpackages:
   - driver
-  - driver/util
   - errors
 - package: github.com/pkg/errors
   version: ^0.8.0
