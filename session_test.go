@@ -38,6 +38,7 @@ func TestSession(t *testing.T) {
 		},
 		{
 			name:      "invalid response",
+			status:    http.StatusOK,
 			body:      `{"userCtx":"asdf"}`,
 			errStatus: kivik.StatusBadResponse,
 			err:       "json: cannot unmarshal string into Go ",
