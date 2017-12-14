@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
+
+	"github.com/go-kivik/kivik"
 )
 
 func TestResponseError(t *testing.T) {

@@ -13,9 +13,9 @@ import (
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 func TestPutAttachment(t *testing.T) {

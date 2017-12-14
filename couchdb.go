@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 // Couch represents the parent driver instance.
