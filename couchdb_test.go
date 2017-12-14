@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
 )
 
 func TestNewClient(t *testing.T) {

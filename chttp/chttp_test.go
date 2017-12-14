@@ -13,12 +13,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/errors"
-	"github.com/flimzy/testy"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/errors"
 )
 
 func TestNew(t *testing.T) {

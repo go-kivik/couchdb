@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/testy"
+	"github.com/go-kivik/kivik"
 )
 
 func TestBasicAuthRoundTrip(t *testing.T) {

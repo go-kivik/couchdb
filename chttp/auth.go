@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/errors"
 )
 
 // Authenticator is an interface that provides authentication to a server.

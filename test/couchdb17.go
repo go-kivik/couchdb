@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kiviktest"
 	"github.com/go-kivik/kiviktest/kt"
 )
