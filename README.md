@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/go-kivik/couchdb.svg?branch=master)](https://travis-ci.org/go-kivik/couchdb) [![Codecov](https://img.shields.io/codecov/c/github/go-kivik/couchdb.svg?style=flat)](https://codecov.io/gh/go-kivik/couchdb) [![GoDoc](https://godoc.org/github.com/go-kivik/couchdb?status.svg)](http://godoc.org/github.com/go-kivik/couchdb)
+[![Build Status](https://travis-ci.org/go-kivik/couchdb.svg?branch=stable1.x)](https://travis-ci.org/go-kivik/couchdb) [![Codecov](https://img.shields.io/codecov/c/github/go-kivik/couchdb/stable1.x.svg?style=flat)](https://codecov.io/gh/go-kivik/couchdb/branch/stable1.x)
 
 # Kivik CouchDB
 
