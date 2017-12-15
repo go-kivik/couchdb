@@ -373,7 +373,7 @@ func TestFind(t *testing.T) {
 				ContentLength: 77,
 				Body:          Body(`{"error":"bad_content_type","reason":"Content-Type must be application/json"}`),
 			}, nil),
-			status: kivik.StatusBadContentType,
+			status: kivik.StatusUnsupportedMediaType,
 			err:    "Unsupported Media Type: Content-Type must be application/json",
 		},
 		{
