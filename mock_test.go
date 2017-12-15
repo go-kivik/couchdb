@@ -56,20 +56,6 @@ func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
 	}
 }
 
-type errorReadCloser struct {
-	err error
-}
-
-var _ io.ReadCloser = &errorReadCloser{}
-
-func (c errorReadCloser) Read(_ []byte) (int, error) {
-	return 0, c.err
-}
-
-func (c errorReadCloser) Close() error {
-	return nil
-}
-
 func Body(str string) io.ReadCloser {
 	if !strings.HasSuffix(str, "\n") {
 		str = str + "\n"

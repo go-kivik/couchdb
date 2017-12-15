@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -81,19 +82,19 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 }
 
 // Get fetches the requested document.
-func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (json.RawMessage, error) {
+func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (int64, io.ReadCloser, error) {
 	if docID == "" {
-		return nil, missingArg("docID")
+		return 0, nil, missingArg("docID")
 	}
 
 	inm, err := ifNoneMatch(options)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 
 	params, err := optionsToParams(options)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	opts := &chttp.Options{
 		Accept:      "application/json; multipart/mixed",
@@ -101,17 +102,12 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 	}
 	resp, err := d.Client.DoReq(ctx, http.MethodGet, d.path(chttp.EncodeDocID(docID), params), opts)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	if respErr := chttp.ResponseError(resp); respErr != nil {
-		return nil, respErr
+		return 0, nil, respErr
 	}
-	defer func() { _ = resp.Body.Close() }()
-	doc := &bytes.Buffer{}
-	if _, err := doc.ReadFrom(resp.Body); err != nil {
-		return nil, errors.WrapStatus(kivik.StatusUnknownError, err)
-	}
-	return doc.Bytes(), nil
+	return resp.ContentLength, resp.Body, nil
 }
 
 func (d *db) CreateDoc(ctx context.Context, doc interface{}) (docID, rev string, err error) {
