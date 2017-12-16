@@ -127,12 +127,6 @@ func TestGet(t *testing.T) {
 }
 
 func TestCreateDoc(t *testing.T) {
-	db := newTestDB(nil, errors.New("error"))
-	_, _, err := db.CreateDoc(context.Background(), map[string]string{"foo": "bar"})
-	testy.Error(t, "Post http://example.com/testdb: error", err)
-}
-
-func TestCreateDocOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
@@ -235,7 +229,7 @@ func TestCreateDocOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			id, rev, err := test.db.CreateDocOpts(context.Background(), test.doc, test.options)
+			id, rev, err := test.db.CreateDoc(context.Background(), test.doc, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
@@ -502,12 +496,6 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	db := &db{}
-	_, err := db.Put(context.Background(), "", nil)
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestPutOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
@@ -637,7 +625,7 @@ func TestPutOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.PutOpts(context.Background(), test.id, test.doc, test.options)
+			rev, err := test.db.Put(context.Background(), test.id, test.doc, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
@@ -647,12 +635,6 @@ func TestPutOpts(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	db := &db{}
-	_, err := db.Delete(context.Background(), "", "")
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestDeleteOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
@@ -772,7 +754,7 @@ func TestDeleteOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newrev, err := test.db.DeleteOpts(context.Background(), test.id, test.rev, test.options)
+			newrev, err := test.db.Delete(context.Background(), test.id, test.rev, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newrev != test.newrev {
 				t.Errorf("Unexpected new rev: %s", newrev)

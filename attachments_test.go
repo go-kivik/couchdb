@@ -18,12 +18,6 @@ import (
 	"github.com/go-kivik/kivik/errors"
 )
 
-func TestPutAttachment(t *testing.T) {
-	db := &db{}
-	_, err := db.PutAttachment(context.Background(), "", "", "", "", nil)
-	testy.StatusError(t, "kivik: docID required", kivik.StatusBadRequest, err)
-}
-
 type closer struct {
 	io.Reader
 	closed bool
@@ -36,7 +30,7 @@ func (c *closer) Close() error {
 	return nil
 }
 
-func TestPutAttachmentOpts(t *testing.T) {
+func TestPutAttachment(t *testing.T) {
 	type paoTest struct {
 		name                     string
 		db                       *db
@@ -223,7 +217,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.PutAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.ctype, test.body, test.options)
+			newRev, err := test.db.PutAttachment(context.Background(), test.id, test.rev, test.filename, test.ctype, test.body, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
@@ -339,12 +333,6 @@ func TestGetMD5Checksum(t *testing.T) {
 }
 
 func TestGetAttachment(t *testing.T) {
-	db := &db{}
-	_, _, _, err := db.GetAttachment(context.Background(), "", "", "")
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestGetAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name              string
 		db                *db
@@ -391,7 +379,7 @@ func TestGetAttachmentOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctype, md5, content, err := test.db.GetAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.options)
+			ctype, md5, content, err := test.db.GetAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			defer content.Close() // nolint: errcheck
 			if ctype != test.ctype {
@@ -593,12 +581,6 @@ func TestDecodeAttachment(t *testing.T) {
 }
 
 func TestDeleteAttachment(t *testing.T) {
-	db := &db{}
-	_, err := db.DeleteAttachment(context.Background(), "", "", "")
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestDeleteAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name              string
 		db                *db
@@ -714,7 +696,7 @@ func TestDeleteAttachmentOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.DeleteAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.options)
+			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Unexpected new rev: %s", newRev)

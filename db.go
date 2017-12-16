@@ -110,11 +110,7 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 	return resp.ContentLength, resp.Body, nil
 }
 
-func (d *db) CreateDoc(ctx context.Context, doc interface{}) (docID, rev string, err error) {
-	return d.CreateDocOpts(ctx, doc, nil)
-}
-
-func (d *db) CreateDocOpts(ctx context.Context, doc interface{}, options map[string]interface{}) (docID, rev string, err error) {
+func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]interface{}) (docID, rev string, err error) {
 	result := struct {
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
@@ -142,11 +138,7 @@ func (d *db) CreateDocOpts(ctx context.Context, doc interface{}, options map[str
 	return result.ID, result.Rev, err
 }
 
-func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string, err error) {
-	return d.PutOpts(ctx, docID, doc, nil)
-}
-
-func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
+func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -173,11 +165,7 @@ func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options
 	return result.Rev, nil
 }
 
-func (d *db) Delete(ctx context.Context, docID, rev string) (string, error) {
-	return d.DeleteOpts(ctx, docID, rev, nil)
-}
-
-func (d *db) DeleteOpts(ctx context.Context, docID, rev string, options map[string]interface{}) (string, error) {
+func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]interface{}) (string, error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
