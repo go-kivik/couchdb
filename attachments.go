@@ -14,11 +14,7 @@ import (
 	"github.com/go-kivik/kivik/errors"
 )
 
-func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentType string, body io.Reader) (newRev string, err error) {
-	return d.PutAttachmentOpts(ctx, docID, rev, filename, contentType, body, nil)
-}
-
-func (d *db) PutAttachmentOpts(ctx context.Context, docID, rev, filename, contentType string, body io.Reader, options map[string]interface{}) (newRev string, err error) {
+func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentType string, body io.Reader, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -75,11 +71,7 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string,
 	return cType, md5sum, err
 }
 
-func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
-	return d.GetAttachmentOpts(ctx, docID, rev, filename, nil)
-}
-
-func (d *db) GetAttachmentOpts(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
+func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
 	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename, options)
 	if err != nil {
 		return "", driver.MD5sum{}, nil, err
@@ -153,11 +145,7 @@ func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
 	return md5sum, err
 }
 
-func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string) (newRev string, err error) {
-	return d.DeleteAttachmentOpts(ctx, docID, rev, filename, nil)
-}
-
-func (d *db) DeleteAttachmentOpts(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {
+func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}

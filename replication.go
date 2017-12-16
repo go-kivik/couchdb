@@ -222,7 +222,7 @@ func (r *replication) Delete(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.db.Delete(ctx, r.docID, rev)
+	_, err = r.db.Delete(ctx, r.docID, rev, nil)
 	return err
 }
 
