@@ -71,7 +71,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	if options == nil {
 		options = make(map[string]interface{})
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return nil, err
 	}

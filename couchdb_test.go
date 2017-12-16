@@ -170,22 +170,6 @@ func TestDB(t *testing.T) {
 			err:    "kivik: dbName required",
 		},
 		{
-			name:    "invalid full commit type",
-			dbName:  "foo",
-			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
-			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
-		},
-		{
-			name:    "full commit",
-			dbName:  "foo",
-			options: map[string]interface{}{OptionFullCommit: true},
-			expected: &db{
-				dbName:     "foo",
-				fullCommit: true,
-			},
-		},
-		{
 			name:   "no full commit",
 			dbName: "foo",
 			expected: &db{

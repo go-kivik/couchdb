@@ -18,8 +18,7 @@ import (
 
 type db struct {
 	*client
-	dbName     string
-	fullCommit bool
+	dbName string
 }
 
 func (d *db) path(path string, query url.Values) string {
@@ -116,7 +115,7 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]
 		Rev string `json:"rev"`
 	}{}
 
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", "", err
 	}
@@ -142,7 +141,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}
@@ -173,7 +172,7 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 		return "", missingArg("rev")
 	}
 
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}
@@ -288,7 +287,7 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if targetID == "" {
 		return "", errors.Status(kivik.StatusBadRequest, "kivik: targetID required")
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}

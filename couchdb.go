@@ -100,18 +100,13 @@ func (c *client) setCompatMode(ctx context.Context) {
 	}
 }
 
-func (c *client) DB(_ context.Context, dbName string, options map[string]interface{}) (driver.DB, error) {
+func (c *client) DB(_ context.Context, dbName string, _ map[string]interface{}) (driver.DB, error) {
 	if dbName == "" {
 		return nil, missingArg("dbName")
 	}
-	fullCommit, err := fullCommit(false, options)
-	if err != nil {
-		return nil, err
-	}
 	return &db{
-		client:     c,
-		dbName:     dbName,
-		fullCommit: fullCommit,
+		client: c,
+		dbName: dbName,
 	}, nil
 }
 
