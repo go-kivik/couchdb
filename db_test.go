@@ -39,6 +39,7 @@ func TestGet(t *testing.T) {
 		db       *db
 		id       string
 		options  map[string]interface{}
+		size     int64
 		expected string
 		status   int
 		err      string
@@ -76,20 +77,12 @@ func TestGet(t *testing.T) {
 			name: "status OK",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("some response")),
+				StatusCode:    kivik.StatusOK,
+				ContentLength: 13,
+				Body:          ioutil.NopCloser(strings.NewReader("some response")),
 			}, nil),
+			size:     13,
 			expected: "some response",
-		},
-		{
-			name: "body read failure",
-			id:   "foo",
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
-				Body:       errorReadCloser{errors.New("read error")},
-			}, nil),
-			status: kivik.StatusUnknownError,
-			err:    "read error",
 		},
 		{
 			name: "If-None-Match",
@@ -117,8 +110,15 @@ func TestGet(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.db.Get(context.Background(), test.id, test.options)
+			size, body, err := test.db.Get(context.Background(), test.id, test.options)
 			testy.StatusError(t, test.err, test.status, err)
+			if size != test.size {
+				t.Errorf("Unexpected size: %v", size)
+			}
+			result, err := ioutil.ReadAll(body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if string(result) != test.expected {
 				t.Errorf("Unexpected result: %s", string(result))
 			}
