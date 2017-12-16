@@ -28,7 +28,7 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentTyp
 		return "", errors.Status(kivik.StatusBadRequest, "kivik: body is nil")
 	}
 
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}
@@ -156,7 +156,7 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, 
 		return "", missingArg("filename")
 	}
 
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}

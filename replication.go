@@ -83,7 +83,7 @@ var _ driver.Replication = &replication{}
 
 func (c *client) fetchReplication(ctx context.Context, docID string) *replication {
 	rep := c.newReplication(docID)
-	rep.db = &db{client: c, dbName: "_replicator", fullCommit: true}
+	rep.db = &db{client: c, dbName: "_replicator"}
 	// Do an update to get the initial state, but don't fail if there's an error
 	// at this stage, because we successfully created the replication doc.
 	_ = rep.updateMain(ctx)
