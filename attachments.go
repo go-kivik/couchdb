@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
@@ -132,14 +131,11 @@ func getContentType(resp *http.Response) (string, error) {
 }
 
 func getDigest(resp *http.Response) (string, error) {
-	etag, ok := resp.Header["Etag"]
-	if !ok {
-		etag, ok = resp.Header["ETag"]
-	}
+	etag, ok := chttp.ETag(resp)
 	if !ok {
 		return "", errors.Status(kivik.StatusBadResponse, "ETag header not found")
 	}
-	return strings.Trim(etag[0], `"`), nil
+	return etag, nil
 }
 
 func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {
