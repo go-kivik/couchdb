@@ -164,7 +164,7 @@ func (r *schedulerReplication) Update(ctx context.Context, rep *driver.Replicati
 }
 
 func (r *schedulerReplication) Delete(ctx context.Context) error {
-	rev, err := r.Rev(ctx, r.docID)
+	_, rev, err := r.GetMeta(ctx, r.docID, nil)
 	if err != nil {
 		return err
 	}
