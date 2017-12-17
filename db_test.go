@@ -1130,14 +1130,16 @@ func TestSetSecurity(t *testing.T) {
 	}
 }
 
-func TestRev(t *testing.T) {
+func TestGetMeta(t *testing.T) {
 	tests := []struct {
-		name   string
-		db     *db
-		id     string
-		rev    string
-		status int
-		err    string
+		name    string
+		db      *db
+		id      string
+		size    int64
+		options kivik.Options
+		rev     string
+		status  int
+		err     string
 	}{
 		{
 			name:   "no doc id",
@@ -1167,17 +1169,22 @@ func TestRev(t *testing.T) {
 					"Content-Length": {"70"},
 					"Cache-Control":  {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader("")),
+				ContentLength: 70,
+				Body:          ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			rev: "1-4c6114c65e295552ab1019e2b046b10e",
+			size: 70,
+			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Rev(context.Background(), test.id)
+			size, rev, err := test.db.GetMeta(context.Background(), test.id, test.options)
 			testy.StatusError(t, test.err, test.status, err)
+			if size != test.size {
+				t.Errorf("Got size %d, expected %d", size, test.size)
+			}
 			if rev != test.rev {
-				t.Errorf("Got %s, expected %s", rev, test.rev)
+				t.Errorf("Got rev %s, expected %s", rev, test.rev)
 			}
 		})
 	}

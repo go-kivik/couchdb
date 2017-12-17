@@ -21,6 +21,9 @@ type db struct {
 	dbName string
 }
 
+var _ driver.DB = &db{}
+var _ driver.MetaGetter = &db{}
+
 func (d *db) path(path string, query url.Values) string {
 	url, _ := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
 	if query != nil {
@@ -82,31 +85,49 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 
 // Get fetches the requested document.
 func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (int64, io.ReadCloser, error) {
+	resp, err := d.get(ctx, http.MethodGet, docID, options)
+	if err != nil {
+		return 0, nil, err
+	}
+	return resp.ContentLength, resp.Body, nil
+}
+
+func (d *db) get(ctx context.Context, method string, docID string, options map[string]interface{}) (*http.Response, error) {
 	if docID == "" {
-		return 0, nil, missingArg("docID")
+		return nil, missingArg("docID")
 	}
 
 	inm, err := ifNoneMatch(options)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 
 	params, err := optionsToParams(options)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	opts := &chttp.Options{
-		Accept:      "application/json; multipart/mixed",
+		Accept:      "application/json",
 		IfNoneMatch: inm,
 	}
-	resp, err := d.Client.DoReq(ctx, http.MethodGet, d.path(chttp.EncodeDocID(docID), params), opts)
+	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID), params), opts)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	if respErr := chttp.ResponseError(resp); respErr != nil {
-		return 0, nil, respErr
+		return nil, respErr
 	}
-	return resp.ContentLength, resp.Body, nil
+	return resp, nil
+}
+
+// Rev returns the most current rev of the requested document.
+func (d *db) GetMeta(ctx context.Context, docID string, options map[string]interface{}) (size int64, rev string, err error) {
+	resp, err := d.get(ctx, http.MethodHead, docID, options)
+	if err != nil {
+		return 0, "", err
+	}
+	rev, err = chttp.GetRev(resp)
+	return resp.ContentLength, rev, err
 }
 
 func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]interface{}) (docID, rev string, err error) {
@@ -266,18 +287,6 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	}
 	defer func() { _ = res.Body.Close() }()
 	return chttp.ResponseError(res)
-}
-
-// Rev returns the most current rev of the requested document.
-func (d *db) Rev(ctx context.Context, docID string) (rev string, err error) {
-	if docID == "" {
-		return "", missingArg("docID")
-	}
-	res, err := d.Client.DoError(ctx, http.MethodHead, d.path(chttp.EncodeDocID(docID), nil), nil)
-	if err != nil {
-		return "", err
-	}
-	return chttp.GetRev(res)
 }
 
 func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[string]interface{}) (targetRev string, err error) {
