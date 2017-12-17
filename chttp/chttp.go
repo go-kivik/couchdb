@@ -274,19 +274,30 @@ func (c *Client) DoError(ctx context.Context, method, path string, opts *Options
 	return res, err
 }
 
-// GetRev extracts the revision from the response's Etag header
-func GetRev(resp *http.Response) (rev string, err error) {
-	if err = ResponseError(resp); err != nil {
-		return "", err
+// ETag returns the unquoted ETag value, and a bool indicating whether it was
+// found.
+func ETag(resp *http.Response) (string, bool) {
+	if resp == nil {
+		return "", false
 	}
 	etag, ok := resp.Header["Etag"]
 	if !ok {
 		etag, ok = resp.Header["ETag"]
 	}
 	if !ok {
+		return "", false
+	}
+	return strings.Trim(etag[0], `"`), ok
+}
+
+// GetRev extracts the revision from the response's Etag header
+func GetRev(resp *http.Response) (rev string, err error) {
+	if err = ResponseError(resp); err != nil {
+		return "", err
+	}
+	rev, ok := ETag(resp)
+	if !ok {
 		return "", errors.New("no ETag header found")
 	}
-	rev = etag[0]
-	// trim quote marks (")
-	return rev[1 : len(rev)-1], nil
+	return rev, nil
 }

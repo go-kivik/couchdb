@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -85,27 +84,40 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 }
 
 // Get fetches the requested document.
-func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (int64, io.ReadCloser, error) {
-	resp, err := d.get(ctx, http.MethodGet, docID, options)
+func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (*driver.Document, error) {
+	resp, rev, err := d.get(ctx, http.MethodGet, docID, options)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
-	return resp.ContentLength, resp.Body, nil
+	return &driver.Document{
+		Rev:           rev,
+		ContentLength: resp.ContentLength,
+		Body:          resp.Body,
+	}, nil
 }
 
-func (d *db) get(ctx context.Context, method string, docID string, options map[string]interface{}) (*http.Response, error) {
+// Rev returns the most current rev of the requested document.
+func (d *db) GetMeta(ctx context.Context, docID string, options map[string]interface{}) (size int64, rev string, err error) {
+	resp, rev, err := d.get(ctx, http.MethodHead, docID, options)
+	if err != nil {
+		return 0, "", err
+	}
+	return resp.ContentLength, rev, err
+}
+
+func (d *db) get(ctx context.Context, method string, docID string, options map[string]interface{}) (*http.Response, string, error) {
 	if docID == "" {
-		return nil, missingArg("docID")
+		return nil, "", missingArg("docID")
 	}
 
 	inm, err := ifNoneMatch(options)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	params, err := optionsToParams(options)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	opts := &chttp.Options{
 		Accept:      "application/json",
@@ -113,22 +125,13 @@ func (d *db) get(ctx context.Context, method string, docID string, options map[s
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID), params), opts)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if respErr := chttp.ResponseError(resp); respErr != nil {
-		return nil, respErr
+		return nil, "", respErr
 	}
-	return resp, nil
-}
-
-// Rev returns the most current rev of the requested document.
-func (d *db) GetMeta(ctx context.Context, docID string, options map[string]interface{}) (size int64, rev string, err error) {
-	resp, err := d.get(ctx, http.MethodHead, docID, options)
-	if err != nil {
-		return 0, "", err
-	}
-	rev, err = chttp.GetRev(resp)
-	return resp.ContentLength, rev, err
+	rev, err := chttp.GetRev(resp)
+	return resp, rev, err
 }
 
 func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]interface{}) (docID, rev string, err error) {

@@ -266,6 +266,59 @@ func TestSetHeaders(t *testing.T) {
 	}
 }
 
+func TestETag(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *http.Response
+		expected string
+		found    bool
+	}{
+		{
+			name:     "nil response",
+			input:    nil,
+			expected: "",
+			found:    false,
+		},
+		{
+			name:     "No etag",
+			input:    &http.Response{},
+			expected: "",
+			found:    false,
+		},
+		{
+			name: "ETag",
+			input: &http.Response{
+				Header: http.Header{
+					"ETag": {`"foo"`},
+				},
+			},
+			expected: "foo",
+			found:    true,
+		},
+		{
+			name: "Etag",
+			input: &http.Response{
+				Header: http.Header{
+					"Etag": {`"bar"`},
+				},
+			},
+			expected: "bar",
+			found:    true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, found := ETag(test.input)
+			if result != test.expected {
+				t.Errorf("Unexpected result: %s", result)
+			}
+			if found != test.found {
+				t.Errorf("Unexpected found: %v", found)
+			}
+		})
+	}
+}
+
 func TestGetRev(t *testing.T) {
 	tests := []struct {
 		name          string

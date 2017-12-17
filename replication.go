@@ -182,12 +182,12 @@ func (r *replication) updateMain(ctx context.Context) error {
 }
 
 func (r *replication) getReplicatorDoc(ctx context.Context) (*replicatorDoc, error) {
-	_, body, err := r.db.Get(ctx, r.docID, nil)
+	row, err := r.db.Get(ctx, r.docID, nil)
 	if err != nil {
 		return nil, err
 	}
 	var doc replicatorDoc
-	err = json.NewDecoder(body).Decode(&doc)
+	err = json.NewDecoder(row.Body).Decode(&doc)
 	return &doc, err
 }
 
