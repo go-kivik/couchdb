@@ -2,9 +2,6 @@ package couchdb
 
 import (
 	"context"
-	"encoding/base64"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -14,18 +11,21 @@ import (
 	"github.com/go-kivik/kivik/errors"
 )
 
-func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentType string, body io.Reader, options map[string]interface{}) (newRev string, err error) {
+func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.Attachment, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	if filename == "" {
-		return "", missingArg("filename")
+	if att == nil {
+		return "", missingArg("att")
 	}
-	if contentType == "" {
-		return "", missingArg("contentType")
+	if att.Filename == "" {
+		return "", missingArg("att.Filename")
 	}
-	if body == nil {
-		return "", errors.Status(kivik.StatusBadRequest, "kivik: body is nil")
+	if att.ContentType == "" {
+		return "", missingArg("att.ContentType")
+	}
+	if att.Content == nil {
+		return "", missingArg("att.Content")
 	}
 
 	fullCommit, err := fullCommit(false, options)
@@ -43,38 +43,31 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev, filename, contentTyp
 	var response struct {
 		Rev string `json:"rev"`
 	}
-	var bodyCloser io.ReadCloser
-	if rc, ok := body.(io.ReadCloser); ok {
-		bodyCloser = rc
-	} else {
-		bodyCloser = ioutil.NopCloser(body)
-	}
 	opts := &chttp.Options{
-		Body:        bodyCloser,
-		ContentType: contentType,
+		Body:        att.Content,
+		ContentType: att.ContentType,
 		FullCommit:  fullCommit,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts, &response)
+	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename, query), opts, &response)
 	if err != nil {
 		return "", err
 	}
 	return response.Rev, nil
 }
 
-func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (cType string, md5sum driver.MD5sum, err error) {
+func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (*driver.Attachment, error) {
 	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename, options)
 	if err != nil {
-		return "", driver.MD5sum{}, err
+		return nil, err
 	}
-	cType, md5sum, body, err := decodeAttachment(resp)
-	_ = body.Close()
-	return cType, md5sum, err
+	att, err := decodeAttachment(resp)
+	return att, err
 }
 
-func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
+func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (*driver.Attachment, error) {
 	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename, options)
 	if err != nil {
-		return "", driver.MD5sum{}, nil, err
+		return nil, err
 	}
 	return decodeAttachment(resp)
 }
@@ -112,37 +105,41 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	return resp, chttp.ResponseError(resp)
 }
 
-func decodeAttachment(resp *http.Response) (cType string, md5sum driver.MD5sum, content io.ReadCloser, err error) {
-	var ok bool
-	if cType, ok = getContentType(resp); !ok {
-		return "", driver.MD5sum{}, nil, errors.Status(kivik.StatusBadResponse, "no Content-Type in response")
+func decodeAttachment(resp *http.Response) (*driver.Attachment, error) {
+	cType, err := getContentType(resp)
+	if err != nil {
+		return nil, err
+	}
+	digest, err := getDigest(resp)
+	if err != nil {
+		return nil, err
 	}
 
-	md5sum, err = getMD5Checksum(resp)
-
-	return cType, md5sum, resp.Body, err
+	return &driver.Attachment{
+		ContentType: cType,
+		Digest:      digest,
+		Size:        resp.ContentLength,
+		Content:     resp.Body,
+	}, nil
 }
 
-func getContentType(resp *http.Response) (ctype string, ok bool) {
-	ctype = resp.Header.Get("Content-Type")
-	_, ok = resp.Header["Content-Type"]
-	return ctype, ok
+func getContentType(resp *http.Response) (string, error) {
+	ctype := resp.Header.Get("Content-Type")
+	if _, ok := resp.Header["Content-Type"]; !ok {
+		return "", errors.Status(kivik.StatusBadResponse, "no Content-Type in response")
+	}
+	return ctype, nil
 }
 
-func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
+func getDigest(resp *http.Response) (string, error) {
 	etag, ok := resp.Header["Etag"]
 	if !ok {
 		etag, ok = resp.Header["ETag"]
 	}
 	if !ok {
-		return driver.MD5sum{}, errors.Status(kivik.StatusBadResponse, "ETag header not found")
+		return "", errors.Status(kivik.StatusBadResponse, "ETag header not found")
 	}
-	hash, err := base64.StdEncoding.DecodeString(strings.Trim(etag[0], `"`))
-	if err != nil {
-		err = errors.Statusf(kivik.StatusBadResponse, "failed to decode MD5 checksum: %s", err)
-	}
-	copy(md5sum[:], hash)
-	return md5sum, err
+	return strings.Trim(etag[0], `"`), nil
 }
 
 func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {

@@ -23,6 +23,7 @@ type db struct {
 
 var _ driver.DB = &db{}
 var _ driver.MetaGetter = &db{}
+var _ driver.AttachmentMetaGetter = &db{}
 
 func (d *db) path(path string, query url.Values) string {
 	url, _ := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
