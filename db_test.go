@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
@@ -675,7 +676,7 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	tests := []struct {
+	type pTest struct {
 		name    string
 		db      *db
 		id      string
@@ -684,7 +685,9 @@ func TestPut(t *testing.T) {
 		rev     string
 		status  int
 		err     string
-	}{
+		finish  func(*testing.T)
+	}
+	tests := []pTest{
 		{
 			name:   "missing docID",
 			status: kivik.StatusBadRequest,
@@ -801,10 +804,35 @@ func TestPut(t *testing.T) {
 			status: kivik.StatusNetworkError,
 			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
+		func() pTest {
+			db := realDB(t)
+			return pTest{
+				name: "real database, multipart attachments",
+				db:   db,
+				id:   "foo",
+				doc: map[string]interface{}{
+					"feet": 4,
+					"_attachments": &kivik.Attachments{
+						"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+					},
+				},
+				rev: "1-1e527110339245a3191b3f6cbea27ab1",
+				finish: func(t *testing.T) {
+					if err := db.client.DestroyDB(context.Background(), db.dbName, nil); err != nil {
+						t.Fatal(err)
+					}
+				},
+			}
+		}(),
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Put(context.Background(), test.id, test.doc, test.options)
+			if test.finish != nil {
+				defer test.finish(t)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			rev, err := test.db.Put(ctx, test.id, test.doc, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
@@ -1815,7 +1843,7 @@ Content-Type: application/json
 --%[1]s
 Content-Type: application/json
 
-{"_attachments":{"foo.txt":{"content_type":"text/plain","follows":true}}
+{"_attachments":{"foo.txt":{"content_type":"text/plain","length":13,"follows":true}}
 }
 --%[1]s
 Content-Disposition: attachment; filename="foo.txt"
@@ -1847,17 +1875,17 @@ func TestAttachmentStubs(t *testing.T) {
 	tests := []struct {
 		name     string
 		atts     *kivik.Attachments
-		expected map[string]interface{}
+		expected map[string]*stub
 	}{
 		{
 			name: "simple",
 			atts: &kivik.Attachments{
 				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
 			},
-			expected: map[string]interface{}{
-				"foo.txt": map[string]interface{}{
-					"follows":      true,
-					"content_type": "text/plain",
+			expected: map[string]*stub{
+				"foo.txt": {
+					ContentType: "text/plain",
+					Size:        13,
 				},
 			},
 		},
@@ -1961,5 +1989,18 @@ func TestSetSize(t *testing.T) {
 				t.Error(d)
 			}
 		})
+	}
+}
+
+func TestStubMarshalJSON(t *testing.T) {
+	att := &stub{
+		ContentType: "text/plain",
+		Size:        123,
+	}
+	expected := `{"content_type":"text/plain","length":123,"follows":true}`
+	result, err := json.Marshal(att)
+	testy.Error(t, "", err)
+	if d := diff.JSON([]byte(expected), result); d != nil {
+		t.Error(d)
 	}
 }

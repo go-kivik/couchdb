@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -321,6 +322,13 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		FullCommit: fullCommit,
 		Query:      params,
 	}
+	atts, ok := extractAttachments(doc)
+	if ok {
+		boundary, multipartBody := newMultipartAttachments(opts.Body, atts)
+		opts.Body = multipartBody
+		fmt.Printf("boundary = %s\n", boundary)
+		opts.ContentType = fmt.Sprintf("multipart/related; boundary=%s", boundary)
+	}
 	var result struct {
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
@@ -406,7 +414,16 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachmen
 		return e
 	}
 
-	for filename, att := range *atts {
+	// Sort the filenames to ensure order consistent with json.Marshal's ordering
+	// of the stubs in the body
+	filenames := make([]string, 0, len(*atts))
+	for filename := range *atts {
+		filenames = append(filenames, filename)
+	}
+	sort.Strings(filenames)
+
+	for _, filename := range filenames {
+		att := (*atts)[filename]
 		file, err := w.CreatePart(textproto.MIMEHeader{
 			"Content-Type":        {att.ContentType},
 			"Content-Disposition": {fmt.Sprintf(`attachment; filename=%q`, filename)},
@@ -438,15 +455,33 @@ func replaceAttachments(in io.ReadCloser, atts *kivik.Attachments) io.ReadCloser
 	return r
 }
 
-func attachmentStubs(atts *kivik.Attachments) map[string]interface{} {
+type stub struct {
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"length"`
+}
+
+func (s *stub) MarshalJSON() ([]byte, error) {
+	type attJSON struct {
+		stub
+		Follows bool `json:"follows"`
+	}
+	att := attJSON{
+		stub:    *s,
+		Follows: true,
+	}
+	return json.Marshal(att)
+}
+
+func attachmentStubs(atts *kivik.Attachments) map[string]*stub {
 	if atts == nil {
 		return nil
 	}
-	result := make(map[string]interface{}, len(*atts))
+	result := make(map[string]*stub, len(*atts))
 	for filename, att := range *atts {
-		result[filename] = map[string]interface{}{
-			"content_type": att.ContentType,
-			"follows":      true,
+		setSize(att)
+		result[filename] = &stub{
+			ContentType: att.ContentType,
+			Size:        att.Size,
 		}
 	}
 	return result
@@ -464,7 +499,7 @@ func setSize(att *kivik.Attachment) error {
 	return err
 }
 
-func copyWithAttachments(w io.Writer, r io.Reader, att map[string]interface{}) error {
+func copyWithAttachments(w io.Writer, r io.Reader, att map[string]*stub) error {
 	dec := json.NewDecoder(r)
 	t, err := dec.Token()
 	if err == nil {
