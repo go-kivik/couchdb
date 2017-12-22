@@ -452,6 +452,18 @@ func attachmentStubs(atts *kivik.Attachments) map[string]interface{} {
 	return result
 }
 
+// setSize sets the attachment's size, if it's not already set
+func setSize(att *kivik.Attachment) error {
+	if att.Size > 0 {
+		return nil
+	}
+	buf := new(bytes.Buffer)
+	n, err := buf.ReadFrom(att.Content)
+	att.Size = n
+	att.Content = ioutil.NopCloser(buf)
+	return err
+}
+
 func copyWithAttachments(w io.Writer, r io.Reader, att map[string]interface{}) error {
 	dec := json.NewDecoder(r)
 	t, err := dec.Token()
