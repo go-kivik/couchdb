@@ -119,6 +119,8 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil {
 			length = cl
 		}
+
+		// TODO: Use a TeeReader here, to avoid slurping the entire body into memory at once
 		content, err := ioutil.ReadAll(body)
 		if err != nil {
 			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
