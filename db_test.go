@@ -1557,7 +1557,7 @@ func TestMultipartAttachmentsNext(t *testing.T) {
 			err:    "multipart: NextPart: EOF",
 		},
 		{
-			name: "malformed content-disposition",
+			name: "malformed Content-Disposition",
 			atts: &multipartAttachments{
 				mpReader: multipart.NewReader(strings.NewReader(`--xxx
 Content-Type: text/plain
@@ -1568,10 +1568,53 @@ Content-Type: text/plain
 			err:    "Content-Disposition: mime: no media type",
 		},
 		{
-			name: "success",
+			name: "malformed Content-Type",
+			atts: &multipartAttachments{
+				meta: map[string]attMeta{
+					"foo.txt": {Follows: true},
+				},
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain; =foo
+Content-Disposition: attachment; filename="foo.txt"
+
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "mime: invalid media parameter",
+		},
+		{
+			name: "file not in manifest",
+			atts: &multipartAttachments{
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain; charset=foobar
+Content-Disposition: attachment; filename="foo.txt"
+
+test content
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "File 'foo.txt' not in manifest",
+		},
+		{
+			name: "invalid content-disposition",
 			atts: &multipartAttachments{
 				mpReader: multipart.NewReader(strings.NewReader(`--xxx
 Content-Type: text/plain
+Content-Disposition: oink
+
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "Unexpected Content-Disposition: oink",
+		},
+		{
+			name: "success",
+			atts: &multipartAttachments{
+				meta: map[string]attMeta{
+					"foo.txt": {Follows: true},
+				},
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain; charset=foobar
 Content-Disposition: attachment; filename="foo.txt"
 
 test content
@@ -1582,6 +1625,29 @@ test content
 				Filename:    "foo.txt",
 				ContentType: "text/plain",
 				Size:        -1,
+			},
+		},
+		{
+			name: "success, no Content-Type header",
+			atts: &multipartAttachments{
+				meta: map[string]attMeta{
+					"foo.txt": {
+						Follows:     true,
+						ContentType: "text/plain",
+						Size:        func() *int64 { x := int64(123); return &x }(),
+					},
+				},
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Disposition: attachment; filename="foo.txt"
+
+test content
+--xxx--`), "xxx"),
+			},
+			content: "test content",
+			expected: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Size:        123,
 			},
 		},
 	}

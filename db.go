@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -118,13 +119,25 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil {
 			length = cl
 		}
+		content, err := ioutil.ReadAll(body)
+		if err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+		var metaDoc struct {
+			Attachments map[string]attMeta `json:"_attachments"`
+		}
+		if err := json.Unmarshal(content, &metaDoc); err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+
 		return &driver.Document{
 			ContentLength: length,
 			Rev:           rev,
-			Body:          body,
+			Body:          ioutil.NopCloser(bytes.NewBuffer(content)),
 			Attachments: &multipartAttachments{
 				content:  resp.Body,
 				mpReader: mpReader,
+				meta:     metaDoc.Attachments,
 			},
 		}, nil
 	default:
@@ -132,9 +145,16 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 	}
 }
 
+type attMeta struct {
+	ContentType string `json:"content_type"`
+	Size        *int64 `json:"length"`
+	Follows     bool   `json:"follows"`
+}
+
 type multipartAttachments struct {
 	content  io.ReadCloser
 	mpReader *multipart.Reader
+	meta     map[string]attMeta
 }
 
 var _ driver.Attachments = &multipartAttachments{}
@@ -149,18 +169,42 @@ func (a *multipartAttachments) Next(att *driver.Attachment) error {
 	default:
 		return errors.WrapStatus(kivik.StatusBadResponse, err)
 	}
-	size := int64(-1)
-	if cl, e := strconv.ParseInt(part.Header.Get("Content-Length"), 10, 64); e == nil {
-		size = cl
-	}
-	_, dispositionParams, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+
+	disp, dispositionParams, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
 	if err != nil {
 		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "Content-Disposition"))
 	}
+	if disp != "attachment" {
+		return errors.Statusf(kivik.StatusBadResponse, "Unexpected Content-Disposition: %s", disp)
+	}
+	filename := dispositionParams["filename"]
+
+	meta := a.meta[filename]
+	if !meta.Follows {
+		return errors.Statusf(kivik.StatusBadResponse, "File '%s' not in manifest", filename)
+	}
+
+	size := int64(-1)
+	if meta.Size != nil {
+		size = *meta.Size
+	} else if cl, e := strconv.ParseInt(part.Header.Get("Content-Length"), 10, 64); e == nil {
+		size = cl
+	}
+
+	var cType string
+	if ctHeader, ok := part.Header["Content-Type"]; ok {
+		cType, _, err = mime.ParseMediaType(ctHeader[0])
+		if err != nil {
+			return errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+	} else {
+		cType = meta.ContentType
+	}
+
 	*att = driver.Attachment{
-		Filename:    dispositionParams["filename"],
+		Filename:    filename,
 		Size:        size,
-		ContentType: part.Header.Get("Content-Type"),
+		ContentType: cType,
 		Content:     part,
 	}
 	return nil
