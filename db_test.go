@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -136,6 +137,21 @@ func TestGet(t *testing.T) {
 			}, nil),
 			status: kivik.StatusBadResponse,
 			err:    "kivik: invalid content type in response: image/jpeg",
+		},
+		{
+			name: "invalid content type header",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Type": {"cow; =moo"},
+					"ETag":         {`"12-xxx"`},
+				},
+				ContentLength: 13,
+				Body:          Body("some response"),
+			}, nil),
+			status: kivik.StatusBadResponse,
+			err:    "mime: invalid media parameter",
 		},
 		{
 			name: "missing multipart boundary",
@@ -1505,4 +1521,99 @@ func TestCopy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMultipartAttachmentsNext(t *testing.T) {
+	tests := []struct {
+		name     string
+		atts     *multipartAttachments
+		content  string
+		expected *driver.Attachment
+		status   int
+		err      string
+	}{
+		{
+			name: "done reading",
+			atts: &multipartAttachments{
+				mpReader: func() *multipart.Reader {
+					r := multipart.NewReader(strings.NewReader("--xxx\r\n\r\n--xxx--"), "xxx")
+					_, _ = r.NextPart()
+					return r
+				}(),
+			},
+			status: 500,
+			err:    io.EOF.Error(),
+		},
+		{
+			name: "malformed message",
+			atts: &multipartAttachments{
+				mpReader: func() *multipart.Reader {
+					r := multipart.NewReader(strings.NewReader("oink"), "xxx")
+					_, _ = r.NextPart()
+					return r
+				}(),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "multipart: NextPart: EOF",
+		},
+		{
+			name: "malformed content-disposition",
+			atts: &multipartAttachments{
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain
+
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "Content-Disposition: mime: no media type",
+		},
+		{
+			name: "success",
+			atts: &multipartAttachments{
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain
+Content-Disposition: attachment; filename="foo.txt"
+
+test content
+--xxx--`), "xxx"),
+			},
+			content: "test content",
+			expected: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Size:        -1,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := new(driver.Attachment)
+			err := test.atts.Next(result)
+			testy.StatusError(t, test.err, test.status, err)
+			content, err := ioutil.ReadAll(result.Content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d := diff.Text(test.content, string(content)); d != nil {
+				t.Errorf("Unexpected content:\n%s", d)
+			}
+			result.Content = nil // Determinism
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestMultipartAttachmentsClose(t *testing.T) {
+	err := "some error"
+	atts := &multipartAttachments{
+		content: &mockReadCloser{
+			CloseFunc: func() error {
+				return errors.New(err)
+			},
+		},
+	}
+
+	testy.Error(t, err, atts.Close())
 }

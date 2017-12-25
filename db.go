@@ -155,7 +155,7 @@ func (a *multipartAttachments) Next(att *driver.Attachment) error {
 	}
 	_, dispositionParams, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
 	if err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
+		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "Content-Disposition"))
 	}
 	*att = driver.Attachment{
 		Filename:    dispositionParams["filename"],
