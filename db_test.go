@@ -1647,17 +1647,17 @@ test content
 			},
 		},
 		{
-			name: "success, no Content-Type header",
+			name: "success, no Content-Type header, & Content-Length header",
 			atts: &multipartAttachments{
 				meta: map[string]attMeta{
 					"foo.txt": {
 						Follows:     true,
 						ContentType: "text/plain",
-						Size:        func() *int64 { x := int64(123); return &x }(),
 					},
 				},
 				mpReader: multipart.NewReader(strings.NewReader(`--xxx
 Content-Disposition: attachment; filename="foo.txt"
+Content-Length: 123
 
 test content
 --xxx--`), "xxx"),
