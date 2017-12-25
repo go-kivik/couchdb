@@ -242,6 +242,15 @@ Content-Length: 86
 			doc: &driver.Document{
 				ContentLength: -1,
 				Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
+				Attachments: &multipartAttachments{
+					meta: map[string]attMeta{
+						"recipe.txt": {
+							Follows:     true,
+							ContentType: "text/plain",
+							Size:        func() *int64 { x := int64(86); return &x }(),
+						},
+					},
+				},
 			},
 			expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
 			attachments: []*Attachment{
@@ -289,6 +298,15 @@ Content-Length: 86
 			doc: &driver.Document{
 				ContentLength: 199,
 				Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
+				Attachments: &multipartAttachments{
+					meta: map[string]attMeta{
+						"recipe.txt": {
+							Follows:     true,
+							ContentType: "text/plain",
+							Size:        func() *int64 { x := int64(86); return &x }(),
+						},
+					},
+				},
 			},
 			expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
 			attachments: []*Attachment{
@@ -333,7 +351,8 @@ Content-Length: 86
 						Content:     string(content),
 					})
 				}
-				doc.Attachments = nil
+				doc.Attachments.(*multipartAttachments).content = nil // Determinism
+				doc.Attachments.(*multipartAttachments).mpReader = nil
 			}
 			doc.Body = nil // Determinism
 			if d := diff.Interface(test.doc, doc); d != nil {
