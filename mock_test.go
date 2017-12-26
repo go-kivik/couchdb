@@ -80,3 +80,18 @@ func consume(r io.ReadCloser) error {
 	_, e := ioutil.ReadAll(r)
 	return e
 }
+
+type mockReadCloser struct {
+	ReadFunc  func([]byte) (int, error)
+	CloseFunc func() error
+}
+
+var _ io.ReadCloser = &mockReadCloser{}
+
+func (rc *mockReadCloser) Read(p []byte) (int, error) {
+	return rc.ReadFunc(p)
+}
+
+func (rc *mockReadCloser) Close() error {
+	return rc.CloseFunc()
+}

@@ -5,8 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/go-kivik/couchdb/chttp"
@@ -89,11 +94,126 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 	if err != nil {
 		return nil, err
 	}
-	return &driver.Document{
-		Rev:           rev,
-		ContentLength: resp.ContentLength,
-		Body:          resp.Body,
-	}, nil
+	ct, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
+	switch ct {
+	case "application/json":
+		return &driver.Document{
+			Rev:           rev,
+			ContentLength: resp.ContentLength,
+			Body:          resp.Body,
+		}, nil
+	case "multipart/related":
+		boundary := strings.Trim(params["boundary"], "\"")
+		if boundary == "" {
+			return nil, errors.Statusf(kivik.StatusBadResponse, "kivik: boundary missing for multipart/related response")
+		}
+		mpReader := multipart.NewReader(resp.Body, boundary)
+		body, err := mpReader.NextPart()
+		if err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+		length := int64(-1)
+		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil {
+			length = cl
+		}
+
+		// TODO: Use a TeeReader here, to avoid slurping the entire body into memory at once
+		content, err := ioutil.ReadAll(body)
+		if err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+		var metaDoc struct {
+			Attachments map[string]attMeta `json:"_attachments"`
+		}
+		if err := json.Unmarshal(content, &metaDoc); err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+
+		return &driver.Document{
+			ContentLength: length,
+			Rev:           rev,
+			Body:          ioutil.NopCloser(bytes.NewBuffer(content)),
+			Attachments: &multipartAttachments{
+				content:  resp.Body,
+				mpReader: mpReader,
+				meta:     metaDoc.Attachments,
+			},
+		}, nil
+	default:
+		return nil, errors.Statusf(kivik.StatusBadResponse, "kivik: invalid content type in response: %s", ct)
+	}
+}
+
+type attMeta struct {
+	ContentType string `json:"content_type"`
+	Size        *int64 `json:"length"`
+	Follows     bool   `json:"follows"`
+}
+
+type multipartAttachments struct {
+	content  io.ReadCloser
+	mpReader *multipart.Reader
+	meta     map[string]attMeta
+}
+
+var _ driver.Attachments = &multipartAttachments{}
+
+func (a *multipartAttachments) Next(att *driver.Attachment) error {
+	part, err := a.mpReader.NextPart()
+	switch err {
+	case io.EOF:
+		return err
+	case nil:
+		// fall through
+	default:
+		return errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
+
+	disp, dispositionParams, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+	if err != nil {
+		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "Content-Disposition"))
+	}
+	if disp != "attachment" {
+		return errors.Statusf(kivik.StatusBadResponse, "Unexpected Content-Disposition: %s", disp)
+	}
+	filename := dispositionParams["filename"]
+
+	meta := a.meta[filename]
+	if !meta.Follows {
+		return errors.Statusf(kivik.StatusBadResponse, "File '%s' not in manifest", filename)
+	}
+
+	size := int64(-1)
+	if meta.Size != nil {
+		size = *meta.Size
+	} else if cl, e := strconv.ParseInt(part.Header.Get("Content-Length"), 10, 64); e == nil {
+		size = cl
+	}
+
+	var cType string
+	if ctHeader, ok := part.Header["Content-Type"]; ok {
+		cType, _, err = mime.ParseMediaType(ctHeader[0])
+		if err != nil {
+			return errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+	} else {
+		cType = meta.ContentType
+	}
+
+	*att = driver.Attachment{
+		Filename:    filename,
+		Size:        size,
+		ContentType: cType,
+		Content:     part,
+	}
+	return nil
+}
+
+func (a *multipartAttachments) Close() error {
+	return a.content.Close()
 }
 
 // Rev returns the most current rev of the requested document.
