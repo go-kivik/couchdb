@@ -205,7 +205,7 @@ func TestGet(t *testing.T) {
 			id:      "foo",
 			options: map[string]interface{}{"include_docs": true},
 			status:  kivik.StatusBadResponse,
-			err:     "malformed MIME header line: bogus data",
+			err:     "malformed MIME header (initial )?line:.*bogus data",
 		},
 		{
 			name: "multipart attachments",
@@ -322,7 +322,7 @@ Content-Length: 86
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			doc, err := test.db.Get(context.Background(), test.id, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result, err := ioutil.ReadAll(doc.Body)
 			if err != nil {
 				t.Fatal(err)
@@ -859,7 +859,7 @@ func TestPut(t *testing.T) {
 			id:     "cow",
 			doc:    map[string]interface{}{"feet": 4},
 			status: kivik.StatusNetworkError,
-			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: getsockopt: connection refused",
+			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
 	}
 	for _, test := range tests {

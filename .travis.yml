@@ -38,7 +38,7 @@ matrix:
     allow_failures:
         - go: master
     include:
-        - go: 1.1.x
+        - go: 1.10.x
           env: MODE=linter
         - go: 1.10.x
           env: MODE=coverage
