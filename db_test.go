@@ -632,7 +632,7 @@ func TestPutOpts(t *testing.T) {
 			id:     "cow",
 			doc:    map[string]interface{}{"feet": 4},
 			status: kivik.StatusNetworkError,
-			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: getsockopt: connection refused",
+			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
 	}
 	for _, test := range tests {
