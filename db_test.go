@@ -1243,6 +1243,132 @@ func TestRowsQuery(t *testing.T) {
 	}
 }
 
+func TestRowsQueryKeys(t *testing.T) {
+	type queryResult struct {
+		Offset    int64
+		TotalRows int64
+		Warning   string
+		UpdateSeq string
+		Err       string
+		Rows      []driver.Row
+	}
+	tests := []struct {
+		name     string
+		db       *db
+		path     string
+		options  map[string]interface{}
+		expected queryResult
+		status   int
+		err      string
+	}{
+		{
+			name:    "url keys",
+			path:    "_design/ddoc/_view/view",
+			options: map[string]interface{}{"keys": `["one","two"]`},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if req.Body != nil {
+					return nil, errors.New("wrong body")
+				}
+				keys := string(req.URL.Query().Get("keys"))
+				if keys != `["one","two"]` {
+					return nil, errors.New(fmt.Sprintf("wrong keys: '%s'", keys))
+				}
+				resp := &http.Response{
+					StatusCode: kivik.StatusOK,
+					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":2,"offset":0,"rows":[
+{"key":"one","value":{"rev":"1-75efcce1f083316d622d389f3f9813f7"}},
+{"key":"two","value":{"rev":"1-747e6766038164010fd0efcabd1a31dd"}}
+]}
+`)),
+				}
+				req.Response = resp
+				return resp, nil
+			}),
+			expected: queryResult{
+				TotalRows: 2,
+				Rows: []driver.Row{
+					{
+						Key:   []byte(`"one"`),
+						Value: []byte(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
+					},
+					{
+						Key:   []byte(`"two"`),
+						Value: []byte(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
+					},
+				},
+			},
+		},
+		{
+			name:    "url long keys",
+			path:    "_design/ddoc/_view/view",
+			options: map[string]interface{}{"keys": fmt.Sprintf(`["one","%s"]`, strings.Repeat("two", 1000))},
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				if req.Body == nil {
+					return nil, errors.New("no body")
+				}
+				b, _ := ioutil.ReadAll(req.Body)
+				if string(b) != fmt.Sprintf(`{"keys":["one","%s"]}`, strings.Repeat("two", 1000)) {
+					return nil, errors.New("body did not match")
+				}
+				resp := &http.Response{
+					StatusCode: kivik.StatusOK,
+					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":2,"offset":0,"rows":[
+{"key":"one","value":{"rev":"1-75efcce1f083316d622d389f3f9813f7"}},
+{"key":"two","value":{"rev":"1-747e6766038164010fd0efcabd1a31dd"}}
+]}
+`)),
+				}
+				req.Response = resp
+				return resp, nil
+			}),
+			expected: queryResult{
+				TotalRows: 2,
+				Rows: []driver.Row{
+					{
+						Key:   []byte(`"one"`),
+						Value: []byte(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
+					},
+					{
+						Key:   []byte(`"two"`),
+						Value: []byte(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rows, err := test.db.rowsQuery(context.Background(), test.path, test.options)
+			testy.StatusError(t, test.err, test.status, err)
+			result := queryResult{
+				Rows: []driver.Row{},
+			}
+			for {
+				var row driver.Row
+				if e := rows.Next(&row); e != nil {
+					if e != io.EOF {
+						result.Err = e.Error()
+					}
+					break
+				}
+				result.Rows = append(result.Rows, row)
+			}
+			result.Offset = rows.Offset()
+			result.TotalRows = rows.TotalRows()
+			result.UpdateSeq = rows.UpdateSeq()
+			if warner, ok := rows.(driver.RowsWarner); ok {
+				result.Warning = warner.Warning()
+			} else {
+				t.Errorf("RowsWarner interface not satisified!!?")
+			}
+
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
 func TestSecurity(t *testing.T) {
 	tests := []struct {
 		name     string
