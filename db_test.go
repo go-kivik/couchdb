@@ -1271,7 +1271,7 @@ func TestRowsQueryKeys(t *testing.T) {
 				}
 				keys := string(req.URL.Query().Get("keys"))
 				if keys != `["one","two"]` {
-					return nil, errors.New(fmt.Sprintf("wrong keys: '%s'", keys))
+					return nil, fmt.Errorf("wrong keys: '%s'", keys)
 				}
 				resp := &http.Response{
 					StatusCode: kivik.StatusOK,
