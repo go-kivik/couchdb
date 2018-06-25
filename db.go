@@ -216,6 +216,15 @@ func (d *db) Flush(ctx context.Context) error {
 }
 
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
+	res, err := d.Client.DoReq(ctx, kivik.MethodGet, d.dbName, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.WrapStatus(kivik.StatusNetworkError, err)
+	}
 	result := struct {
 		driver.DBStats
 		Sizes struct {
@@ -225,7 +234,9 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		} `json:"sizes"`
 		UpdateSeq json.RawMessage `json:"update_seq"`
 	}{}
-	_, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.dbName, nil, &result)
+	if err := json.Unmarshal(resBody, &result); err != nil {
+		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
 	stats := result.DBStats
 	if result.Sizes.File > 0 {
 		stats.DiskSize = result.Sizes.File
@@ -237,7 +248,8 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		stats.ActiveSize = result.Sizes.Active
 	}
 	stats.UpdateSeq = string(bytes.Trim(result.UpdateSeq, `"`))
-	return &stats, err
+	stats.RawResponse = resBody
+	return &stats, nil
 }
 
 func (d *db) Compact(ctx context.Context) error {
