@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -365,7 +366,7 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	if err := json.Unmarshal(resBody, &result); err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
 	}
-	stats := result.DBStats
+	stats := &result.DBStats
 	if result.Sizes.File > 0 {
 		stats.DiskSize = result.Sizes.File
 	}
@@ -376,8 +377,13 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		stats.ActiveSize = result.Sizes.Active
 	}
 	stats.UpdateSeq = string(bytes.Trim(result.UpdateSeq, `"`))
-	stats.RawResponse = resBody
-	return &stats, nil
+	// Reflection is used to preserve backward compatibility with Kivik stable
+	// 1.7.3 and unstable prior to 25 June 2018. The reflection hack can be
+	// removed at some point in the reasonable future.
+	if v := reflect.ValueOf(stats).Elem().FieldByName("RawResponse"); v.CanSet() {
+		v.Set(reflect.ValueOf(resBody))
+	}
+	return stats, nil
 }
 
 func (d *db) Compact(ctx context.Context) error {
