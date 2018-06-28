@@ -282,6 +282,15 @@ func TestStats(t *testing.T) {
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
+			name: "error response",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
+		},
+		{
 			name: "1.6.1",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusOK,

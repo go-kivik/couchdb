@@ -223,6 +223,9 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+	if err = chttp.ResponseError(res); err != nil {
+		return nil, err
+	}
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, errors.WrapStatus(kivik.StatusNetworkError, err)
