@@ -108,7 +108,7 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 	if respErr := chttp.ResponseError(resp); respErr != nil {
 		return nil, respErr
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	doc := &bytes.Buffer{}
 	if _, err := doc.ReadFrom(resp.Body); err != nil {
 		return nil, errors.WrapStatus(kivik.StatusUnknownError, err)
@@ -208,7 +208,7 @@ func (d *db) DeleteOpts(ctx context.Context, docID, rev string, options map[stri
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	return chttp.GetRev(resp)
 }
 
@@ -222,7 +222,7 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	if err = chttp.ResponseError(res); err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = res.Body.Close() }()
+	defer res.Body.Close() // nolint: errcheck
 	return chttp.ResponseError(res)
 }
 
