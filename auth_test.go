@@ -46,7 +46,6 @@ func TestAuthenticate(t *testing.T) {
 		authenticator interface{}
 		status        int
 		err           string
-		expected      interface{}
 	}{
 		{
 			name:          "invalid authenticator",

@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -334,7 +335,7 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	return chttp.GetRev(resp)
 }
 
@@ -344,6 +345,18 @@ func (d *db) Flush(ctx context.Context) error {
 }
 
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
+	res, err := d.Client.DoReq(ctx, kivik.MethodGet, d.dbName, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close() // nolint: errcheck
+	if err = chttp.ResponseError(res); err != nil {
+		return nil, err
+	}
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.WrapStatus(kivik.StatusNetworkError, err)
+	}
 	result := struct {
 		driver.DBStats
 		Sizes struct {
@@ -353,8 +366,10 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		} `json:"sizes"`
 		UpdateSeq json.RawMessage `json:"update_seq"`
 	}{}
-	_, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.dbName, nil, &result)
-	stats := result.DBStats
+	if err := json.Unmarshal(resBody, &result); err != nil {
+		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
+	stats := &result.DBStats
 	if result.Sizes.File > 0 {
 		stats.DiskSize = result.Sizes.File
 	}
@@ -365,7 +380,13 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		stats.ActiveSize = result.Sizes.Active
 	}
 	stats.UpdateSeq = string(bytes.Trim(result.UpdateSeq, `"`))
-	return &stats, err
+	// Reflection is used to preserve backward compatibility with Kivik stable
+	// 1.7.3 and unstable prior to 25 June 2018. The reflection hack can be
+	// removed at some point in the reasonable future.
+	if v := reflect.ValueOf(stats).Elem().FieldByName("RawResponse"); v.CanSet() {
+		v.Set(reflect.ValueOf(resBody))
+	}
+	return stats, nil
 }
 
 func (d *db) Compact(ctx context.Context) error {
@@ -409,7 +430,7 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = res.Body.Close() }()
+	defer res.Body.Close() // nolint: errcheck
 	return chttp.ResponseError(res)
 }
 
