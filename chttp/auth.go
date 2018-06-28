@@ -82,7 +82,6 @@ type CookieAuth struct {
 	Username string `json:"name"`
 	Password string `json:"password"`
 
-	transport http.RoundTripper
 	// Set to true if the authenticator created the cookie jar; It will then
 	// also destroy it on logout.
 	setJar bool
