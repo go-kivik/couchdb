@@ -14,7 +14,7 @@ func curlStatusError(t *testing.T, expected string, status, eStatus int, actual 
 	if actual != nil {
 		err = actual.Error()
 		actualStatus = testy.StatusCode(actual)
-		actualExitStatus = exitStatus(actual)
+		actualExitStatus = ExitStatus(actual)
 	}
 	if expected != err {
 		t.Errorf("Unexpected error: %s (expected %s)", err, expected)

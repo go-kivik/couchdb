@@ -56,17 +56,3 @@ const (
 90     SSL public key does not matched pinned public key
 */
 )
-
-type exitStatuser interface {
-	ExitStatus() int
-}
-
-func exitStatus(err error) int {
-	if err == nil {
-		return 0
-	}
-	if statuser, ok := err.(exitStatuser); ok {
-		return statuser.ExitStatus()
-	}
-	return 0
-}
