@@ -148,7 +148,7 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	reqPath, err := url.Parse(path)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
 	}
 	url := *c.dsn // Make a copy
 	url.Path = reqPath.Path
@@ -316,5 +316,5 @@ func ExitStatus(err error) int {
 	if statuser, ok := err.(exitStatuser); ok {
 		return statuser.ExitStatus()
 	}
-	return ExitUnknownFailure
+	return 0
 }

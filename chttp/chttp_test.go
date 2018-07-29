@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
@@ -471,27 +472,29 @@ func TestDoJSON(t *testing.T) {
 
 func TestNewRequest(t *testing.T) {
 	tests := []struct {
-		name         string
-		method, path string
-		body         io.Reader
-		expected     *http.Request
-		client       *Client
-		status       int
-		err          string
+		name               string
+		method, path       string
+		body               io.Reader
+		expected           *http.Request
+		client             *Client
+		status, curlStatus int
+		err                string
 	}{
 		{
-			name:   "invalid URL",
-			method: "GET",
-			path:   "%xx",
-			status: kivik.StatusBadRequest,
-			err:    `parse %xx: invalid URL escape "%xx"`,
+			name:       "invalid URL",
+			method:     "GET",
+			path:       "%xx",
+			status:     kivik.StatusBadRequest,
+			curlStatus: ExitStatusURLMalformed,
+			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
 		{
-			name:   "invlaid method",
-			method: "FOO BAR",
-			client: newTestClient(nil, nil),
-			status: kivik.StatusBadRequest,
-			err:    `net/http: invalid method "FOO BAR"`,
+			name:       "invalid method",
+			method:     "FOO BAR",
+			client:     newTestClient(nil, nil),
+			status:     kivik.StatusBadRequest,
+			curlStatus: 0,
+			err:        `net/http: invalid method "FOO BAR"`,
 		},
 		{
 			name:   "success",
@@ -516,7 +519,8 @@ func TestNewRequest(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
-			testy.StatusError(t, test.err, test.status, err)
+			spew.Dump(err)
+			curlStatusError(t, test.err, test.status, test.curlStatus, err)
 			test.expected = test.expected.WithContext(req.Context()) // determinism
 			if d := diff.Interface(test.expected, req); d != nil {
 				t.Error(d)
