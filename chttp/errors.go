@@ -9,8 +9,9 @@ import (
 
 // HTTPError is an error that represents an HTTP transport error.
 type HTTPError struct {
-	Code   int
-	Reason string `json:"reason"`
+	Code       int
+	Reason     string `json:"reason"`
+	exitStatus int
 }
 
 func (e *HTTPError) Error() string {
@@ -23,6 +24,11 @@ func (e *HTTPError) Error() string {
 // StatusCode returns the embedded status code.
 func (e *HTTPError) StatusCode() int {
 	return e.Code
+}
+
+// ExitStatus returns the embedded exit status.
+func (e *HTTPError) ExitStatus() int {
+	return e.exitStatus
 }
 
 // ResponseError returns an error from an *http.Response.
@@ -39,4 +45,26 @@ func ResponseError(resp *http.Response) error {
 	}
 	httpErr.Code = resp.StatusCode
 	return httpErr
+}
+
+type curlError struct {
+	curlStatus int
+	httpStatus int
+	error
+}
+
+func (e *curlError) ExitStatus() int {
+	return e.curlStatus
+}
+
+func (e *curlError) StatusCode() int {
+	return e.httpStatus
+}
+
+func fullError(httpStatus, curlStatus int, err error) error {
+	return &curlError{
+		curlStatus: curlStatus,
+		httpStatus: httpStatus,
+		error:      err,
+	}
 }

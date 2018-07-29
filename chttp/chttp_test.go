@@ -23,18 +23,20 @@ import (
 
 func TestNew(t *testing.T) {
 	type newTest struct {
-		name     string
-		dsn      string
-		expected *Client
-		status   int
-		err      string
+		name       string
+		dsn        string
+		expected   *Client
+		status     int
+		curlStatus int
+		err        string
 	}
 	tests := []newTest{
 		{
-			name:   "invalid url",
-			dsn:    "http://foo.com/%xx",
-			status: kivik.StatusBadRequest,
-			err:    `parse http://foo.com/%xx: invalid URL escape "%xx"`,
+			name:       "invalid url",
+			dsn:        "http://foo.com/%xx",
+			status:     kivik.StatusBadRequest,
+			curlStatus: ExitStatusURLMalformed,
+			err:        `parse http://foo.com/%xx: invalid URL escape "%xx"`,
 		},
 		{
 			name: "no auth",
@@ -57,10 +59,11 @@ func TestNew(t *testing.T) {
 			dsn, _ := url.Parse(s.URL)
 			dsn.User = url.UserPassword("user", "password")
 			return newTest{
-				name:   "auth failed",
-				dsn:    dsn.String(),
-				status: kivik.StatusUnauthorized,
-				err:    "Unauthorized",
+				name:       "auth failed",
+				dsn:        dsn.String(),
+				status:     kivik.StatusUnauthorized,
+				curlStatus: 0,
+				err:        "Unauthorized",
 			}
 		}(),
 		func() newTest {
@@ -94,7 +97,7 @@ func TestNew(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := New(context.Background(), test.dsn)
-			testy.StatusError(t, test.err, test.status, err)
+			curlStatusError(t, test.err, test.status, test.curlStatus, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
