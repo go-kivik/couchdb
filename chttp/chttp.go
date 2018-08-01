@@ -4,11 +4,14 @@ package chttp
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/errors"
@@ -40,7 +43,23 @@ func New(ctx context.Context, dsn string) (*Client, error) {
 	user := dsnURL.User
 	dsnURL.User = nil
 	c := &Client{
-		Client: &http.Client{},
+		// A copy of http.DefaultTransport, with the addition of TLSNextProto
+		Client: &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				DialContext: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+					DualStack: true,
+				}).DialContext,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				// a non-empty TLSNextProto map disables HTTP/2 support
+				TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{},
+			},
+		},
 		dsn:    dsnURL,
 		rawDSN: dsn,
 	}
