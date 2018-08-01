@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -196,8 +197,15 @@ func netError(err error) error {
 		if status == kivik.StatusInternalServerError {
 			status = kivik.StatusNetworkError
 		}
+		// Timeout error
 		if urlErr.Timeout() {
 			curlStatus = ExitOperationTimeout
+		}
+		// Host lookup failure
+		if opErr, ok := urlErr.Err.(*net.OpError); ok {
+			if _, ok := opErr.Err.(*net.DNSError); ok {
+				curlStatus = ExitHostNotResolved
+			}
 		}
 		return fullError(status, curlStatus, err)
 	}

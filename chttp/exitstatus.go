@@ -8,6 +8,8 @@ const (
 	ExitFailedToInitialize = 2
 	// URL malformed. The syntax was not correct.
 	ExitStatusURLMalformed = 3
+	// The given remote host was not resolved.
+	ExitHostNotResolved = 6
 	// Write error. Kouch couldn't write data to a local filesystem or similar.
 	ExitWriteError = 23
 	// The specified time-out period was reached according to the conditions.
@@ -15,7 +17,6 @@ const (
 
 /*
 5      Couldn't resolve proxy. The given proxy host could not be resolved.
-6      Couldn't resolve host. The given remote host was not resolved.
 7      Failed to connect to host.
 8      Weird server reply. The server sent data curl couldn't parse.
 18     Partial file. Only a part of the file was transferred.

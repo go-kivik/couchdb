@@ -678,6 +678,20 @@ func TestNetError(t *testing.T) {
 			err:        `Get http://127.0.0.1:\d+: context deadline exceeded`,
 		},
 		{
+			name: "cannot resolve host",
+			input: func() error {
+				req, err := http.NewRequest("GET", "http://foo.com.invalid.hostname", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = http.DefaultClient.Do(req)
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitHostNotResolved,
+			err:        ": no such host$",
+		},
+		{
 			name: "url error",
 			input: &url.Error{
 				Op:  "Get",
