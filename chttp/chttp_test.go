@@ -692,6 +692,35 @@ func TestNetError(t *testing.T) {
 			err:        ": no such host$",
 		},
 		{
+			name: "connection refused",
+			input: func() error {
+				req, err := http.NewRequest("GET", "http://localhost:99", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = http.DefaultClient.Do(req)
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitFailedToConnect,
+			err:        ": connection refused$",
+		},
+		{
+			name: "too many redirects",
+			input: func() error {
+				var s *httptest.Server
+				redirHandler := func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, s.URL, 302)
+				}
+				s = httptest.NewServer(http.HandlerFunc(redirHandler))
+				_, err := http.Get(s.URL)
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitTooManyRedirects,
+			err:        `^Get http://127.0.0.1:\d+: stopped after 10 redirects$`,
+		},
+		{
 			name: "url error",
 			input: &url.Error{
 				Op:  "Get",

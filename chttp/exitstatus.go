@@ -10,14 +10,17 @@ const (
 	ExitStatusURLMalformed = 3
 	// The given remote host was not resolved.
 	ExitHostNotResolved = 6
+	// Failed to connect to host.
+	ExitFailedToConnect = 7
 	// Write error. Kouch couldn't write data to a local filesystem or similar.
 	ExitWriteError = 23
 	// The specified time-out period was reached according to the conditions.
 	ExitOperationTimeout = 28
+	// When following redirects, curl hit the maximum amount.
+	ExitTooManyRedirects = 47
 
 /*
 5      Couldn't resolve proxy. The given proxy host could not be resolved.
-7      Failed to connect to host.
 8      Weird server reply. The server sent data curl couldn't parse.
 18     Partial file. Only a part of the file was transferred.
 22     HTTP page not retrieved. The requested url was not found or returned another error with the HTTP error code being 400 or above. This return code only appears if -f, --fail is used.
@@ -29,7 +32,6 @@ const (
 37     FILE couldn't read file. Failed to open the file. Permissions?
 43     Internal error. A function was called with a bad parameter.
 45     Interface error. A specified outgoing interface could not be used.
-47     Too many redirects. When following redirects, curl hit the maximum amount.
 51     The peer's SSL certificate or SSH MD5 fingerprint was not OK.
 52     The server didn't reply anything, which here is considered an error.
 53     SSL crypto engine not found.
