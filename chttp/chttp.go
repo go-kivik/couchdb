@@ -6,9 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
+	"syscall"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/errors"
@@ -35,7 +39,7 @@ type Client struct {
 func New(ctx context.Context, dsn string) (*Client, error) {
 	dsnURL, err := url.Parse(dsn)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
 	}
 	user := dsnURL.User
 	dsnURL.User = nil
@@ -148,7 +152,7 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	reqPath, err := url.Parse(path)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
 	}
 	url := *c.dsn // Make a copy
 	url.Path = reqPath.Path
@@ -195,12 +199,41 @@ func netError(err error) error {
 		if status == kivik.StatusInternalServerError {
 			status = kivik.StatusNetworkError
 		}
-		return errors.WrapStatus(status, err)
+		return fullError(status, curlStatus(err), err)
 	}
 	if status := kivik.StatusCode(err); status != kivik.StatusInternalServerError {
 		return err
 	}
-	return errors.WrapStatus(kivik.StatusNetworkError, err)
+	return fullError(kivik.StatusNetworkError, ExitUnknownFailure, err)
+}
+
+var tooManyRecirectsRE = regexp.MustCompile(`stopped after \d+ redirect`)
+
+func curlStatus(err error) int {
+	if urlErr, ok := err.(*url.Error); ok {
+		// Timeout error
+		if urlErr.Timeout() {
+			return ExitOperationTimeout
+		}
+		// Host lookup failure
+		if opErr, ok := urlErr.Err.(*net.OpError); ok {
+			if _, ok := opErr.Err.(*net.DNSError); ok {
+				return ExitHostNotResolved
+			}
+			if scErr, ok := opErr.Err.(*os.SyscallError); ok {
+				if errno, ok := scErr.Err.(syscall.Errno); ok {
+					if errno == syscall.ECONNREFUSED {
+						return ExitFailedToConnect
+					}
+				}
+			}
+		}
+
+		if tooManyRecirectsRE.MatchString(urlErr.Err.Error()) {
+			return ExitTooManyRedirects
+		}
+	}
+	return 0
 }
 
 // fixPath sets the request's URL.RawPath to work with escaped characters in
@@ -300,4 +333,21 @@ func GetRev(resp *http.Response) (rev string, err error) {
 		return "", errors.New("no ETag header found")
 	}
 	return rev, nil
+}
+
+type exitStatuser interface {
+	ExitStatus() int
+}
+
+// ExitStatus returns the curl exit status embedded in the error, or 1 (unknown
+// error), if there was no specified exit status.  If err is nil, ExitStatus
+// returns 0.
+func ExitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	if statuser, ok := err.(exitStatuser); ok {
+		return statuser.ExitStatus()
+	}
+	return 0
 }
