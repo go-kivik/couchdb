@@ -25,7 +25,7 @@ func TestNewClient(t *testing.T) {
 			name:   "invalid url",
 			dsn:    "foo.com/%xxx",
 			status: kivik.StatusBadRequest,
-			err:    `parse foo.com/%xxx: invalid URL escape "%xx"`,
+			err:    `parse http://foo.com/%xxx: invalid URL escape "%xx"`,
 		},
 		func() ncTest {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
