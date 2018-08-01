@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
@@ -98,7 +98,7 @@ func TestNew(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := New(context.Background(), test.dsn)
-			curlStatusError(t, test.err, test.status, test.curlStatus, err)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -519,8 +519,7 @@ func TestNewRequest(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
-			spew.Dump(err)
-			curlStatusError(t, test.err, test.status, test.curlStatus, err)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			test.expected = test.expected.WithContext(req.Context()) // determinism
 			if d := diff.Interface(test.expected, req); d != nil {
 				t.Error(d)
@@ -531,25 +530,27 @@ func TestNewRequest(t *testing.T) {
 
 func TestDoReq(t *testing.T) {
 	tests := []struct {
-		name         string
-		method, path string
-		opts         *Options
-		client       *Client
-		status       int
-		err          string
+		name               string
+		method, path       string
+		opts               *Options
+		client             *Client
+		status, curlStatus int
+		err                string
 	}{
 		{
-			name:   "no method",
-			status: kivik.StatusBadRequest,
-			err:    "chttp: method required",
+			name:       "no method",
+			status:     kivik.StatusBadRequest,
+			curlStatus: 0,
+			err:        "chttp: method required",
 		},
 		{
-			name:   "invalid url",
-			method: "GET",
-			path:   "%xx",
-			client: newTestClient(nil, nil),
-			status: kivik.StatusBadRequest,
-			err:    `parse %xx: invalid URL escape "%xx"`,
+			name:       "invalid url",
+			method:     "GET",
+			path:       "%xx",
+			client:     newTestClient(nil, nil),
+			status:     kivik.StatusBadRequest,
+			curlStatus: ExitStatusURLMalformed,
+			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
 		{
 			name:   "network error",
@@ -591,7 +592,7 @@ func TestDoReq(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.client.DoReq(context.Background(), test.method, test.path, test.opts)
-			testy.StatusError(t, test.err, test.status, err)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 		})
 	}
 }
@@ -647,13 +648,34 @@ func TestNetError(t *testing.T) {
 		name  string
 		input error
 
-		status int
-		err    string
+		status, curlStatus int
+		err                string
 	}{
 		{
-			name:  "nil",
-			input: nil,
-			err:   "",
+			name:       "nil",
+			input:      nil,
+			status:     0,
+			curlStatus: 0,
+			err:        "",
+		},
+		{
+			name: "timeout",
+			input: func() error {
+				s := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+					time.Sleep(1 * time.Second)
+				}))
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+				defer cancel()
+				req, err := http.NewRequest("GET", s.URL, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = http.DefaultClient.Do(req.WithContext(ctx))
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitOperationTimeout,
+			err:        `Get http://127.0.0.1:\d+: context deadline exceeded`,
 		},
 		{
 			name: "url error",
@@ -663,7 +685,8 @@ func TestNetError(t *testing.T) {
 				Err: errors.New("some error"),
 			},
 			status: kivik.StatusNetworkError,
-			err:    "Get http://foo.com/: some error",
+			// curlStatus: ExitStatusURLMalformed,
+			err: "Get http://foo.com/: some error",
 		},
 		{
 			name: "url error with embedded status",
@@ -676,22 +699,24 @@ func TestNetError(t *testing.T) {
 			err:    "Get http://foo.com/: some error",
 		},
 		{
-			name:   "other error",
-			input:  errors.New("other error"),
-			status: kivik.StatusNetworkError,
-			err:    "other error",
+			name:       "other error",
+			input:      errors.New("other error"),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitUnknownFailure,
+			err:        "other error",
 		},
 		{
-			name:   "other error with embedded status",
-			input:  errors.Status(kivik.StatusBadRequest, "bad req"),
-			status: kivik.StatusBadRequest,
-			err:    "bad req",
+			name:       "other error with embedded status",
+			input:      errors.Status(kivik.StatusBadRequest, "bad req"),
+			status:     kivik.StatusBadRequest,
+			curlStatus: 0,
+			err:        "bad req",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := netError(test.input)
-			testy.StatusError(t, test.err, test.status, err)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 		})
 	}
 }

@@ -1,14 +1,15 @@
 package chttp
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/flimzy/testy"
 )
 
-// curlStatusError is a modified version of testy.StatusError, which handles
+// curlStatusErrorRE is a modified version of testy.StatusError, which handles
 // exit statuses as well.
-func curlStatusError(t *testing.T, expected string, status, eStatus int, actual error) {
+func curlStatusErrorRE(t *testing.T, expected string, status, eStatus int, actual error) {
 	var err string
 	var actualStatus, actualExitStatus int
 	if actual != nil {
@@ -16,7 +17,11 @@ func curlStatusError(t *testing.T, expected string, status, eStatus int, actual 
 		actualStatus = testy.StatusCode(actual)
 		actualExitStatus = ExitStatus(actual)
 	}
-	if expected != err {
+	match, e := regexp.MatchString(expected, err)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !match {
 		t.Errorf("Unexpected error: %s (expected %s)", err, expected)
 	}
 	if status != actualStatus {

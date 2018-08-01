@@ -10,6 +10,8 @@ const (
 	ExitStatusURLMalformed = 3
 	// Write error. Kouch couldn't write data to a local filesystem or similar.
 	ExitWriteError = 23
+	// The specified time-out period was reached according to the conditions.
+	ExitOperationTimeout = 28
 
 /*
 5      Couldn't resolve proxy. The given proxy host could not be resolved.
@@ -20,7 +22,6 @@ const (
 22     HTTP page not retrieved. The requested url was not found or returned another error with the HTTP error code being 400 or above. This return code only appears if -f, --fail is used.
 26     Read error. Various reading problems.
 27     Out of memory. A memory allocation request failed.
-28     Operation timeout. The specified time-out period was reached according to the conditions.
 33     HTTP range error. The range "command" didn't work.
 34     HTTP post error. Internal post-request generation error.
 35     SSL connect error. The SSL handshaking failed.
