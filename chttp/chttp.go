@@ -58,6 +58,9 @@ func New(ctx context.Context, dsn string) (*Client, error) {
 }
 
 func parseDSN(dsn string) (*url.URL, error) {
+	if dsn == "" {
+		return nil, &HTTPError{Code: kivik.StatusBadRequest, Reason: "no URL specified", exitStatus: ExitFailedToInitialize}
+	}
 	if !strings.HasPrefix(dsn, "http://") && !strings.HasPrefix(dsn, "https://") {
 		dsn = "http://" + dsn
 	}
