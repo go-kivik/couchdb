@@ -25,7 +25,7 @@ func TestResponseError(t *testing.T) {
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			},
-			expected: &HTTPError{Code: 404},
+			expected: &HTTPError{Code: 404, exitStatus: ExitNotRetrieved},
 		},
 		{
 			name: "2.0.0 error",
@@ -45,8 +45,9 @@ func TestResponseError(t *testing.T) {
 				Request:       &http.Request{Method: "PUT"},
 			},
 			expected: &HTTPError{
-				Code:   400,
-				Reason: "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+				Code:       400,
+				exitStatus: ExitNotRetrieved,
+				Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
 			},
 		},
 		{
@@ -64,7 +65,7 @@ func TestResponseError(t *testing.T) {
 				Body:          Body("invalid json"),
 				Request:       &http.Request{Method: "PUT"},
 			},
-			expected: &HTTPError{Code: 400},
+			expected: &HTTPError{Code: 400, exitStatus: ExitNotRetrieved},
 		},
 	}
 	for _, test := range tests {
