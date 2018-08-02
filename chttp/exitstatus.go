@@ -55,8 +55,6 @@ const (
 80     Failed to shut down the SSL connection.
 82     Could not load CRL file, missing or wrong format (added in 7.19.0).
 83     Issuer check failed (added in 7.19.0).
-85     RTSP: mismatch of CSeq numbers
-86     RTSP: mismatch of Session Identifiers
 89     No connection available, the session will be queued
 90     SSL public key does not matched pinned public key
 */
