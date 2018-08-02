@@ -40,6 +40,13 @@ func TestNew(t *testing.T) {
 			err:        `parse http://foo.com/%xx: invalid URL escape "%xx"`,
 		},
 		{
+			name:       "no url",
+			dsn:        "",
+			status:     kivik.StatusBadRequest,
+			curlStatus: ExitFailedToInitialize,
+			err:        "no URL specified",
+		},
+		{
 			name: "no auth",
 			dsn:  "http://foo.com/",
 			expected: &Client{
