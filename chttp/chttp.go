@@ -37,9 +37,9 @@ type Client struct {
 // authentication mechanism, do not specify credentials in the URL, and instead
 // call the Auth() method later.
 func New(ctx context.Context, dsn string) (*Client, error) {
-	dsnURL, err := url.Parse(dsn)
+	dsnURL, err := parseDSN(dsn)
 	if err != nil {
-		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
+		return nil, err
 	}
 	user := dsnURL.User
 	dsnURL.User = nil
@@ -55,6 +55,20 @@ func New(ctx context.Context, dsn string) (*Client, error) {
 		}
 	}
 	return c, nil
+}
+
+func parseDSN(dsn string) (*url.URL, error) {
+	if !strings.HasPrefix(dsn, "http://") && !strings.HasPrefix(dsn, "https://") {
+		dsn = "http://" + dsn
+	}
+	dsnURL, err := url.Parse(dsn)
+	if err != nil {
+		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
+	}
+	if dsnURL.Path == "" {
+		dsnURL.Path = "/"
+	}
+	return dsnURL, nil
 }
 
 // DSN returns the unparsed DSN used to connect.

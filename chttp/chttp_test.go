@@ -74,7 +74,7 @@ func TestNew(t *testing.T) {
 			}
 			s := httptest.NewServer(http.HandlerFunc(h))
 			authDSN, _ := url.Parse(s.URL)
-			dsn, _ := url.Parse(s.URL)
+			dsn, _ := url.Parse(s.URL + "/")
 			authDSN.User = url.UserPassword("user", "password")
 			jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 			return newTest{
@@ -94,6 +94,19 @@ func TestNew(t *testing.T) {
 				},
 			}
 		}(),
+		{
+			name: "default url scheme",
+			dsn:  "foo.com",
+			expected: &Client{
+				Client: &http.Client{},
+				rawDSN: "foo.com",
+				dsn: &url.URL{
+					Scheme: "http",
+					Host:   "foo.com",
+					Path:   "/",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -101,6 +114,44 @@ func TestNew(t *testing.T) {
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestParseDSN(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              string
+		expected           *url.URL
+		status, curlStatus int
+		err                string
+	}{
+		{
+			name:  "happy path",
+			input: "http://foo.com/",
+			expected: &url.URL{
+				Scheme: "http",
+				Host:   "foo.com",
+				Path:   "/",
+			},
+		},
+		{
+			name:  "default scheme",
+			input: "foo.com",
+			expected: &url.URL{
+				Scheme: "http",
+				Host:   "foo.com",
+				Path:   "/",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := parseDSN(test.input)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Fatal(d)
 			}
 		})
 	}
