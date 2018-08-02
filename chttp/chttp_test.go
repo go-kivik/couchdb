@@ -63,7 +63,7 @@ func TestNew(t *testing.T) {
 				name:       "auth failed",
 				dsn:        dsn.String(),
 				status:     kivik.StatusUnauthorized,
-				curlStatus: 0,
+				curlStatus: ExitNotRetrieved,
 				err:        "Unauthorized",
 			}
 		}(),
