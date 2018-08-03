@@ -65,11 +65,22 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 
 // rowsQuery performs a query that returns a rows iterator.
 func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interface{}) (driver.Rows, error) {
+	// Queries with large key options can be converted to POST.
+	method := kivik.MethodGet
+	var dropts *chttp.Options
+	if keys, ok := opts["keys"].(string); ok && len(keys) > 1024 {
+		method = kivik.MethodPost
+		dropts = &chttp.Options{
+			Body: ioutil.NopCloser(strings.NewReader(fmt.Sprintf(`{"keys":%s}`, keys))),
+		}
+		delete(opts, "keys")
+
+	}
 	options, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path(path, options), nil)
+	resp, err := d.Client.DoReq(ctx, method, d.path(path, options), dropts)
 	if err != nil {
 		return nil, err
 	}
