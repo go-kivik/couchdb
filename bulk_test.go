@@ -39,7 +39,7 @@ func TestBulkDocs(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			docs:   []interface{}{make(chan int)},
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_bulk_docs: json: unsupported type: chan int",
 		},
 		{

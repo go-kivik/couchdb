@@ -24,7 +24,7 @@ func TestChanges(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{

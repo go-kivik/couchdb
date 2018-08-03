@@ -62,7 +62,7 @@ func TestGet(t *testing.T) {
 			name:    "invalid options",
 			id:      "foo",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -385,7 +385,7 @@ func TestCreateDoc(t *testing.T) {
 			name:   "invalid doc",
 			doc:    make(chan int),
 			db:     newTestDB(nil, errors.New("")),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb: json: unsupported type: chan int",
 		},
 		{
@@ -455,7 +455,7 @@ func TestCreateDoc(t *testing.T) {
 			name:    "invalid options",
 			db:      &db{},
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -851,7 +851,7 @@ func TestPut(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Put http://example.com/testdb/foo: json: unsupported type: chan int",
 		},
 		{
@@ -1027,7 +1027,7 @@ func TestDelete(t *testing.T) {
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -1152,7 +1152,7 @@ func TestRowsQuery(t *testing.T) {
 			name:    "invalid options",
 			path:    "_all_docs",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -1507,13 +1507,13 @@ func TestCopy(t *testing.T) {
 	}{
 		{
 			name:   "missing source",
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "kivik: sourceID required",
 		},
 		{
 			name:   "missing target",
 			source: "foo",
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "kivik: targetID required",
 		},
 		{
@@ -1530,7 +1530,7 @@ func TestCopy(t *testing.T) {
 			source:  "foo",
 			target:  "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{

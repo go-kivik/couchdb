@@ -182,7 +182,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -504,7 +504,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadRequest,
+			status:   kivik.StatusBadAPICall,
 			err:      "kivik: invalid type chan int for options",
 		},
 		{
@@ -689,7 +689,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadRequest,
+			status:   kivik.StatusBadAPICall,
 			err:      "kivik: invalid type chan int for options",
 		},
 		{

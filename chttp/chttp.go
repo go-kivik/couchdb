@@ -59,14 +59,14 @@ func New(ctx context.Context, dsn string) (*Client, error) {
 
 func parseDSN(dsn string) (*url.URL, error) {
 	if dsn == "" {
-		return nil, &HTTPError{Code: kivik.StatusBadRequest, Reason: "no URL specified", exitStatus: ExitFailedToInitialize}
+		return nil, &HTTPError{Code: kivik.StatusBadAPICall, Reason: "no URL specified", exitStatus: ExitFailedToInitialize}
 	}
 	if !strings.HasPrefix(dsn, "http://") && !strings.HasPrefix(dsn, "https://") {
 		dsn = "http://" + dsn
 	}
 	dsnURL, err := url.Parse(dsn)
 	if err != nil {
-		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
+		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
 	}
 	if dsnURL.Path == "" {
 		dsnURL.Path = "/"
@@ -169,14 +169,14 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	reqPath, err := url.Parse(path)
 	if err != nil {
-		return nil, fullError(kivik.StatusBadRequest, ExitStatusURLMalformed, err)
+		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
 	}
 	url := *c.dsn // Make a copy
 	url.Path = reqPath.Path
 	url.RawQuery = reqPath.RawQuery
 	req, err := http.NewRequest(method, url.String(), body)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, errors.WrapStatus(kivik.StatusBadAPICall, err)
 	}
 	return req.WithContext(ctx), nil
 }
@@ -186,7 +186,7 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 // or 500, does _not_ cause an error to be returned.
 func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) (*http.Response, error) {
 	if method == "" {
-		return nil, errors.Status(kivik.StatusBadRequest, "chttp: method required")
+		return nil, errors.Status(kivik.StatusBadAPICall, "chttp: method required")
 	}
 	var body io.Reader
 	if opts != nil {
@@ -279,7 +279,7 @@ func EncodeBody(i interface{}) io.ReadCloser {
 			err = json.NewEncoder(w).Encode(i)
 			switch err.(type) {
 			case *json.MarshalerError, *json.UnsupportedTypeError, *json.UnsupportedValueError:
-				err = errors.WrapStatus(kivik.StatusBadRequest, err)
+				err = errors.WrapStatus(kivik.StatusBadAPICall, err)
 			}
 		}
 		_ = w.CloseWithError(err)
