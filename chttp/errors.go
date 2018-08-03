@@ -18,7 +18,10 @@ func (e *HTTPError) Error() string {
 	if e.Reason == "" {
 		return http.StatusText(e.Code)
 	}
-	return fmt.Sprintf("%s: %s", http.StatusText(e.Code), e.Reason)
+	if statusText := http.StatusText(e.Code); statusText != "" {
+		return fmt.Sprintf("%s: %s", statusText, e.Reason)
+	}
+	return e.Reason
 }
 
 // StatusCode returns the embedded status code.

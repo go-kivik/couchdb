@@ -7,6 +7,46 @@ import (
 	"github.com/flimzy/diff"
 )
 
+func TestHTTPErrorError(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *HTTPError
+		expected string
+	}{
+		{
+			name: "No reason",
+			input: &HTTPError{
+				Code: 400,
+			},
+			expected: "Bad Request",
+		},
+		{
+			name: "Reason, HTTP code",
+			input: &HTTPError{
+				Code:   400,
+				Reason: "Bad stuff",
+			},
+			expected: "Bad Request: Bad stuff",
+		},
+		{
+			name: "Non-HTTP code",
+			input: &HTTPError{
+				Code:   604,
+				Reason: "Bad stuff",
+			},
+			expected: "Bad stuff",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := test.input.Error()
+			if result != test.expected {
+				t.Errorf("Unexpected result: %s", result)
+			}
+		})
+	}
+}
+
 func TestResponseError(t *testing.T) {
 	tests := []struct {
 		name     string
