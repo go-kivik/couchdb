@@ -53,7 +53,7 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 			case int, uint, uint8, uint16, uint32, uint64, int8, int16, int32, int64:
 				values = []string{fmt.Sprintf("%d", v)}
 			default:
-				return nil, errors.Statusf(kivik.StatusBadRequest, "kivik: invalid type %T for options", i)
+				return nil, errors.Statusf(kivik.StatusBadAPICall, "kivik: invalid type %T for options", i)
 			}
 			for _, value := range values {
 				params.Add(key, value)
@@ -436,10 +436,10 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 
 func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[string]interface{}) (targetRev string, err error) {
 	if sourceID == "" {
-		return "", errors.Status(kivik.StatusBadRequest, "kivik: sourceID required")
+		return "", errors.Status(kivik.StatusBadAPICall, "kivik: sourceID required")
 	}
 	if targetID == "" {
-		return "", errors.Status(kivik.StatusBadRequest, "kivik: targetID required")
+		return "", errors.Status(kivik.StatusBadAPICall, "kivik: targetID required")
 	}
 	fullCommit, err := fullCommit(false, options)
 	if err != nil {

@@ -35,14 +35,14 @@ func TestNew(t *testing.T) {
 		{
 			name:       "invalid url",
 			dsn:        "http://foo.com/%xx",
-			status:     kivik.StatusBadRequest,
+			status:     kivik.StatusBadAPICall,
 			curlStatus: ExitStatusURLMalformed,
 			err:        `parse http://foo.com/%xx: invalid URL escape "%xx"`,
 		},
 		{
 			name:       "no url",
 			dsn:        "",
-			status:     kivik.StatusBadRequest,
+			status:     kivik.StatusBadAPICall,
 			curlStatus: ExitFailedToInitialize,
 			err:        "no URL specified",
 		},
@@ -217,7 +217,7 @@ func TestEncodeBody(t *testing.T) {
 		{
 			name:   "JSONError",
 			input:  func() {}, // Functions cannot be marshaled to JSON
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "json: unsupported type: func()",
 		},
 		{
@@ -542,7 +542,7 @@ func TestNewRequest(t *testing.T) {
 			name:       "invalid URL",
 			method:     "GET",
 			path:       "%xx",
-			status:     kivik.StatusBadRequest,
+			status:     kivik.StatusBadAPICall,
 			curlStatus: ExitStatusURLMalformed,
 			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
@@ -550,7 +550,7 @@ func TestNewRequest(t *testing.T) {
 			name:       "invalid method",
 			method:     "FOO BAR",
 			client:     newTestClient(nil, nil),
-			status:     kivik.StatusBadRequest,
+			status:     kivik.StatusBadAPICall,
 			curlStatus: 0,
 			err:        `net/http: invalid method "FOO BAR"`,
 		},
@@ -597,7 +597,7 @@ func TestDoReq(t *testing.T) {
 	}{
 		{
 			name:       "no method",
-			status:     kivik.StatusBadRequest,
+			status:     kivik.StatusBadAPICall,
 			curlStatus: 0,
 			err:        "chttp: method required",
 		},
@@ -606,7 +606,7 @@ func TestDoReq(t *testing.T) {
 			method:     "GET",
 			path:       "%xx",
 			client:     newTestClient(nil, nil),
-			status:     kivik.StatusBadRequest,
+			status:     kivik.StatusBadAPICall,
 			curlStatus: ExitStatusURLMalformed,
 			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
@@ -666,7 +666,7 @@ func TestDoError(t *testing.T) {
 	}{
 		{
 			name:   "no method",
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "chttp: method required",
 		},
 		{

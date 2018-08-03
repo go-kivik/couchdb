@@ -9,7 +9,6 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 // Couch represents the parent driver instance.
@@ -61,7 +60,7 @@ var _ driver.Client = &client{}
 func (d *Couch) NewClient(ctx context.Context, dsn string) (driver.Client, error) {
 	chttpClient, err := chttp.New(ctx, dsn)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, err
 	}
 	c := &client{
 		Client: chttpClient,

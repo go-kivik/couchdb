@@ -154,7 +154,7 @@ func TestReplicate(t *testing.T) {
 			}(),
 			target: "foo", source: "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "Post http://example.com/_replicator: json: unsupported type: chan int",
 		},
 		{
@@ -270,7 +270,7 @@ func TestLegacyGetReplications(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{

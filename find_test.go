@@ -37,7 +37,7 @@ func TestExplain(t *testing.T) {
 			name:   "invalid query",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_explain: json: unsupported type: chan int",
 		},
 		{
@@ -166,7 +166,7 @@ func TestCreateIndex(t *testing.T) {
 			name:   "invalid raw index",
 			db:     newTestDB(nil, nil),
 			index:  map[string]interface{}{"foo": make(chan int)},
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_index: json: unsupported type: chan int",
 		},
 		{
@@ -348,7 +348,7 @@ func TestFind(t *testing.T) {
 			name:   "invalid query json",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_find: json: unsupported type: chan int",
 		},
 		{
