@@ -18,6 +18,8 @@ const (
 	ExitNotRetrieved = 22
 	// Write error. Kouch couldn't write data to a local filesystem or similar.
 	ExitWriteError = 23
+	// Read error. Various reading problems.
+	ExitReadError = 26
 	// The specified time-out period was reached according to the conditions.
 	ExitOperationTimeout = 28
 	// When following redirects, curl hit the maximum amount.
@@ -26,7 +28,6 @@ const (
 /*
 5      Couldn't resolve proxy. The given proxy host could not be resolved.
 18     Partial file. Only a part of the file was transferred.
-26     Read error. Various reading problems.
 27     Out of memory. A memory allocation request failed.
 33     HTTP range error. The range "command" didn't work.
 34     HTTP post error. Internal post-request generation error.
