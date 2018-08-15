@@ -24,7 +24,7 @@ func ContextClientTrace(ctx context.Context) *ClientTrace {
 type ClientTrace struct {
 	// HTTPResponse returns a cloe of the *http.Response received from the
 	// server, with the body set to nil. If you need the body, use the more
-	// expensive HTTPResponseBody
+	// expensive HTTPResponseBody.
 	HTTPResponse func(*http.Response)
 
 	// HTTPResponseBody returns a clone of the *http.Response received from the
@@ -34,12 +34,12 @@ type ClientTrace struct {
 
 	// HTTPRequest returns a clone of the *http.Request sent to the server, with
 	// the body set to nil. If you need the body, use the more expensive
-	// HTTPRequestBody
+	// HTTPRequestBody.
 	HTTPRequest func(*http.Request)
 
 	// HTTPRequestBody returns a clone of the *http.Request sent to the server,
-	// with the body set to nil. If you need the body, use the more expensive
-	// HTTPRequestBody
+	// with the body cloned, if it is set. This can be expensive for requests
+	// with large bodies.
 	HTTPRequestBody func(*http.Request)
 }
 
@@ -59,7 +59,7 @@ func (t *ClientTrace) httpResponse(r *http.Response) {
 	if t.HTTPResponse == nil {
 		return
 	}
-	clone := &http.Response{}
+	clone := new(http.Response)
 	*clone = *r
 	clone.Body = nil
 	t.HTTPResponse(clone)
@@ -69,7 +69,7 @@ func (t *ClientTrace) httpResponseBody(r *http.Response) {
 	if t.HTTPResponseBody == nil {
 		return
 	}
-	clone := &http.Response{}
+	clone := new(http.Response)
 	*clone = *r
 	rBody := r.Body
 	body, readErr := ioutil.ReadAll(rBody)
@@ -83,7 +83,7 @@ func (t *ClientTrace) httpRequest(r *http.Request) {
 	if t.HTTPRequest == nil {
 		return
 	}
-	clone := &http.Request{}
+	clone := new(http.Request)
 	*clone = *r
 	clone.Body = nil
 	t.HTTPRequest(clone)
@@ -93,13 +93,15 @@ func (t *ClientTrace) httpRequestBody(r *http.Request) {
 	if t.HTTPRequestBody == nil {
 		return
 	}
-	clone := &http.Request{}
+	clone := new(http.Request)
 	*clone = *r
-	rBody := r.Body
-	body, readErr := ioutil.ReadAll(rBody)
-	closeErr := rBody.Close()
-	r.Body = newReplay(body, readErr, closeErr)
-	clone.Body = newReplay(body, readErr, closeErr)
+	if r.Body != nil {
+		rBody := r.Body
+		body, readErr := ioutil.ReadAll(rBody)
+		closeErr := rBody.Close()
+		r.Body = newReplay(body, readErr, closeErr)
+		clone.Body = newReplay(body, readErr, closeErr)
+	}
 	t.HTTPRequestBody(clone)
 }
 
