@@ -90,7 +90,7 @@ func TestHTTPRequest(t *testing.T) {
 			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
 		},
 		{
-			name: "HTTPResponseBody/cloned response",
+			name: "HTTPRequesteBody/cloned response",
 			trace: func(t *testing.T) *ClientTrace {
 				return &ClientTrace{
 					HTTPRequestBody: func(r *http.Request) {
@@ -109,7 +109,7 @@ func TestHTTPRequest(t *testing.T) {
 			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
 		},
 		{
-			name: "HTTPResponse/cloned response",
+			name: "HTTPRequeste/cloned response",
 			trace: func(t *testing.T) *ClientTrace {
 				return &ClientTrace{
 					HTTPRequest: func(r *http.Request) {
@@ -125,6 +125,31 @@ func TestHTTPRequest(t *testing.T) {
 			},
 			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
 			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+		},
+		{
+			name: "HTTPRequesteBody/no body",
+			trace: func(t *testing.T) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequestBody: func(r *http.Request) {
+						if r.Method != "GET" {
+							t.Errorf("Unexpected method: %s", r.Method)
+						}
+						r.Method = "unf"
+						if r.Body != nil {
+							t.Errorf("non-nil body")
+						}
+					},
+				}
+			},
+			req: func() *http.Request {
+				req, _ := http.NewRequest("GET", "/", nil)
+				return req
+			}(),
+			finalReq: func() *http.Request {
+				req, _ := http.NewRequest("GET", "/", nil)
+				req.Header.Add("Host", "example.com")
+				return req
+			}(),
 		},
 	}
 	for _, test := range tests {
