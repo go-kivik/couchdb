@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/flimzy/testy"
 )
 
-func TestHTTPResponseBody(t *testing.T) {
+func TestHTTPResponse(t *testing.T) {
 	tests := []struct {
 		name      string
 		trace     func(t *testing.T) *ClientTrace
@@ -69,6 +70,69 @@ func TestHTTPResponseBody(t *testing.T) {
 			trace.httpResponseBody(test.resp)
 			trace.httpResponse(test.resp)
 			if d := diff.HTTPResponse(test.finalResp, test.resp); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestHTTPRequest(t *testing.T) {
+	tests := []struct {
+		name     string
+		trace    func(t *testing.T) *ClientTrace
+		req      *http.Request
+		finalReq *http.Request
+	}{
+		{
+			name:     "no hook defined",
+			trace:    func(_ *testing.T) *ClientTrace { return &ClientTrace{} },
+			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+		},
+		{
+			name: "HTTPResponseBody/cloned response",
+			trace: func(t *testing.T) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequestBody: func(r *http.Request) {
+						if r.Method != "PUT" {
+							t.Errorf("Unexpected method: %s", r.Method)
+						}
+						r.Method = "unf"
+						defer r.Body.Close() // nolint: errcheck
+						if _, err := ioutil.ReadAll(r.Body); err != nil {
+							t.Fatal(err)
+						}
+					},
+				}
+			},
+			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+		},
+		{
+			name: "HTTPResponse/cloned response",
+			trace: func(t *testing.T) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequest: func(r *http.Request) {
+						if r.Method != "PUT" {
+							t.Errorf("Unexpected method: %s", r.Method)
+						}
+						r.Method = "unf"
+						if r.Body != nil {
+							t.Errorf("non-nil body")
+						}
+					},
+				}
+			},
+			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			trace := test.trace(t)
+			trace.httpRequestBody(test.req)
+			trace.httpRequest(test.req)
+			if d := diff.HTTPRequest(test.finalReq, test.req); d != nil {
 				t.Error(d)
 			}
 		})

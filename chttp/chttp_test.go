@@ -666,7 +666,7 @@ func TestDoReq(t *testing.T) {
 				StatusCode: 200,
 				Body:       Body(""),
 			}, nil),
-			// response trace
+			// response body trace
 		},
 		{
 			name: "response body trace",
@@ -691,6 +691,58 @@ func TestDoReq(t *testing.T) {
 				Body:       Body("foo"),
 			}, nil),
 			// response trace
+		},
+		{
+			name: "request trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequest: func(r *http.Request) {
+						*success = true
+						expected := httptest.NewRequest("PUT", "/foo", nil)
+						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Content-Type", "application/json")
+						if d := diff.HTTPRequest(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "/foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			opts: &Options{
+				Body: Body("bar"),
+			},
+			// request trace
+		},
+		{
+			name: "request body trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequestBody: func(r *http.Request) {
+						*success = true
+						expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
+						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Content-Type", "application/json")
+						if d := diff.HTTPRequest(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "/foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			opts: &Options{
+				Body: Body("bar"),
+			},
+			// request body trace
 		},
 	}
 	for _, test := range tests {

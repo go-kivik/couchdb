@@ -31,6 +31,16 @@ type ClientTrace struct {
 	// server, with the body cloned. This can be expensive for responses
 	// with large bodies.
 	HTTPResponseBody func(*http.Response)
+
+	// HTTPRequest returns a clone of the *http.Request sent to the server, with
+	// the body set to nil. If you need the body, use the more expensive
+	// HTTPRequestBody
+	HTTPRequest func(*http.Request)
+
+	// HTTPRequestBody returns a clone of the *http.Request sent to the server,
+	// with the body set to nil. If you need the body, use the more expensive
+	// HTTPRequestBody
+	HTTPRequestBody func(*http.Request)
 }
 
 // WithClientTrace returns a new context based on the provided parent
@@ -67,6 +77,30 @@ func (t *ClientTrace) httpResponseBody(r *http.Response) {
 	r.Body = newReplay(body, readErr, closeErr)
 	clone.Body = newReplay(body, readErr, closeErr)
 	t.HTTPResponseBody(clone)
+}
+
+func (t *ClientTrace) httpRequest(r *http.Request) {
+	if t.HTTPRequest == nil {
+		return
+	}
+	clone := &http.Request{}
+	*clone = *r
+	clone.Body = nil
+	t.HTTPRequest(clone)
+}
+
+func (t *ClientTrace) httpRequestBody(r *http.Request) {
+	if t.HTTPRequestBody == nil {
+		return
+	}
+	clone := &http.Request{}
+	*clone = *r
+	rBody := r.Body
+	body, readErr := ioutil.ReadAll(rBody)
+	closeErr := rBody.Close()
+	r.Body = newReplay(body, readErr, closeErr)
+	clone.Body = newReplay(body, readErr, closeErr)
+	t.HTTPRequestBody(clone)
 }
 
 func newReplay(body []byte, readErr, closeErr error) io.ReadCloser {
