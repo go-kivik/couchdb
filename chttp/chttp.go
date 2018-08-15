@@ -202,6 +202,10 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	setHeaders(req, opts)
 
 	response, err := c.Do(req)
+	if trace := ContextClientTrace(ctx); trace != nil {
+		trace.httpResponse(response)
+		trace.httpResponseBody(response)
+	}
 	return response, netError(err)
 }
 
