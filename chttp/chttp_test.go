@@ -589,6 +589,7 @@ func TestNewRequest(t *testing.T) {
 func TestDoReq(t *testing.T) {
 	tests := []struct {
 		name               string
+		trace              func(t *testing.T, success *bool) *ClientTrace
 		method, path       string
 		opts               *Options
 		client             *Client
@@ -646,11 +647,117 @@ func TestDoReq(t *testing.T) {
 			status: kivik.StatusBadRequest,
 			err:    "Put http://example.com/foo: bad request",
 		},
+		{
+			name: "response trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPResponse: func(r *http.Response) {
+						*success = true
+						expected := &http.Response{StatusCode: 200}
+						if d := diff.HTTPResponse(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body(""),
+			}, nil),
+			// response body trace
+		},
+		{
+			name: "response body trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPResponseBody: func(r *http.Response) {
+						*success = true
+						expected := &http.Response{
+							StatusCode: 200,
+							Body:       Body("foo"),
+						}
+						if d := diff.HTTPResponse(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			// response trace
+		},
+		{
+			name: "request trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequest: func(r *http.Request) {
+						*success = true
+						expected := httptest.NewRequest("PUT", "/foo", nil)
+						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Content-Type", "application/json")
+						if d := diff.HTTPRequest(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "/foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			opts: &Options{
+				Body: Body("bar"),
+			},
+			// request trace
+		},
+		{
+			name: "request body trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequestBody: func(r *http.Request) {
+						*success = true
+						expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
+						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Content-Type", "application/json")
+						if d := diff.HTTPRequest(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "/foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			opts: &Options{
+				Body: Body("bar"),
+			},
+			// request body trace
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := test.client.DoReq(context.Background(), test.method, test.path, test.opts)
+			ctx := context.Background()
+			traceSuccess := true
+			if test.trace != nil {
+				traceSuccess = false
+				ctx = WithClientTrace(ctx, test.trace(t, &traceSuccess))
+			}
+			_, err := test.client.DoReq(ctx, test.method, test.path, test.opts)
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
+			if !traceSuccess {
+				t.Error("Trace failed")
+			}
 		})
 	}
 }

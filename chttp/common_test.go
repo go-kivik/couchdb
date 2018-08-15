@@ -1,6 +1,7 @@
 package chttp
 
 import (
+	"io"
 	"regexp"
 	"testing"
 
@@ -33,4 +34,26 @@ func curlStatusErrorRE(t *testing.T, expected string, status, eStatus int, actua
 	if actual != nil {
 		t.SkipNow()
 	}
+}
+
+type errReader struct {
+	io.Reader
+	err error
+}
+
+func (r *errReader) Read(p []byte) (int, error) {
+	c, err := r.Reader.Read(p)
+	if err == io.EOF {
+		err = r.err
+	}
+	return c, err
+}
+
+type errCloser struct {
+	io.Reader
+	err error
+}
+
+func (r *errCloser) Close() error {
+	return r.err
 }
