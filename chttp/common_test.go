@@ -26,10 +26,10 @@ func curlStatusErrorRE(t *testing.T, expected string, status, eStatus int, actua
 		t.Errorf("Unexpected error: %s (expected %s)", err, expected)
 	}
 	if status != actualStatus {
-		t.Errorf("Unexpected status code: %d (expected %d)", actualStatus, status)
+		t.Errorf("Unexpected status code: %d (expected %d) [%s]", actualStatus, status, err)
 	}
 	if eStatus != actualExitStatus {
-		t.Errorf("Unexpected exit status: %d (expected %d)", actualExitStatus, eStatus)
+		t.Errorf("Unexpected exit status: %d (expected %d) [%s]", actualExitStatus, eStatus, err)
 	}
 	if actual != nil {
 		t.SkipNow()
