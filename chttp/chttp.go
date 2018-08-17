@@ -167,7 +167,11 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 // NewRequest returns a new *http.Request to the CouchDB server, and the
 // specified path. The host, schema, etc, of the specified path are ignored.
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
-	reqPath, err := url.Parse(path)
+	fullPath := path
+	if cPath := strings.TrimSuffix(c.dsn.Path, "/"); cPath != "" {
+		fullPath = cPath + "/" + strings.TrimPrefix(path, "/")
+	}
+	reqPath, err := url.Parse(fullPath)
 	if err != nil {
 		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
 	}

@@ -540,6 +540,7 @@ func TestNewRequest(t *testing.T) {
 	}{
 		{
 			name:       "invalid URL",
+			client:     newTestClient(nil, nil),
 			method:     "GET",
 			path:       "%xx",
 			status:     kivik.StatusBadAPICall,
