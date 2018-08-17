@@ -310,6 +310,15 @@ func TestSetHeaders(t *testing.T) {
 				"If-None-Match": {`"foo"`},
 			},
 		},
+		{
+			Name:    "Unquoted If-None-Match",
+			Options: &Options{IfNoneMatch: `foo`},
+			Expected: http.Header{
+				"Accept":        {"application/json"},
+				"Content-Type":  {"application/json"},
+				"If-None-Match": {`"foo"`},
+			},
+		},
 	}
 	for _, test := range tests {
 		func(test shTest) {

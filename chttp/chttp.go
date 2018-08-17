@@ -128,7 +128,8 @@ type Options struct {
 	// FullCommit adds the X-Couch-Full-Commit: true header to requests
 	FullCommit bool
 
-	// IfNoneMatch adds the If-None-Match header.
+	// IfNoneMatch adds the If-None-Match header. The value will be quoted if
+	// it is not already.
 	IfNoneMatch string
 
 	// Destination is the target ID for COPY
@@ -318,7 +319,8 @@ func setHeaders(req *http.Request, opts *Options) {
 			req.Header.Add("Destination", opts.Destination)
 		}
 		if opts.IfNoneMatch != "" {
-			req.Header.Set("If-None-Match", opts.IfNoneMatch)
+			inm := "\"" + strings.Trim(opts.IfNoneMatch, "\"") + "\""
+			req.Header.Set("If-None-Match", inm)
 		}
 	}
 	req.Header.Add("Accept", accept)
