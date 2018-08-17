@@ -540,6 +540,7 @@ func TestNewRequest(t *testing.T) {
 	}{
 		{
 			name:       "invalid URL",
+			client:     newTestClient(nil, nil),
 			method:     "GET",
 			path:       "%xx",
 			status:     kivik.StatusBadAPICall,
@@ -743,6 +744,17 @@ func TestDoReq(t *testing.T) {
 				Body: Body("bar"),
 			},
 			// request body trace
+		},
+		{
+			name: "couchdb mounted below root",
+			client: newCustomClient("http://foo.com/dbroot/", func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path != "/dbroot/foo" {
+					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+				}
+				return &http.Response{}, nil
+			}),
+			method: "GET",
+			path:   "/foo",
 		},
 	}
 	for _, test := range tests {

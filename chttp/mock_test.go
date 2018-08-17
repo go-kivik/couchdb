@@ -16,21 +16,25 @@ func (c customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c(req)
 }
 
-func newCustomClient(fn func(*http.Request) (*http.Response, error)) *Client {
-	dsn, err := url.Parse("http://example.com/")
-	if err != nil {
-		panic(err)
-	}
-	return &Client{
-		dsn: dsn,
+func newCustomClient(dsn string, fn func(*http.Request) (*http.Response, error)) *Client {
+	c := &Client{
 		Client: &http.Client{
 			Transport: customTransport(fn),
 		},
 	}
+	var err error
+	if dsn == "" {
+		dsn = "http://example.com/"
+	}
+	c.dsn, err = url.Parse(dsn)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
 
 func newTestClient(resp *http.Response, err error) *Client {
-	return newCustomClient(func(_ *http.Request) (*http.Response, error) {
+	return newCustomClient("", func(_ *http.Request) (*http.Response, error) {
 		return resp, err
 	})
 }
