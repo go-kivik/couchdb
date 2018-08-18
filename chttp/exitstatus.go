@@ -22,6 +22,8 @@ const (
 	ExitReadError = 26
 	// The specified time-out period was reached according to the conditions.
 	ExitOperationTimeout = 28
+	// Internal post request generation error.
+	ExitPostError = 34
 	// When following redirects, curl hit the maximum amount.
 	ExitTooManyRedirects = 47
 
@@ -30,7 +32,6 @@ const (
 18     Partial file. Only a part of the file was transferred.
 27     Out of memory. A memory allocation request failed.
 33     HTTP range error. The range "command" didn't work.
-34     HTTP post error. Internal post-request generation error.
 35     SSL connect error. The SSL handshaking failed.
 37     FILE couldn't read file. Failed to open the file. Permissions?
 43     Internal error. A function was called with a bad parameter.
@@ -53,7 +54,6 @@ const (
 76     Character conversion functions required.
 77     Problem with reading the SSL CA cert (path? access rights?).
 78     The resource referenced in the URL does not exist.
-79     An unspecified error occurred during the SSH session.
 80     Failed to shut down the SSL connection.
 82     Could not load CRL file, missing or wrong format (added in 7.19.0).
 83     Issuer check failed (added in 7.19.0).
