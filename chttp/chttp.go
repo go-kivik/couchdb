@@ -334,7 +334,7 @@ func setHeaders(req *http.Request, opts *Options) {
 }
 
 func setQuery(req *http.Request, opts *Options) {
-	if opts == nil || opts.Query == nil {
+	if opts == nil || len(opts.Query) == 0 {
 		return
 	}
 	if req.URL.RawQuery == "" {
