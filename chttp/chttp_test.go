@@ -345,9 +345,15 @@ func TestSetQuery(t *testing.T) {
 		expected *http.Request
 	}{
 		{
-			name:     "no query",
+			name:     "nil query",
 			req:      &http.Request{URL: &url.URL{}},
 			expected: &http.Request{URL: &url.URL{}},
+		},
+		{
+			name:     "empty query",
+			req:      &http.Request{URL: &url.URL{RawQuery: "a=b"}},
+			opts:     &Options{Query: url.Values{}},
+			expected: &http.Request{URL: &url.URL{RawQuery: "a=b"}},
 		},
 		{
 			name:     "options query",
