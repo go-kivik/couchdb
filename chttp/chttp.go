@@ -134,6 +134,11 @@ type Options struct {
 
 	// Destination is the target ID for COPY
 	Destination string
+
+	// Query is appended to the exiting url, if present. If the passed url
+	// already contains query parameters, the values in Query are appended.
+	// No merging takes place.
+	Query url.Values
 }
 
 // Response represents a response from a CouchDB server.
@@ -205,6 +210,7 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	}
 	fixPath(req, path)
 	setHeaders(req, opts)
+	setQuery(req, opts)
 
 	trace := ContextClientTrace(ctx)
 	if trace != nil {
@@ -325,6 +331,17 @@ func setHeaders(req *http.Request, opts *Options) {
 	}
 	req.Header.Add("Accept", accept)
 	req.Header.Add("Content-Type", contentType)
+}
+
+func setQuery(req *http.Request, opts *Options) {
+	if opts == nil || opts.Query == nil {
+		return
+	}
+	if req.URL.RawQuery == "" {
+		req.URL.RawQuery = opts.Query.Encode()
+		return
+	}
+	req.URL.RawQuery = strings.Join([]string{req.URL.RawQuery, opts.Query.Encode()}, "&")
 }
 
 // DoError is the same as DoReq(), followed by checking the response error. This
