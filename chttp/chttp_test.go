@@ -337,6 +337,41 @@ func TestSetHeaders(t *testing.T) {
 	}
 }
 
+func TestSetQuery(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      *http.Request
+		opts     *Options
+		expected *http.Request
+	}{
+		{
+			name:     "no query",
+			req:      &http.Request{URL: &url.URL{}},
+			expected: &http.Request{URL: &url.URL{}},
+		},
+		{
+			name:     "options query",
+			req:      &http.Request{URL: &url.URL{}},
+			opts:     &Options{Query: url.Values{"foo": []string{"a"}}},
+			expected: &http.Request{URL: &url.URL{RawQuery: "foo=a"}},
+		},
+		{
+			name:     "merged queries",
+			req:      &http.Request{URL: &url.URL{RawQuery: "bar=b"}},
+			opts:     &Options{Query: url.Values{"foo": []string{"a"}}},
+			expected: &http.Request{URL: &url.URL{RawQuery: "bar=b&foo=a"}},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setQuery(test.req, test.opts)
+			if d := diff.Interface(test.expected, test.req); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
 func TestETag(t *testing.T) {
 	tests := []struct {
 		name     string

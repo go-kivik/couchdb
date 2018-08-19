@@ -46,8 +46,9 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 		Body:        att.Content,
 		ContentType: att.ContentType,
 		FullCommit:  fullCommit,
+		Query:       query,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename, query), opts, &response)
+	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
 	if err != nil {
 		return "", err
 	}
@@ -96,8 +97,9 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	}
 	opts := &chttp.Options{
 		IfNoneMatch: inm,
+		Query:       query,
 	}
-	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts)
+	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +167,9 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, 
 
 	opts := &chttp.Options{
 		FullCommit: fullCommit,
+		Query:      query,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename, query), opts, &response)
+	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
 	if err != nil {
 		return "", err
 	}
