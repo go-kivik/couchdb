@@ -18,11 +18,14 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 		"since":     "now",
 		"heartbeat": 6000,
 	}
-	options, err := optionsToParams(opts, overrideOpts)
+	query, err := optionsToParams(opts, overrideOpts)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path("_changes", options), nil)
+	options := &chttp.Options{
+		Query: query,
+	}
+	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path("_changes"), options)
 	if err != nil {
 		return nil, err
 	}

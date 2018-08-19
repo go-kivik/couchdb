@@ -30,10 +30,10 @@ var _ driver.DB = &db{}
 var _ driver.MetaGetter = &db{}
 var _ driver.AttachmentMetaGetter = &db{}
 
-func (d *db) path(path string, query url.Values) string {
-	url, _ := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
-	if query != nil {
-		url.RawQuery = query.Encode()
+func (d *db) path(path string) string {
+	url, err := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
+	if err != nil {
+		panic("THIS IS A BUG: d.path failed: " + err.Error())
 	}
 	return url.String()
 }
@@ -69,7 +69,7 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	if err != nil {
 		return nil, err
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path(path, options), nil)
+	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path(path), &chttp.Options{Query: options})
 	if err != nil {
 		return nil, err
 	}
@@ -243,8 +243,9 @@ func (d *db) get(ctx context.Context, method string, docID string, options map[s
 	opts := &chttp.Options{
 		Accept:      "application/json",
 		IfNoneMatch: inm,
+		Query:       params,
 	}
-	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID), params), opts)
+	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)), opts)
 	if err != nil {
 		return nil, "", err
 	}
@@ -299,7 +300,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID), nil), opts, &result)
+	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)), opts, &result)
 	if err != nil {
 		return "", err
 	}
@@ -330,8 +331,9 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 	query.Add("rev", rev)
 	opts := &chttp.Options{
 		FullCommit: fullCommit,
+		Query:      query,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID), query), opts)
+	resp, err := d.Client.DoReq(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)), opts)
 	if err != nil {
 		return "", err
 	}
@@ -340,7 +342,7 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 }
 
 func (d *db) Flush(ctx context.Context) error {
-	_, err := d.Client.DoError(ctx, kivik.MethodPost, d.path("/_ensure_full_commit", nil), nil)
+	_, err := d.Client.DoError(ctx, kivik.MethodPost, d.path("/_ensure_full_commit"), nil)
 	return err
 }
 
@@ -390,7 +392,7 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 }
 
 func (d *db) Compact(ctx context.Context) error {
-	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact", nil), nil)
+	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact"), nil)
 	if err != nil {
 		return err
 	}
@@ -401,7 +403,7 @@ func (d *db) CompactView(ctx context.Context, ddocID string) error {
 	if ddocID == "" {
 		return missingArg("ddocID")
 	}
-	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact/"+ddocID, nil), nil)
+	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact/"+ddocID), nil)
 	if err != nil {
 		return err
 	}
@@ -409,7 +411,7 @@ func (d *db) CompactView(ctx context.Context, ddocID string) error {
 }
 
 func (d *db) ViewCleanup(ctx context.Context) error {
-	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_view_cleanup", nil), nil)
+	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_view_cleanup"), nil)
 	if err != nil {
 		return err
 	}
@@ -418,7 +420,7 @@ func (d *db) ViewCleanup(ctx context.Context) error {
 
 func (d *db) Security(ctx context.Context) (*driver.Security, error) {
 	var sec *driver.Security
-	_, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.path("/_security", nil), nil, &sec)
+	_, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.path("/_security"), nil, &sec)
 	return sec, err
 }
 
@@ -426,7 +428,7 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	opts := &chttp.Options{
 		Body: chttp.EncodeBody(security),
 	}
-	res, err := d.Client.DoReq(ctx, kivik.MethodPut, d.path("/_security", nil), opts)
+	res, err := d.Client.DoReq(ctx, kivik.MethodPut, d.path("/_security"), opts)
 	if err != nil {
 		return err
 	}
@@ -452,8 +454,9 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	opts := &chttp.Options{
 		FullCommit:  fullCommit,
 		Destination: targetID,
+		Query:       params,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodCopy, d.path(chttp.EncodeDocID(sourceID), params), opts)
+	resp, err := d.Client.DoReq(ctx, kivik.MethodCopy, d.path(chttp.EncodeDocID(sourceID)), opts)
 	if err != nil {
 		return "", err
 	}
