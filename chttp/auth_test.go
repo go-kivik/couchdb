@@ -107,7 +107,7 @@ func (rt *mockRT) RoundTrip(_ *http.Request) (*http.Response, error) {
 
 func TestAuthenticate(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+		defer r.Body.Close() // nolint: errcheck
 		var authed bool
 		if auth := r.Header.Get("Authorization"); auth == "Basic YWRtaW46YWJjMTIz" {
 			authed = true
@@ -117,7 +117,7 @@ func TestAuthenticate(t *testing.T) {
 				Name     string
 				Password string
 			}
-			json.NewDecoder(r.Body).Decode(&result)
+			_ = json.NewDecoder(r.Body).Decode(&result)
 			if result.Name == "admin" && result.Password == "abc123" {
 				authed = true
 				http.SetCookie(w, &http.Cookie{
@@ -138,16 +138,19 @@ func TestAuthenticate(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 		if r.URL.Path == "/_session" {
-			w.Write([]byte(`{"userCtx":{"name":"admin"}}`))
+			_, _ = w.Write([]byte(`{"userCtx":{"name":"admin"}}`))
+			return
 		}
-		w.Write([]byte(`{"foo":123}`))
+		_, _ = w.Write([]byte(`{"foo":123}`))
 	}))
 
 	type authTest struct {
-		addr   string
-		auther Authenticator
-		err    string
-		status int
+		addr       string
+		auther     Authenticator
+		authErr    string
+		authStatus int
+		err        string
+		status     int
 	}
 	tests := testy.NewTable()
 	tests.Cleanup(s.Close)
@@ -171,10 +174,12 @@ func TestAuthenticate(t *testing.T) {
 		status: http.StatusUnauthorized,
 	})
 	tests.Add("failed cookie auth", authTest{
-		addr:   s.URL,
-		auther: &CookieAuth{Username: "foo"},
-		err:    "Unauthorized",
-		status: http.StatusUnauthorized,
+		addr:       s.URL,
+		auther:     &CookieAuth{Username: "foo"},
+		authErr:    "Unauthorized",
+		authStatus: http.StatusUnauthorized,
+		err:        "Unauthorized",
+		status:     http.StatusUnauthorized,
 	})
 
 	tests.Run(t, func(t *testing.T, test authTest) {
@@ -184,7 +189,8 @@ func TestAuthenticate(t *testing.T) {
 			t.Fatal(err)
 		}
 		if test.auther != nil {
-			c.Auth(ctx, test.auther)
+			e := c.Auth(ctx, test.auther)
+			testy.StatusError(t, test.authErr, test.authStatus, e)
 		}
 		_, err = c.DoError(ctx, "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
