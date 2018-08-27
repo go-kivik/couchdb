@@ -22,6 +22,7 @@ go:
     - 1.8.x
     - 1.9.x
     - 1.10.x
+    - 1.11.x
     - master
 env:
     global:
@@ -38,9 +39,9 @@ matrix:
     allow_failures:
         - go: master
     include:
-        - go: 1.10.x
+        - go: 1.11.x
           env: MODE=linter
-        - go: 1.10.x
+        - go: 1.11.x
           env: MODE=coverage
 
 install:
