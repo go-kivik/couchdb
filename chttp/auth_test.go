@@ -2,6 +2,7 @@ package chttp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -103,6 +104,92 @@ var _ http.RoundTripper = &mockRT{}
 
 func (rt *mockRT) RoundTrip(_ *http.Request) (*http.Response, error) {
 	return rt.resp, rt.err
+}
+
+func TestAuthenticate(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var authed bool
+		if auth := r.Header.Get("Authorization"); auth == "Basic YWRtaW46YWJjMTIz" {
+			authed = true
+		}
+		if r.Method == http.MethodPost {
+			var result struct {
+				Name     string
+				Password string
+			}
+			json.NewDecoder(r.Body).Decode(&result)
+			if result.Name == "admin" && result.Password == "abc123" {
+				authed = true
+				http.SetCookie(w, &http.Cookie{
+					Name:     kivik.SessionCookieName,
+					Value:    "auth-token",
+					Path:     "/",
+					HttpOnly: true,
+				})
+				w.WriteHeader(200)
+			}
+		}
+		if ses := r.Header.Get("Cookie"); ses == "AuthSession=auth-token" {
+			authed = true
+		}
+		if !authed {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if r.URL.Path == "/_session" {
+			w.Write([]byte(`{"userCtx":{"name":"admin"}}`))
+		}
+		w.Write([]byte(`{"foo":123}`))
+	}))
+
+	type authTest struct {
+		addr   string
+		auther Authenticator
+		err    string
+		status int
+	}
+	tests := testy.NewTable()
+	tests.Cleanup(s.Close)
+	tests.Add("unauthorized", authTest{
+		addr:   s.URL,
+		err:    "Unauthorized",
+		status: http.StatusUnauthorized,
+	})
+	tests.Add("basic auth", authTest{
+		addr:   s.URL,
+		auther: &BasicAuth{Username: "admin", Password: "abc123"},
+	})
+	tests.Add("cookie auth", authTest{
+		addr:   s.URL,
+		auther: &CookieAuth{Username: "admin", Password: "abc123"},
+	})
+	tests.Add("failed basic auth", authTest{
+		addr:   s.URL,
+		auther: &BasicAuth{Username: "foo"},
+		err:    "Unauthorized",
+		status: http.StatusUnauthorized,
+	})
+	tests.Add("failed cookie auth", authTest{
+		addr:   s.URL,
+		auther: &CookieAuth{Username: "foo"},
+		err:    "Unauthorized",
+		status: http.StatusUnauthorized,
+	})
+
+	tests.Run(t, func(t *testing.T, test authTest) {
+		ctx := context.Background()
+		c, err := New(ctx, test.addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test.auther != nil {
+			c.Auth(ctx, test.auther)
+		}
+		_, err = c.DoError(ctx, "GET", "/foo", nil)
+		testy.StatusError(t, test.err, test.status, err)
+	})
 }
 
 func TestCookieAuthAuthenticate(t *testing.T) {
