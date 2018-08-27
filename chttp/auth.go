@@ -2,7 +2,6 @@ package chttp
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -43,32 +42,6 @@ func (a *BasicAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // Authenticate sets HTTP Basic Auth headers for the client.
 func (a *BasicAuth) Authenticate(ctx context.Context, c *Client) error {
-	// First see if the credentials seem good
-	req, err := c.NewRequest(ctx, kivik.MethodGet, "/_session", nil)
-	if err != nil {
-		return err // impossible error
-	}
-	req.SetBasicAuth(a.Username, a.Password)
-	res, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close() // nolint: errcheck
-	if err = ResponseError(res); err != nil {
-		return err
-	}
-	result := struct {
-		Ctx struct {
-			Name string `json:"name"`
-		} `json:"userCtx"`
-	}{}
-	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
-	}
-	if result.Ctx.Name != a.Username {
-		return errors.Status(kivik.StatusBadResponse, "authentication failed")
-	}
-	// Everything looks good, lets make this official
 	a.transport = c.Transport
 	c.Transport = a
 	return nil

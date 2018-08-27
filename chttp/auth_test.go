@@ -2,7 +2,7 @@ package chttp
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -105,6 +105,98 @@ func (rt *mockRT) RoundTrip(_ *http.Request) (*http.Response, error) {
 	return rt.resp, rt.err
 }
 
+func TestAuthenticate(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close() // nolint: errcheck
+		var authed bool
+		if auth := r.Header.Get("Authorization"); auth == "Basic YWRtaW46YWJjMTIz" {
+			authed = true
+		}
+		if r.Method == http.MethodPost {
+			var result struct {
+				Name     string
+				Password string
+			}
+			_ = json.NewDecoder(r.Body).Decode(&result)
+			if result.Name == "admin" && result.Password == "abc123" {
+				authed = true
+				http.SetCookie(w, &http.Cookie{
+					Name:     kivik.SessionCookieName,
+					Value:    "auth-token",
+					Path:     "/",
+					HttpOnly: true,
+				})
+				w.WriteHeader(200)
+			}
+		}
+		if ses := r.Header.Get("Cookie"); ses == "AuthSession=auth-token" {
+			authed = true
+		}
+		if !authed {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if r.URL.Path == "/_session" {
+			_, _ = w.Write([]byte(`{"userCtx":{"name":"admin"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"foo":123}`))
+	}))
+
+	type authTest struct {
+		addr       string
+		auther     Authenticator
+		authErr    string
+		authStatus int
+		err        string
+		status     int
+	}
+	tests := testy.NewTable()
+	tests.Cleanup(s.Close)
+	tests.Add("unauthorized", authTest{
+		addr:   s.URL,
+		err:    "Unauthorized",
+		status: http.StatusUnauthorized,
+	})
+	tests.Add("basic auth", authTest{
+		addr:   s.URL,
+		auther: &BasicAuth{Username: "admin", Password: "abc123"},
+	})
+	tests.Add("cookie auth", authTest{
+		addr:   s.URL,
+		auther: &CookieAuth{Username: "admin", Password: "abc123"},
+	})
+	tests.Add("failed basic auth", authTest{
+		addr:   s.URL,
+		auther: &BasicAuth{Username: "foo"},
+		err:    "Unauthorized",
+		status: http.StatusUnauthorized,
+	})
+	tests.Add("failed cookie auth", authTest{
+		addr:       s.URL,
+		auther:     &CookieAuth{Username: "foo"},
+		authErr:    "Unauthorized",
+		authStatus: http.StatusUnauthorized,
+		err:        "Unauthorized",
+		status:     http.StatusUnauthorized,
+	})
+
+	tests.Run(t, func(t *testing.T, test authTest) {
+		ctx := context.Background()
+		c, err := New(ctx, test.addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test.auther != nil {
+			e := c.Auth(ctx, test.auther)
+			testy.StatusError(t, test.authErr, test.authStatus, e)
+		}
+		_, err = c.DoError(ctx, "GET", "/foo", nil)
+		testy.StatusError(t, test.err, test.status, err)
+	})
+}
+
 func TestCookieAuthAuthenticate(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -196,107 +288,6 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 			}
 			if d := diff.Interface(test.expectedCookie, cookie); d != nil {
 				t.Error(d)
-			}
-		})
-	}
-}
-
-func TestBasicAuthAuthenticate(t *testing.T) {
-	tests := []struct {
-		name   string
-		auth   *BasicAuth
-		client *Client
-		status int
-		err    string
-	}{
-		{
-			name:   "network error",
-			auth:   &BasicAuth{},
-			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusInternalServerError,
-			err:    "Get http://example.com/_session: net error",
-		},
-		{
-			name: "error response 1.6.1",
-			auth: &BasicAuth{Username: "invalid", Password: "invalid"},
-			client: newTestClient(&http.Response{
-				StatusCode: 401,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Tue, 31 Oct 2017 11:34:32 GMT"},
-					"Content-Type":   {"application/json"},
-					"Content-Length": {"67"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				ContentLength: 67,
-				Request:       &http.Request{Method: "GET"},
-				Body:          Body(`{"error":"unauthorized","reason":"Name or password is incorrect."}`),
-			}, nil),
-			status: kivik.StatusUnauthorized,
-			err:    "Unauthorized: Name or password is incorrect.",
-		},
-		{
-			name: "invalid JSON response",
-			auth: &BasicAuth{Username: "invalid", Password: "invalid"},
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Tue, 31 Oct 2017 11:34:32 GMT"},
-					"Content-Type":   {"application/json"},
-					"Content-Length": {"13"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				ContentLength: 13,
-				Request:       &http.Request{Method: "GET"},
-				Body:          Body(`invalid json`),
-			}, nil),
-			status: kivik.StatusBadResponse,
-			err:    "invalid character 'i' looking for beginning of value",
-		},
-		{
-			name: "wrong user name in response",
-			auth: &BasicAuth{Username: "admin", Password: "password"},
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Tue, 31 Oct 2017 11:34:32 GMT"},
-					"Content-Type":   {"application/json"},
-					"Content-Length": {"177"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				ContentLength: 177,
-				Request:       &http.Request{Method: "GET"},
-				Body:          Body(`{"ok":true,"userCtx":{"name":"other","roles":["_admin"]},"info":{"authentication_db":"_users","authentication_handlers":["oauth","cookie","default"],"authenticated":"default"}}`),
-			}, nil),
-			status: kivik.StatusBadResponse,
-			err:    "authentication failed",
-		},
-		{
-			name: "Success 1.6.1",
-			auth: &BasicAuth{Username: "admin", Password: "password"},
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Tue, 31 Oct 2017 11:34:32 GMT"},
-					"Content-Type":   {"application/json"},
-					"Content-Length": {"177"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				ContentLength: 177,
-				Request:       &http.Request{Method: "GET"},
-				Body:          Body(`{"ok":true,"userCtx":{"name":"admin","roles":["_admin"]},"info":{"authentication_db":"_users","authentication_handlers":["oauth","cookie","default"],"authenticated":"default"}}`),
-			}, nil),
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := test.auth.Authenticate(context.Background(), test.client)
-			testy.StatusError(t, test.err, test.status, err)
-			if test.client.Client.Transport != test.auth {
-				t.Errorf("transport not set as expected")
 			}
 		})
 	}

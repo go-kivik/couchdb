@@ -61,21 +61,6 @@ func TestNew(t *testing.T) {
 		},
 		func() newTest {
 			h := func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(kivik.StatusUnauthorized)
-			}
-			s := httptest.NewServer(http.HandlerFunc(h))
-			dsn, _ := url.Parse(s.URL)
-			dsn.User = url.UserPassword("user", "password")
-			return newTest{
-				name:       "auth failed",
-				dsn:        dsn.String(),
-				status:     kivik.StatusUnauthorized,
-				curlStatus: ExitNotRetrieved,
-				err:        "Unauthorized",
-			}
-		}(),
-		func() newTest {
-			h := func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(kivik.StatusOK)
 				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`)
 			}
