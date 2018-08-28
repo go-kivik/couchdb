@@ -88,8 +88,8 @@ func registerSuiteCouch22() {
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/NoAuth/chicken/DoFlush.status": kivik.StatusNotFound,
 		"Flush/Admin/chicken/DoFlush.status":  kivik.StatusNotFound,
-		"Flush/Admin/_duck/DoFlush.status":    kivik.StatusNotFound,
-		"Flush/NoAuth/_duck/DoFlush.status":   kivik.StatusUnauthorized,
+		// "Flush/Admin/_duck/DoFlush.status":    kivik.StatusNotFound, // Possible bug: https://github.com/apache/couchdb/issues/1585
+		"Flush/NoAuth/_duck/DoFlush.status": kivik.StatusUnauthorized,
 
 		"Delete/RW/Admin/group/MissingDoc.status":        kivik.StatusNotFound,
 		"Delete/RW/Admin/group/InvalidRevFormat.status":  kivik.StatusBadRequest,
