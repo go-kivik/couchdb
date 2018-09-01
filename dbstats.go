@@ -13,6 +13,16 @@ import (
 	"github.com/go-kivik/kivik/errors"
 )
 
+type dbStats struct {
+	driver.DBStats
+	Sizes struct {
+		File     int64 `json:"file"`
+		External int64 `json:"external"`
+		Active   int64 `json:"active"`
+	} `json:"sizes"`
+	UpdateSeq json.RawMessage `json:"update_seq"`
+}
+
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	res, err := d.Client.DoReq(ctx, kivik.MethodGet, d.dbName, nil)
 	if err != nil {
@@ -26,15 +36,7 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	if err != nil {
 		return nil, errors.WrapStatus(kivik.StatusNetworkError, err)
 	}
-	result := struct {
-		driver.DBStats
-		Sizes struct {
-			File     int64 `json:"file"`
-			External int64 `json:"external"`
-			Active   int64 `json:"active"`
-		} `json:"sizes"`
-		UpdateSeq json.RawMessage `json:"update_seq"`
-	}{}
+	result := dbStats{}
 	if err := json.Unmarshal(resBody, &result); err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
 	}
