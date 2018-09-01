@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"reflect"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type dbStats struct {
@@ -21,41 +19,73 @@ type dbStats struct {
 		Active   int64 `json:"active"`
 	} `json:"sizes"`
 	UpdateSeq json.RawMessage `json:"update_seq"`
+	rawBody   json.RawMessage
 }
 
-func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
-	res, err := d.Client.DoReq(ctx, kivik.MethodGet, d.dbName, nil)
-	if err != nil {
-		return nil, err
+func (s *dbStats) UnmarshalJSON(p []byte) error {
+	type dbStatsClone dbStats
+	c := dbStatsClone(*s)
+	if err := json.Unmarshal(p, &c); err != nil {
+		return err
 	}
-	defer res.Body.Close() // nolint: errcheck
-	if err = chttp.ResponseError(res); err != nil {
-		return nil, err
+	*s = dbStats(c)
+	s.rawBody = p
+	return nil
+}
+
+func (s *dbStats) driverStats() *driver.DBStats {
+	stats := &s.DBStats
+	if s.Sizes.File > 0 {
+		stats.DiskSize = s.Sizes.File
 	}
-	resBody, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusNetworkError, err)
+	if s.Sizes.External > 0 {
+		stats.ExternalSize = s.Sizes.External
 	}
-	result := dbStats{}
-	if err := json.Unmarshal(resBody, &result); err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+	if s.Sizes.Active > 0 {
+		stats.ActiveSize = s.Sizes.Active
 	}
-	stats := &result.DBStats
-	if result.Sizes.File > 0 {
-		stats.DiskSize = result.Sizes.File
-	}
-	if result.Sizes.External > 0 {
-		stats.ExternalSize = result.Sizes.External
-	}
-	if result.Sizes.Active > 0 {
-		stats.ActiveSize = result.Sizes.Active
-	}
-	stats.UpdateSeq = string(bytes.Trim(result.UpdateSeq, `"`))
+	stats.UpdateSeq = string(bytes.Trim(s.UpdateSeq, `"`))
 	// Reflection is used to preserve backward compatibility with Kivik stable
 	// 1.7.3 and unstable prior to 25 June 2018. The reflection hack can be
 	// removed at some point in the reasonable future.
 	if v := reflect.ValueOf(stats).Elem().FieldByName("RawResponse"); v.CanSet() {
-		v.Set(reflect.ValueOf(resBody))
+		v.Set(reflect.ValueOf(s.rawBody))
+	}
+	return stats
+}
+
+func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
+	result := dbStats{}
+	if _, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.dbName, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.driverStats(), nil
+}
+
+type dbsInfoRequest struct {
+	Keys []string `json:"keys"`
+}
+
+type dbsInfoResponse struct {
+	Key    string  `json:"key"`
+	DBInfo dbStats `json:"info"`
+	Error  string  `json:"error"`
+}
+
+func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBStats, error) {
+	opts := &chttp.Options{
+		Body: chttp.EncodeBody(dbsInfoRequest{Keys: dbnames}),
+	}
+	result := []dbsInfoResponse{}
+	_, err := c.DoJSON(context.Background(), kivik.MethodPost, "/_dbs_info", opts, &result)
+	if err != nil {
+		return nil, err
+	}
+	stats := make([]*driver.DBStats, len(result))
+	for i := range result {
+		if result[i].Error == "" {
+			stats[i] = result[i].DBInfo.driverStats()
+		}
 	}
 	return stats, nil
 }
