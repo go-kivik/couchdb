@@ -153,7 +153,13 @@ type Response struct {
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
 	defer r.Body.Close() // nolint: errcheck
-	return errors.WrapStatus(kivik.StatusBadResponse, json.NewDecoder(r.Body).Decode(i))
+	err := json.NewDecoder(r.Body).Decode(i)
+	switch err.(type) {
+	case *json.SyntaxError, *json.UnmarshalFieldError, *json.UnmarshalTypeError:
+		return errors.WrapStatus(kivik.StatusBadResponse, err)
+	default:
+		return errors.WrapStatus(kivik.StatusNetworkError, err)
+	}
 }
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
@@ -282,9 +288,8 @@ func fixPath(req *http.Request, path string) {
 	req.URL.RawPath = "/" + strings.TrimPrefix(parts[0], "/")
 }
 
-// EncodeBody JSON encodes i to r. A call to errFunc will block until encoding
-// has completed, then return the errur status of the encoding job. If an
-// encoding error occurs, cancel() called.
+// EncodeBody JSON encodes i to an io.ReadCloser. If an encoding error
+// occurs, it will be returned on the next read.
 func EncodeBody(i interface{}) io.ReadCloser {
 	r, w := io.Pipe()
 	go func() {
