@@ -153,7 +153,13 @@ type Response struct {
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
 	defer r.Body.Close() // nolint: errcheck
-	return errors.WrapStatus(kivik.StatusBadResponse, json.NewDecoder(r.Body).Decode(i))
+	err := json.NewDecoder(r.Body).Decode(i)
+	switch err.(type) {
+	case *json.SyntaxError, *json.UnmarshalFieldError, *json.UnmarshalTypeError:
+		return errors.WrapStatus(kivik.StatusBadResponse, err)
+	default:
+		return errors.WrapStatus(kivik.StatusNetworkError, err)
+	}
 }
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
