@@ -64,11 +64,20 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 
 // rowsQuery performs a query that returns a rows iterator.
 func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interface{}) (driver.Rows, error) {
-	options, err := optionsToParams(opts)
+	query, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path(path), &chttp.Options{Query: options})
+	options := &chttp.Options{Query: query}
+	method := kivik.MethodGet
+	if keys, ok := query["keys"]; ok {
+		method = kivik.MethodPost
+		options.Body = chttp.EncodeBody(map[string][]string{
+			"keys": keys,
+		})
+		delete(query, "keys")
+	}
+	resp, err := d.Client.DoReq(ctx, method, d.path(path), options)
 	if err != nil {
 		return nil, err
 	}
