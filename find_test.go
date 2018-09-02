@@ -26,14 +26,6 @@ func TestExplain(t *testing.T) {
 		err      string
 	}{
 		{
-			name: "CouchDB 1.6",
-			db: &db{
-				client: &client{Compat: CompatCouch16},
-			},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "invalid query",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
@@ -150,12 +142,6 @@ func TestCreateIndex(t *testing.T) {
 		err             string
 	}{
 		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "invalid JSON index",
 			db:     newTestDB(nil, nil),
 			index:  `invalid json`,
@@ -208,12 +194,6 @@ func TestGetIndexes(t *testing.T) {
 		status   int
 		err      string
 	}{
-		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
@@ -277,12 +257,6 @@ func TestDeleteIndex(t *testing.T) {
 		err             string
 	}{
 		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "no ddoc",
 			status: kivik.StatusBadRequest,
 			db:     newTestDB(nil, nil),
@@ -338,12 +312,6 @@ func TestFind(t *testing.T) {
 		status int
 		err    string
 	}{
-		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
 		{
 			name:   "invalid query json",
 			db:     newTestDB(nil, nil),
