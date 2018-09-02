@@ -85,6 +85,9 @@ func registerSuiteCouch22() {
 		"GetMeta/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
 		"GetMeta/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
 
+		"Rev/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
+		"Rev/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
+
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/NoAuth/chicken/DoFlush.status": kivik.StatusNotFound,
 		"Flush/Admin/chicken/DoFlush.status":  kivik.StatusNotFound,
