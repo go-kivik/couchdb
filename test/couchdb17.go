@@ -26,12 +26,12 @@ func registerSuiteCouch17() {
 		"AllDocs/NoAuth/_duck.status":        kivik.StatusBadRequest,
 
 		"Find.databases":     []string{"_users"},
-		"Find.status":        kivik.StatusNotImplemented, // Couchdb 1.7 doesn't support the find interface
-		"CreateIndex.status": kivik.StatusNotImplemented, // Couchdb 1.7 doesn't support the find interface
-		"GetIndexes.skip":    true,                       // Couchdb 1.7 doesn't support the find interface
-		"DeleteIndex.skip":   true,                       // Couchdb 1.7 doesn't support the find interface
+		"Find.status":        kivik.StatusBadRequest, // Couchdb 1.7 doesn't support the find interface
+		"CreateIndex.status": kivik.StatusBadRequest, // Couchdb 1.7 doesn't support the find interface
+		"GetIndexes.skip":    true,                   // Couchdb 1.7 doesn't support the find interface
+		"DeleteIndex.skip":   true,                   // Couchdb 1.7 doesn't support the find interface
 		"Explain.databases":  []string{"_users"},
-		"Explain.status":     kivik.StatusNotImplemented, // Couchdb 1.7 doesn't support the find interface
+		"Explain.status":     kivik.StatusBadRequest, // Couchdb 1.7 doesn't support the find interface
 
 		"DBExists.databases":              []string{"_users", "chicken", "_duck"},
 		"DBExists/Admin/_users.exists":    true,
