@@ -12,7 +12,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/go-kivik/kivik"
@@ -292,11 +291,10 @@ func fixPath(req *http.Request, path string) {
 // EncodeBody JSON encodes i to an io.ReadCloser. If an encoding error
 // occurs, it will be returned on the next read.
 func EncodeBody(i interface{}) io.ReadCloser {
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	done := make(chan struct{})
 	r, w := io.Pipe()
 	go func() {
-		defer wg.Done()
+		defer close(done)
 		var err error
 		switch t := i.(type) {
 		case []byte:
@@ -316,20 +314,20 @@ func EncodeBody(i interface{}) io.ReadCloser {
 	}()
 	return &ebReader{
 		ReadCloser: r,
-		wg:         wg,
+		done:       done,
 	}
 }
 
 type ebReader struct {
 	io.ReadCloser
-	wg *sync.WaitGroup
+	done <-chan struct{}
 }
 
 var _ io.ReadCloser = &ebReader{}
 
 func (r *ebReader) Close() error {
 	err := r.ReadCloser.Close()
-	r.wg.Wait()
+	<-r.done
 	return err
 }
 
