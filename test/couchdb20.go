@@ -10,8 +10,8 @@ func registerSuiteCouch20() {
 	kiviktest.RegisterSuite(kiviktest.SuiteCouch20, kt.SuiteConfig{
 		"AllDBs.expected": []string{"_global_changes", "_replicator", "_users"},
 
-		"CreateDB/lock/RW/NoAuth.status":         kivik.StatusUnauthorized,
-		"CreateDB/lock/RW/Admin/Recreate.status": kivik.StatusPreconditionFailed,
+		"CreateDB/RW/NoAuth.status":         kivik.StatusUnauthorized,
+		"CreateDB/RW/Admin/Recreate.status": kivik.StatusPreconditionFailed,
 
 		"DestroyDB/RW/NoAuth.status":              kivik.StatusUnauthorized,
 		"DestroyDB/RW/Admin/NonExistantDB.status": kivik.StatusNotFound,
