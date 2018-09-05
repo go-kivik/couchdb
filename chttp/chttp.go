@@ -208,6 +208,7 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	if opts != nil {
 		if opts.Body != nil {
 			body = opts.Body
+			defer opts.Body.Close() // nolint: errcheck
 		}
 	}
 	req, err := c.NewRequest(ctx, method, path, body)
