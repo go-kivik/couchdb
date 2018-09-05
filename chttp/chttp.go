@@ -5,12 +5,14 @@ package chttp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -22,8 +24,21 @@ const (
 	typeJSON = "application/json"
 )
 
+// The default UserAgent values
+const (
+	UserAgent = "Kivik chttp"
+	Version   = "2.0.0-prerelease"
+)
+
 // Client represents a client connection. It embeds an *http.Client
 type Client struct {
+	// UserAgent is used to set the User-Agent header product string. If unset,
+	// a default value is used.
+	UserAgent string
+	// UserAgentVersion is used to set the User-Agent product version. If unset,
+	// the version of this module is used.
+	UserAgentVersion string
+
 	*http.Client
 
 	rawDSN string
@@ -187,13 +202,14 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	if err != nil {
 		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
 	}
-	url := *c.dsn // Make a copy
-	url.Path = reqPath.Path
-	url.RawQuery = reqPath.RawQuery
-	req, err := http.NewRequest(method, url.String(), body)
+	u := *c.dsn // Make a copy
+	u.Path = reqPath.Path
+	u.RawQuery = reqPath.RawQuery
+	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadAPICall, err)
 	}
+	req.Header.Add("User-Agent", c.userAgent())
 	return req.WithContext(ctx), nil
 }
 
@@ -424,4 +440,17 @@ func ExitStatus(err error) int {
 		return statuser.ExitStatus()
 	}
 	return 0
+}
+
+func (c *Client) userAgent() string {
+	ua := c.UserAgent
+	uav := c.UserAgentVersion
+	if ua == "" {
+		ua = UserAgent
+	}
+	if uav == "" {
+		uav = Version
+	}
+	return fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s)",
+		ua, uav, runtime.Version(), runtime.GOARCH, runtime.GOOS)
 }

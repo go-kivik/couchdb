@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,11 @@ import (
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/errors"
 )
+
+var defaultUA = func() string {
+	c := &Client{}
+	return c.userAgent()
+}()
 
 func TestNew(t *testing.T) {
 	type newTest struct {
@@ -605,8 +611,10 @@ func TestNewRequest(t *testing.T) {
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
-				Header:     http.Header{},
-				Host:       "example.com",
+				Header: http.Header{
+					"User-Agent": []string{defaultUA},
+				},
+				Host: "example.com",
 			},
 		},
 	}
@@ -737,6 +745,7 @@ func TestDoReq(t *testing.T) {
 						expected := httptest.NewRequest("PUT", "/foo", nil)
 						expected.Header.Add("Accept", "application/json")
 						expected.Header.Add("Content-Type", "application/json")
+						expected.Header.Add("User-Agent", defaultUA)
 						if d := diff.HTTPRequest(expected, r); d != nil {
 							t.Error(d)
 						}
@@ -763,6 +772,7 @@ func TestDoReq(t *testing.T) {
 						expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
 						expected.Header.Add("Accept", "application/json")
 						expected.Header.Add("Content-Type", "application/json")
+						expected.Header.Add("User-Agent", defaultUA)
 						if d := diff.HTTPRequest(expected, r); d != nil {
 							t.Error(d)
 						}
@@ -785,6 +795,17 @@ func TestDoReq(t *testing.T) {
 			client: newCustomClient("http://foo.com/dbroot/", func(r *http.Request) (*http.Response, error) {
 				if r.URL.Path != "/dbroot/foo" {
 					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+				}
+				return &http.Response{}, nil
+			}),
+			method: "GET",
+			path:   "/foo",
+		},
+		{
+			name: "user agent",
+			client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+				if ua := r.UserAgent(); ua != defaultUA {
+					return nil, errors.Errorf("Unexpected User Agent: %s", ua)
 				}
 				return &http.Response{}, nil
 			}),
@@ -972,6 +993,39 @@ func TestNetError(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := netError(test.input)
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
+		})
+	}
+}
+
+func TestUserAgent(t *testing.T) {
+	tests := []struct {
+		name     string
+		ua, uav  string
+		expected string
+	}{
+		{
+			name: "defaults",
+			expected: fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s)",
+				UserAgent, Version, runtime.Version(), runtime.GOARCH, runtime.GOOS),
+		},
+		{
+			name: "custom",
+			ua:   "Oinky",
+			uav:  "1.2.3",
+			expected: fmt.Sprintf("Oinky/1.2.3 (Language=%s; Platform=%s/%s)",
+				runtime.Version(), runtime.GOARCH, runtime.GOOS),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := &Client{
+				UserAgent:        test.ua,
+				UserAgentVersion: test.uav,
+			}
+			result := c.userAgent()
+			if result != test.expected {
+				t.Errorf("Unexpected user agent: %s", result)
+			}
 		})
 	}
 }
