@@ -11,7 +11,6 @@ import (
 func TestFullCommit(t *testing.T) {
 	tests := []struct {
 		name     string
-		def      bool
 		input    map[string]interface{}
 		expected bool
 		status   int
@@ -52,28 +51,10 @@ func TestFullCommit(t *testing.T) {
 			input:    nil,
 			expected: false,
 		},
-		{
-			name:     "true default, no option",
-			def:      true,
-			input:    nil,
-			expected: true,
-		},
-		{
-			name:     "override default",
-			def:      true,
-			input:    map[string]interface{}{OptionFullCommit: false},
-			expected: false,
-		},
-		{
-			name:     "default and option agree",
-			def:      true,
-			input:    map[string]interface{}{OptionFullCommit: true},
-			expected: true,
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := fullCommit(test.def, test.input)
+			result, err := fullCommit(test.input)
 			testy.StatusError(t, test.err, test.status, err)
 			if result != test.expected {
 				t.Errorf("Unexpected result: %v", result)

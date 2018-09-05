@@ -5,7 +5,8 @@ import (
 	"github.com/go-kivik/kivik/errors"
 )
 
-func fullCommit(fullCommit bool, opts map[string]interface{}) (bool, error) {
+func fullCommit(opts map[string]interface{}) (bool, error) {
+	var fullCommit bool
 	for _, key := range []string{optionForceCommit, OptionFullCommit} {
 		fc, ok := opts[key]
 		if ok {

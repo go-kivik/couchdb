@@ -27,7 +27,7 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 		return "", missingArg("att.Content")
 	}
 
-	fullCommit, err := fullCommit(false, options)
+	fullCommit, err := fullCommit(options)
 	if err != nil {
 		return "", err
 	}
@@ -151,7 +151,7 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, 
 		return "", missingArg("filename")
 	}
 
-	fullCommit, err := fullCommit(false, options)
+	fullCommit, err := fullCommit(options)
 	if err != nil {
 		return "", err
 	}
