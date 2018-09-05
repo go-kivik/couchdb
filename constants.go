@@ -16,7 +16,3 @@ const (
 	//    row, err := db.Get(ctx, "doc_id", kivik.Options(couchdb.OptionIfNoneMatch: "1-xxx"))
 	OptionIfNoneMatch = "If-None-Match"
 )
-
-// optionForceCommit is an unfortunately mispelled version of "full-commit",
-// retained for backward compatibility.
-const optionForceCommit = "force_commit"
