@@ -46,6 +46,8 @@ func (d *Couch) NewClient(ctx context.Context, dsn string) (driver.Client, error
 	if err != nil {
 		return nil, err
 	}
+	chttpClient.UserAgent = "Kivik CouchDB driver"
+	chttpClient.UserAgentVersion = Version
 	c := &client{
 		Client: chttpClient,
 	}
