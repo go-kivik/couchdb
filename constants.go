@@ -1,5 +1,8 @@
 package couchdb
 
+// Version is the current version of this package.
+const Version = "2.0.0-prerelease"
+
 const (
 	// OptionFullCommit is the option key used to set the `X-Couch-Full-Commit`
 	// header in the request when set to true.
