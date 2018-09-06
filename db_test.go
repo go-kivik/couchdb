@@ -28,6 +28,18 @@ func TestAllDocs(t *testing.T) {
 	testy.Error(t, "Get http://example.com/testdb/_all_docs: test error", err)
 }
 
+func TestDesignDocs(t *testing.T) {
+	db := newTestDB(nil, errors.New("test error"))
+	_, err := db.DesignDocs(context.Background(), nil)
+	testy.Error(t, "Get http://example.com/testdb/_design_docs: test error", err)
+}
+
+func TestLocalDocs(t *testing.T) {
+	db := newTestDB(nil, errors.New("test error"))
+	_, err := db.LocalDocs(context.Background(), nil)
+	testy.Error(t, "Get http://example.com/testdb/_local_docs: test error", err)
+}
+
 func TestQuery(t *testing.T) {
 	db := newTestDB(nil, errors.New("test error"))
 	_, err := db.Query(context.Background(), "ddoc", "view", nil)
