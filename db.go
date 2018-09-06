@@ -92,6 +92,16 @@ func (d *db) AllDocs(ctx context.Context, opts map[string]interface{}) (driver.R
 	return d.rowsQuery(ctx, "_all_docs", opts)
 }
 
+// DesignDocs returns all of the documents in the database.
+func (d *db) DesignDocs(ctx context.Context, opts map[string]interface{}) (driver.Rows, error) {
+	return d.rowsQuery(ctx, "_design_docs", opts)
+}
+
+// LocalDocs returns all of the documents in the database.
+func (d *db) LocalDocs(ctx context.Context, opts map[string]interface{}) (driver.Rows, error) {
+	return d.rowsQuery(ctx, "_local_docs", opts)
+}
+
 // Query queries a view.
 func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]interface{}) (driver.Rows, error) {
 	return d.rowsQuery(ctx, fmt.Sprintf("_design/%s/_view/%s", chttp.EncodeDocID(ddoc), chttp.EncodeDocID(view)), opts)
