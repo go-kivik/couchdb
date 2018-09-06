@@ -392,7 +392,7 @@ func (c *Client) DoError(ctx context.Context, method, path string, opts *Options
 	if err != nil {
 		return res, err
 	}
-	defer func() { _ = res.Body.Close() }()
+	defer res.Body.Close() // nolint: errcheck
 	err = ResponseError(res)
 	return res, err
 }

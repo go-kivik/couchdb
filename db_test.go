@@ -1674,3 +1674,100 @@ func TestMultipartAttachmentsClose(t *testing.T) {
 
 	testy.Error(t, err, atts.Close())
 }
+
+func TestPurge(t *testing.T) {
+	expectedDocMap := map[string][]string{
+		"foo": {"1-abc", "2-def"},
+		"bar": {"3-ghi"},
+	}
+	tests := []struct {
+		name   string
+		db     *db
+		docMap map[string][]string
+
+		expected *driver.PurgeResult
+		err      string
+		status   int
+	}{
+		{
+			name: "1.7.1, nothing deleted",
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				if r.Method != "POST" {
+					return nil, errors.Errorf("Unexpected method: %s", r.Method)
+				}
+				if r.URL.Path != "/testdb/_purge" {
+					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+				}
+				if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+					return nil, errors.Errorf("Unexpected Content-Type: %s", ct)
+				}
+				defer r.Body.Close() // nolint: errcheck
+				var result interface{}
+				if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
+					return nil, err
+				}
+				if d := diff.AsJSON(expectedDocMap, result); d != nil {
+					return nil, errors.Errorf("Unexpected payload:\n%s", d)
+				}
+				return &http.Response{
+					StatusCode: kivik.StatusOK,
+					Header: http.Header{
+						"Server":         []string{"CouchDB/1.7.1 (Erlang OTP/17)"},
+						"Date":           []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
+						"Content-Type":   []string{"text/plain; charset=utf-8"},
+						"Content-Length": []string{"28"},
+						"Cache-Control":  []string{"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"purge_seq":3,"purged":{}}`)),
+				}, nil
+			}),
+			docMap:   expectedDocMap,
+			expected: &driver.PurgeResult{Seq: 3, Purged: map[string][]string{}},
+		},
+		{
+			name: "1.7.1, all deleted",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Server":         []string{"CouchDB/1.7.1 (Erlang OTP/17)"},
+					"Date":           []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
+					"Content-Type":   []string{"text/plain; charset=utf-8"},
+					"Content-Length": []string{"168"},
+					"Cache-Control":  []string{"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"purge_seq":5,"purged":{"foo":["1-abc","2-def"],"bar":["3-ghi"]}}`)),
+			}, nil),
+			docMap:   expectedDocMap,
+			expected: &driver.PurgeResult{Seq: 5, Purged: expectedDocMap},
+		},
+		{
+			name: "2.2.0, not supported",
+			db: newTestDB(&http.Response{
+				StatusCode:    501,
+				ContentLength: 75,
+				Header: http.Header{
+					"Server":              []string{"CouchDB/2.2.0 (Erlang OTP/19)"},
+					"Date":                []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
+					"Content-Type":        []string{"application/json"},
+					"Content-Length":      []string{"75"},
+					"Cache-Control":       []string{"must-revalidate"},
+					"X-Couch-Request-ID":  []string{"03e91291c8"},
+					"X-CouchDB-Body-Time": []string{"0"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"error":"not_implemented","reason":"this feature is not yet implemented"}`)),
+			}, nil),
+			docMap: expectedDocMap,
+			err:    "Not Implemented: this feature is not yet implemented",
+			status: kivik.StatusNotImplemented,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Purge(context.Background(), test.docMap)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
