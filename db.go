@@ -436,3 +436,12 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	defer resp.Body.Close() // nolint: errcheck
 	return chttp.GetRev(resp)
 }
+
+func (d *db) Purge(ctx context.Context, docMap map[string][]string) (*driver.PurgeResult, error) {
+	result := &driver.PurgeResult{}
+	options := &chttp.Options{
+		Body: chttp.EncodeBody(docMap),
+	}
+	_, err := d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_purge"), options, &result)
+	return result, err
+}
