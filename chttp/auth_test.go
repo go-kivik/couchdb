@@ -126,7 +126,6 @@ func TestAuthenticate(t *testing.T) {
 					Path:     "/",
 					HttpOnly: true,
 				})
-				w.WriteHeader(200)
 			}
 		}
 		if ses := r.Header.Get("Cookie"); ses == "AuthSession=auth-token" {
@@ -146,6 +145,7 @@ func TestAuthenticate(t *testing.T) {
 
 	type authTest struct {
 		addr       string
+		jar        http.CookieJar
 		auther     Authenticator
 		authErr    string
 		authStatus int
@@ -181,12 +181,32 @@ func TestAuthenticate(t *testing.T) {
 		err:        "Unauthorized",
 		status:     http.StatusUnauthorized,
 	})
+	tests.Add("already authenticated with cookie", func() interface{} {
+		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, _ := url.Parse(s.URL)
+		jar.SetCookies(u, []*http.Cookie{{
+			Name:     kivik.SessionCookieName,
+			Value:    "auth-token",
+			Path:     "/",
+			HttpOnly: true,
+		}})
+		return authTest{
+			addr: s.URL,
+			jar:  jar,
+		}
+	})
 
 	tests.Run(t, func(t *testing.T, test authTest) {
 		ctx := context.Background()
 		c, err := New(ctx, test.addr)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if test.jar != nil {
+			c.Client.Jar = test.jar
 		}
 		if test.auther != nil {
 			e := c.Auth(ctx, test.auther)
