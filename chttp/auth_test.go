@@ -322,12 +322,12 @@ func TestCookie(t *testing.T) {
 		},
 		{
 			name:     "No dsn",
-			auth:     &CookieAuth{jar: &cookiejar.Jar{}},
+			auth:     &CookieAuth{},
 			expected: nil,
 		},
 		{
 			name:     "no cookies",
-			auth:     &CookieAuth{jar: &cookiejar.Jar{}, dsn: &url.URL{}},
+			auth:     &CookieAuth{},
 			expected: nil,
 		},
 		{
@@ -346,8 +346,12 @@ func TestCookie(t *testing.T) {
 					{Name: "other", Value: "bar"},
 				})
 				return &CookieAuth{
-					jar: jar,
-					dsn: dsn,
+					client: &Client{
+						dsn: dsn,
+						Client: &http.Client{
+							Jar: jar,
+						},
+					},
 				}
 			}(),
 			expected: &http.Cookie{Name: kivik.SessionCookieName, Value: "foo"},

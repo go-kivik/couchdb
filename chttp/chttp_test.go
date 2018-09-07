@@ -75,21 +75,20 @@ func TestNew(t *testing.T) {
 			dsn, _ := url.Parse(s.URL + "/")
 			authDSN.User = url.UserPassword("user", "password")
 			jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+			c := &Client{
+				Client: &http.Client{Jar: jar},
+				rawDSN: authDSN.String(),
+				dsn:    dsn,
+			}
+			c.auth = &CookieAuth{
+				Username: "user",
+				Password: "password",
+				client:   c,
+			}
 			return newTest{
-				name: "auth success",
-				dsn:  authDSN.String(),
-				expected: &Client{
-					Client: &http.Client{Jar: jar},
-					rawDSN: authDSN.String(),
-					dsn:    dsn,
-					auth: &CookieAuth{
-						Username: "user",
-						Password: "password",
-						dsn:      dsn,
-						setJar:   true,
-						jar:      jar,
-					},
-				},
+				name:     "auth success",
+				dsn:      authDSN.String(),
+				expected: c,
 			}
 		}(),
 		{
