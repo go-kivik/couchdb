@@ -80,18 +80,17 @@ func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 	return ValidateAuth(ctx, a.Username, c)
 }
 
-// Cookie returns the current session cookie and true, if found, or nil and
-// false if not.
-func (a *CookieAuth) Cookie() (*http.Cookie, bool) {
+// Cookie returns the current session cookie if found, or nil if not.
+func (a *CookieAuth) Cookie() *http.Cookie {
 	if a.jar == nil || a.dsn == nil {
-		return nil, false
+		return nil
 	}
 	for _, cookie := range a.jar.Cookies(a.dsn) {
 		if cookie.Name == kivik.SessionCookieName {
-			return cookie, true
+			return cookie
 		}
 	}
-	return nil, false
+	return nil
 }
 
 // ValidateAuth validates that the requested username is authenticated.
