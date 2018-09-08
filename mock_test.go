@@ -1,7 +1,6 @@
 package couchdb
 
 import (
-	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -49,7 +48,7 @@ func newTestClient(response *http.Response, err error) *client {
 }
 
 func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
-	chttpClient, _ := chttp.New(context.Background(), "http://example.com/")
+	chttpClient, _ := chttp.New("http://example.com/")
 	chttpClient.Client.Transport = customTransport(fn)
 	return &client{
 		Client: chttpClient,

@@ -136,7 +136,7 @@ func TestAuthenticate(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test authTest) {
 		ctx := context.Background()
-		c, err := New(ctx, test.addr)
+		c, err := New(test.addr)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -144,7 +144,7 @@ func TestAuthenticate(t *testing.T) {
 			c.Client.Jar = test.jar
 		}
 		if test.auther != nil {
-			e := c.Auth(ctx, test.auther)
+			e := c.Auth(test.auther)
 			testy.StatusError(t, test.authErr, test.authStatus, e)
 		}
 		_, err = c.DoError(ctx, "GET", "/foo", nil)

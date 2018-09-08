@@ -58,15 +58,14 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 	})
 
 	tests.Run(t, func(t *testing.T, test cookieTest) {
-		ctx := context.Background()
-		c, err := New(ctx, test.dsn)
+		c, err := New(test.dsn)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if e := c.Auth(ctx, test.auth); e != nil {
+		if e := c.Auth(test.auth); e != nil {
 			t.Fatal(e)
 		}
-		_, err = c.DoError(ctx, "GET", "/foo", nil)
+		_, err = c.DoError(context.Background(), "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
 		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
 			t.Error(d)
