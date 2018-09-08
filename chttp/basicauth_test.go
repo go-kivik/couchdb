@@ -51,8 +51,12 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 			s := httptest.NewServer(http.HandlerFunc(h))
 			return rtTest{
 				name: "default transport",
-				auth: &BasicAuth{Username: "foo", Password: "bar"},
-				req:  httptest.NewRequest("GET", s.URL, nil),
+				auth: &BasicAuth{
+					Username:  "foo",
+					Password:  "bar",
+					transport: http.DefaultTransport,
+				},
+				req: httptest.NewRequest("GET", s.URL, nil),
 				expected: &http.Response{
 					Status:     "200 OK",
 					StatusCode: 200,
