@@ -22,9 +22,7 @@ var _ Authenticator = &CookieAuth{}
 
 // Authenticate initiates a session with the CouchDB server.
 func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
-	if err := a.setCookieJar(c); err != nil {
-		return err // impossible error
-	}
+	a.setCookieJar(c)
 	a.client = c
 	opts := &Options{
 		Body: EncodeBody(a),
