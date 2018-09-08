@@ -16,6 +16,9 @@ type CookieAuth struct {
 	Password string `json:"password"`
 
 	client *Client
+	// transport stores the original transport that is overridden by this auth
+	// mechanism
+	transport http.RoundTripper
 }
 
 var _ Authenticator = &CookieAuth{}
@@ -24,13 +27,12 @@ var _ Authenticator = &CookieAuth{}
 func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 	a.setCookieJar(c)
 	a.client = c
-	opts := &Options{
-		Body: EncodeBody(a),
+	a.transport = c.Transport
+	if a.transport == nil {
+		a.transport = http.DefaultTransport
 	}
-	if _, err := c.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
-		return err
-	}
-	return ValidateAuth(ctx, a.Username, c)
+	c.Transport = a
+	return nil
 }
 
 // Cookie returns the current session cookie if found, or nil if not.
@@ -44,4 +46,24 @@ func (a *CookieAuth) Cookie() *http.Cookie {
 		}
 	}
 	return nil
+}
+
+var authInProgress = &struct{ name string }{"in progress"}
+
+// RoundTrip fulfills the http.RoundTripper interface. It sets
+// (re-)authenticates when the cookie has expired or is not yet set.
+func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx := req.Context()
+	if inProg, _ := ctx.Value(authInProgress).(bool); !inProg {
+		// this means we aren't in the process of authenticating already, so
+		// we should do that.
+		ctx = context.WithValue(ctx, authInProgress, true)
+		opts := &Options{
+			Body: EncodeBody(a),
+		}
+		if _, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
+			return nil, err
+		}
+	}
+	return a.transport.RoundTrip(req)
 }

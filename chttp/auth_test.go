@@ -84,9 +84,25 @@ func TestAuthenticate(t *testing.T) {
 		addr:   s.URL,
 		auther: &BasicAuth{Username: "admin", Password: "abc123"},
 	})
-	tests.Add("cookie auth", authTest{
-		addr:   s.URL,
-		auther: &CookieAuth{Username: "admin", Password: "abc123"},
+	tests.Add("cookie auth success", func(t *testing.T) interface{} {
+		sv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("Content-Type", "application/json")
+			h.Set("Date", "Sat, 08 Sep 2018 15:49:29 GMT")
+			h.Set("Server", "CouchDB/2.2.0 (Erlang OTP/19)")
+			if r.URL.Path == "/_session" {
+				h.Set("Set-Cookie", "AuthSession=YWRtaW46NUI5M0VGODk6eLUGqXf0HRSEV9PPLaZX86sBYes; Version=1; Path=/; HttpOnly")
+				w.WriteHeader(200)
+				w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
+			} else {
+				w.WriteHeader(200)
+				w.Write([]byte(`{"ok":true}`))
+			}
+		}))
+		return authTest{
+			addr:   sv.URL,
+			auther: &CookieAuth{Username: "foo", Password: "bar"},
+		}
 	})
 	tests.Add("failed basic auth", authTest{
 		addr:   s.URL,
@@ -95,12 +111,10 @@ func TestAuthenticate(t *testing.T) {
 		status: http.StatusUnauthorized,
 	})
 	tests.Add("failed cookie auth", authTest{
-		addr:       s.URL,
-		auther:     &CookieAuth{Username: "foo"},
-		authErr:    "Unauthorized",
-		authStatus: http.StatusUnauthorized,
-		err:        "Unauthorized",
-		status:     http.StatusUnauthorized,
+		addr:   s.URL,
+		auther: &CookieAuth{Username: "foo"},
+		err:    "Get " + s.URL + "/foo: Unauthorized",
+		status: http.StatusUnauthorized,
 	})
 	tests.Add("already authenticated with cookie", func() interface{} {
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
