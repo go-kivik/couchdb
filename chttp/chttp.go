@@ -47,10 +47,9 @@ type Client struct {
 }
 
 // New returns a connection to a remote CouchDB server. If credentials are
-// included in the URL, CookieAuth is attempted first, with BasicAuth used as
-// a fallback. If both fail, an error is returned. If you wish to use some other
-// authentication mechanism, do not specify credentials in the URL, and instead
-// call the Auth() method later.
+// included in the URL, requests will be authenticated using Cookie Auth. To
+// use HTTP BasicAuth or some other authentication mechanism, do not specify
+// credentials in the URL, and instead call the Auth() method later.
 func New(ctx context.Context, dsn string) (*Client, error) {
 	dsnURL, err := parseDSN(dsn)
 	if err != nil {
@@ -65,7 +64,11 @@ func New(ctx context.Context, dsn string) (*Client, error) {
 	}
 	if user != nil {
 		password, _ := user.Password()
-		if err := c.defaultAuth(ctx, user.Username(), password); err != nil {
+		err := c.Auth(ctx, &CookieAuth{
+			Username: user.Username(),
+			Password: password,
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -92,20 +95,6 @@ func parseDSN(dsn string) (*url.URL, error) {
 // DSN returns the unparsed DSN used to connect.
 func (c *Client) DSN() string {
 	return c.rawDSN
-}
-
-func (c *Client) defaultAuth(ctx context.Context, username, password string) error {
-	err := c.Auth(ctx, &CookieAuth{
-		Username: username,
-		Password: password,
-	})
-	if err == nil {
-		return nil
-	}
-	return c.Auth(ctx, &BasicAuth{
-		Username: username,
-		Password: password,
-	})
 }
 
 // Auth authenticates using the provided Authenticator.
