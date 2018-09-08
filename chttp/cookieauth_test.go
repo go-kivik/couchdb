@@ -35,6 +35,9 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 				w.WriteHeader(200)
 				_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
 			} else {
+				if cookie := r.Header.Get("Cookie"); cookie != "AuthSession=YWRtaW46NUI5M0VGODk6eLUGqXf0HRSEV9PPLaZX86sBYes" {
+					t.Errorf("Expected cookie not found: %s", cookie)
+				}
 				w.WriteHeader(200)
 				_, _ = w.Write([]byte(`{"ok":true}`))
 			}

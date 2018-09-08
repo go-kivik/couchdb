@@ -55,14 +55,18 @@ var authInProgress = &struct{ name string }{"in progress"}
 func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	if inProg, _ := ctx.Value(authInProgress).(bool); !inProg {
-		// this means we aren't in the process of authenticating already, so
-		// we should do that.
-		ctx = context.WithValue(ctx, authInProgress, true)
-		opts := &Options{
-			Body: EncodeBody(a),
-		}
-		if _, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
-			return nil, err
+		// this means we aren't in the process of authenticating already
+		if _, ok := req.Header["Cookie"]; !ok {
+			// No cookie set, so attempt auth
+			ctx = context.WithValue(ctx, authInProgress, true)
+			opts := &Options{
+				Body: EncodeBody(a),
+			}
+			if _, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
+				return nil, err
+			}
+			// Now make sure the original request is authenticated
+			req.AddCookie(a.Cookie())
 		}
 	}
 	return a.transport.RoundTrip(req)
