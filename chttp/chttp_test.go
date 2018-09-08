@@ -68,7 +68,7 @@ func TestNew(t *testing.T) {
 		func() newTest {
 			h := func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(kivik.StatusOK)
-				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`)
+				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`) // nolint: errcheck
 			}
 			s := httptest.NewServer(http.HandlerFunc(h))
 			authDSN, _ := url.Parse(s.URL)
