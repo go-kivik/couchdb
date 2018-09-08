@@ -100,7 +100,7 @@ func (c *Client) DSN() string {
 // Auth authenticates using the provided Authenticator.
 func (c *Client) Auth(ctx context.Context, a Authenticator) error {
 	if c.auth != nil {
-		return errors.New("auth already set; log out first")
+		return errors.New("auth already set")
 	}
 	if err := a.Authenticate(ctx, c); err != nil {
 		return err
