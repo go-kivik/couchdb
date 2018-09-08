@@ -2,11 +2,10 @@ package chttp
 
 import (
 	"context"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/flimzy/diff"
@@ -16,95 +15,56 @@ import (
 )
 
 func TestCookieAuthAuthenticate(t *testing.T) {
-	tests := []struct {
-		name           string
+	type cookieTest struct {
+		dsn            string
 		auth           *CookieAuth
-		client         *Client
-		status         int
 		err            string
+		status         int
 		expectedCookie *http.Cookie
-	}{
-		{
-			name: "standard request",
-			auth: &CookieAuth{
-				Username: "foo",
-				Password: "bar",
-			},
-			client: &Client{
-				Client: &http.Client{
-					Transport: &mockRT{
-						resp: &http.Response{
-							Header: http.Header{
-								"Set-Cookie": []string{
-									"AuthSession=cm9vdDo1MEJCRkYwMjq0LO0ylOIwShrgt8y-UkhI-c6BGw; Version=1; Path=/; HttpOnly",
-								},
-							},
-							Body: ioutil.NopCloser(strings.NewReader(`{"userCtx":{"name":"foo"}}`)),
-						},
-					},
-				},
-				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
-			},
+	}
+
+	tests := testy.NewTable()
+	tests.Add("success", func(t *testing.T) interface{} {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("Content-Type", "application/json")
+			h.Set("Date", "Sat, 08 Sep 2018 15:49:29 GMT")
+			h.Set("Server", "CouchDB/2.2.0 (Erlang OTP/19)")
+			if r.URL.Path == "/_session" {
+				h.Set("Set-Cookie", "AuthSession=YWRtaW46NUI5M0VGODk6eLUGqXf0HRSEV9PPLaZX86sBYes; Version=1; Path=/; HttpOnly")
+				w.WriteHeader(200)
+				_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
+			} else {
+				w.WriteHeader(200)
+				_, _ = w.Write([]byte(`{"ok":true}`))
+			}
+		}))
+		return cookieTest{
+			dsn:  s.URL,
+			auth: &CookieAuth{Username: "foo", Password: "bar"},
 			expectedCookie: &http.Cookie{
 				Name:  kivik.SessionCookieName,
-				Value: "cm9vdDo1MEJCRkYwMjq0LO0ylOIwShrgt8y-UkhI-c6BGw",
+				Value: "YWRtaW46NUI5M0VGODk6eLUGqXf0HRSEV9PPLaZX86sBYes",
 			},
-		},
-		{
-			name: "Invalid JSON response",
-			auth: &CookieAuth{
-				Username: "foo",
-				Password: "bar",
-			},
-			client: &Client{
-				Client: &http.Client{
-					Jar: &cookiejar.Jar{},
-					Transport: &mockRT{
-						resp: &http.Response{
-							Body: ioutil.NopCloser(strings.NewReader(`{"asdf"}`)),
-						},
-					},
-				},
-				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
-			},
-			status: kivik.StatusBadResponse,
-			err:    "invalid character '}' after object key",
-		},
-		{
-			name: "names don't match",
-			auth: &CookieAuth{
-				Username: "foo",
-				Password: "bar",
-			},
-			client: &Client{
-				Client: &http.Client{
-					Transport: &mockRT{
-						resp: &http.Response{
-							Header: http.Header{
-								"Set-Cookie": []string{
-									"AuthSession=cm9vdDo1MEJCRkYwMjq0LO0ylOIwShrgt8y-UkhI-c6BGw; Version=1; Path=/; HttpOnly",
-								},
-							},
-							Body: ioutil.NopCloser(strings.NewReader(`{"userCtx":{"name":"notfoo"}}`)),
-						},
-					},
-				},
-				dsn: &url.URL{Scheme: "http", Host: "foo.com"},
-			},
-			status: kivik.StatusBadResponse,
-			err:    "auth response for unexpected user",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := test.auth.Authenticate(context.Background(), test.client)
-			testy.StatusError(t, test.err, test.status, err)
-			cookie := test.auth.Cookie()
-			if d := diff.Interface(test.expectedCookie, cookie); d != nil {
-				t.Error(d)
-			}
-		})
-	}
+		}
+	})
+
+	tests.Run(t, func(t *testing.T, test cookieTest) {
+		ctx := context.Background()
+		c, err := New(ctx, test.dsn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e := c.Auth(ctx, test.auth); e != nil {
+			t.Fatal(e)
+		}
+		_, err = c.DoError(ctx, "GET", "/foo", nil)
+		testy.StatusError(t, test.err, test.status, err)
+		cookie := test.auth.Cookie()
+		if d := diff.Interface(test.expectedCookie, cookie); d != nil {
+			t.Error(d)
+		}
+	})
 }
 
 func TestCookie(t *testing.T) {
