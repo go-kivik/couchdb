@@ -93,10 +93,10 @@ func TestAuthenticate(t *testing.T) {
 			if r.URL.Path == "/_session" {
 				h.Set("Set-Cookie", "AuthSession=YWRtaW46NUI5M0VGODk6eLUGqXf0HRSEV9PPLaZX86sBYes; Version=1; Path=/; HttpOnly")
 				w.WriteHeader(200)
-				w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
+				_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
 			} else {
 				w.WriteHeader(200)
-				w.Write([]byte(`{"ok":true}`))
+				_, _ = w.Write([]byte(`{"ok":true}`))
 			}
 		}))
 		return authTest{
