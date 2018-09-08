@@ -34,15 +34,12 @@ func ValidateAuth(ctx context.Context, username string, client *Client) error {
 	return nil
 }
 
-func (a *CookieAuth) setCookieJar(c *Client) error {
+func (a *CookieAuth) setCookieJar(c *Client) {
 	// If a jar is already set, just use it
 	if c.Jar != nil {
-		return nil
+		return
 	}
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		return err // impossible error
-	}
+	// cookiejar.New never returns an error
+	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	c.Jar = jar
-	return nil
 }
