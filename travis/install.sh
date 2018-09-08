@@ -82,8 +82,8 @@ case "$1" in
         generate
     ;;
     "linter")
-        go get -u gopkg.in/alecthomas/gometalinter.v1
-        gometalinter.v1 --install
+        go get -u gopkg.in/alecthomas/gometalinter.v2
+        gometalinter.v2 --install
     ;;
     "coverage")
         generate
