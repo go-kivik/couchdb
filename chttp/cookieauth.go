@@ -24,7 +24,7 @@ type CookieAuth struct {
 var _ Authenticator = &CookieAuth{}
 
 // Authenticate initiates a session with the CouchDB server.
-func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
+func (a *CookieAuth) Authenticate(c *Client) error {
 	a.setCookieJar(c)
 	a.client = c
 	a.transport = c.Transport

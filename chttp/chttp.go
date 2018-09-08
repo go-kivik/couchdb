@@ -50,7 +50,7 @@ type Client struct {
 // included in the URL, requests will be authenticated using Cookie Auth. To
 // use HTTP BasicAuth or some other authentication mechanism, do not specify
 // credentials in the URL, and instead call the Auth() method later.
-func New(ctx context.Context, dsn string) (*Client, error) {
+func New(dsn string) (*Client, error) {
 	dsnURL, err := parseDSN(dsn)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func New(ctx context.Context, dsn string) (*Client, error) {
 	}
 	if user != nil {
 		password, _ := user.Password()
-		err := c.Auth(ctx, &CookieAuth{
+		err := c.Auth(&CookieAuth{
 			Username: user.Username(),
 			Password: password,
 		})
@@ -98,11 +98,11 @@ func (c *Client) DSN() string {
 }
 
 // Auth authenticates using the provided Authenticator.
-func (c *Client) Auth(ctx context.Context, a Authenticator) error {
+func (c *Client) Auth(a Authenticator) error {
 	if c.auth != nil {
 		return errors.New("auth already set")
 	}
-	if err := a.Authenticate(ctx, c); err != nil {
+	if err := a.Authenticate(c); err != nil {
 		return err
 	}
 	c.auth = a

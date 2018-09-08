@@ -110,7 +110,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := New(context.Background(), test.dsn)
+			result, err := New(test.dsn)
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
