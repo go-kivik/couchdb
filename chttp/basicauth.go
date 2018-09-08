@@ -21,16 +21,15 @@ var _ Authenticator = &BasicAuth{}
 // on outbound requests.
 func (a *BasicAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.SetBasicAuth(a.Username, a.Password)
-	transport := a.transport
-	if transport == nil {
-		transport = http.DefaultTransport
-	}
-	return transport.RoundTrip(req)
+	return a.transport.RoundTrip(req)
 }
 
 // Authenticate sets HTTP Basic Auth headers for the client.
 func (a *BasicAuth) Authenticate(_ context.Context, c *Client) error {
 	a.transport = c.Transport
+	if a.transport == nil {
+		a.transport = http.DefaultTransport
+	}
 	c.Transport = a
 	return nil
 }
