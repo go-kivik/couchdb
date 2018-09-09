@@ -79,9 +79,11 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(path), options)
 	if err != nil {
+		fmt.Printf("rowsQuery DoReq: %s\n", err)
 		return nil, err
 	}
 	if err = chttp.ResponseError(resp); err != nil {
+		fmt.Printf("rowsQuery ResponseError: %s\n", err)
 		return nil, err
 	}
 	return newRows(resp.Body), nil

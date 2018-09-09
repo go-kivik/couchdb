@@ -2,7 +2,9 @@ package chttp
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/go-kivik/kivik"
 )
@@ -69,5 +71,10 @@ func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 			req.AddCookie(a.Cookie())
 		}
 	}
-	return a.transport.RoundTrip(req)
+	resp, err := a.transport.RoundTrip(req)
+	if err != nil || resp.StatusCode >= 400 {
+		x, _ := httputil.DumpRequest(req, false)
+		fmt.Printf("%s\nERR: %s\n", (string(x)), err)
+	}
+	return resp, err
 }

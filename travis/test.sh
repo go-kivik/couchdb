@@ -17,7 +17,9 @@ function join_list {
 case "$1" in
     "standard")
         ./travis/test_version.sh
-        go test -race $(go list ./... | grep -v /vendor/)
+        go test -race $(go list ./... | grep -v /vendor/) || true
+        docker logs couchdb22 --tail 20
+        exit 1
     ;;
     "linter")
         gometalinter.v2 --config .linter.json ./...
