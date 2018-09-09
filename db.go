@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -79,14 +80,23 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(path), options)
 	if err != nil {
-		fmt.Printf("rowsQuery DoReq: %s\n", err)
+		fmt.Printf("[%d] rowsQuery DoReq: %s\n", getGID(), err)
 		return nil, err
 	}
 	if err = chttp.ResponseError(resp); err != nil {
-		fmt.Printf("rowsQuery ResponseError: %s\n", err)
+		fmt.Printf("[%d] rowsQuery ResponseError: %s\n", getGID(), err)
 		return nil, err
 	}
 	return newRows(resp.Body), nil
+}
+
+func getGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
 }
 
 // AllDocs returns all of the documents in the database.
