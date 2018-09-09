@@ -25,12 +25,17 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 
 	tests := testy.NewTable()
 	tests.Add("success", func(t *testing.T) interface{} {
+		var sessCounter int
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h := w.Header()
 			h.Set("Content-Type", "application/json")
 			h.Set("Date", "Sat, 08 Sep 2018 15:49:29 GMT")
 			h.Set("Server", "CouchDB/2.2.0 (Erlang OTP/19)")
 			if r.URL.Path == "/_session" {
+				sessCounter++
+				if sessCounter > 1 {
+					t.Fatal("Too many calls to /_session")
+				}
 				h.Set("Set-Cookie", "AuthSession=YWRtaW46NUI5M0VGODk6eLUGqXf0HRSEV9PPLaZX86sBYes; Version=1; Path=/; HttpOnly")
 				w.WriteHeader(200)
 				_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
@@ -63,8 +68,14 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 		}
 		_, err = c.DoError(ctx, "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
-		cookie := test.auth.Cookie()
-		if d := diff.Interface(test.expectedCookie, cookie); d != nil {
+		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
+			t.Error(d)
+		}
+
+		// Do it again; should be idempotent
+		_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+		testy.StatusError(t, test.err, test.status, err)
+		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
 			t.Error(d)
 		}
 	})
