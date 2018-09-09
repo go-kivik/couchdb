@@ -1,10 +1,13 @@
 package chttp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"runtime"
+	"strconv"
 
 	"github.com/go-kivik/kivik"
 )
@@ -55,26 +58,46 @@ var authInProgress = &struct{ name string }{"in progress"}
 // RoundTrip fulfills the http.RoundTripper interface. It sets
 // (re-)authenticates when the cookie has expired or is not yet set.
 func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("X-GID", fmt.Sprintf("%d", getGID()))
+	p := fmt.Sprintf("%d:%s%s", getGID(), a.client.DSN(), req.URL.Path)
+	fmt.Printf("[%s] RoundTrip\n", p)
 	ctx := req.Context()
 	if inProg, _ := ctx.Value(authInProgress).(bool); !inProg {
 		// this means we aren't in the process of authenticating already
-		if cookie := a.Cookie(); cookie == nil {
+		if _, ok := req.Header["Cookie"]; !ok {
+			fmt.Printf("[%s] Attempting to authenticate\n", p)
 			// No cookie set, so attempt auth
 			ctx = context.WithValue(ctx, authInProgress, true)
 			opts := &Options{
 				Body: EncodeBody(a),
 			}
-			if _, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
+			res, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts)
+			if err != nil {
 				return nil, err
 			}
+			x, _ := httputil.DumpResponse(res, false)
+			fmt.Printf("[%s] Auth response:%s\n", p, string(x))
+			c := a.Cookie()
+			fmt.Printf("[%s] New cookie: %s\n", p, c)
 			// Now make sure the original request is authenticated
-			req.AddCookie(a.Cookie())
+			req.AddCookie(c)
+			x, _ = httputil.DumpRequest(req, false)
+			fmt.Printf("[%s] Request: %s\n", p, (string(x)))
 		}
 	}
 	resp, err := a.transport.RoundTrip(req)
 	if err != nil || resp.StatusCode >= 400 {
 		x, _ := httputil.DumpRequest(req, false)
-		fmt.Printf("%s\nERR: %s\n", (string(x)), err)
+		fmt.Printf("[%s] %s\nERR: %s\n", p, (string(x)), err)
 	}
 	return resp, err
+}
+
+func getGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
 }
