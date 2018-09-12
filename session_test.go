@@ -52,7 +52,7 @@ func TestSession(t *testing.T) {
 				w.WriteHeader(test.status)
 				_, _ = w.Write([]byte(test.body))
 			}))
-			client, err := kivik.New(context.Background(), "couch", s.URL)
+			client, err := kivik.New("couch", s.URL)
 			if err != nil {
 				t.Fatal(err)
 			}

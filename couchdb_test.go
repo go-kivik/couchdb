@@ -44,7 +44,7 @@ func TestNewClient(t *testing.T) {
 				defer test.cleanup()
 			}
 			driver := &Couch{}
-			result, err := driver.NewClient(context.Background(), test.dsn)
+			result, err := driver.NewClient(test.dsn)
 			testy.StatusError(t, test.err, test.status, err)
 			if _, ok := result.(*client); !ok {
 				t.Errorf("Unexpected type returned: %t", result)
