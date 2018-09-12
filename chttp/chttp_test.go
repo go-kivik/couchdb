@@ -80,11 +80,14 @@ func TestNew(t *testing.T) {
 				rawDSN: authDSN.String(),
 				dsn:    dsn,
 			}
-			c.auth = &CookieAuth{
-				Username: "user",
-				Password: "password",
-				client:   c,
+			auth := &CookieAuth{
+				Username:  "user",
+				Password:  "password",
+				client:    c,
+				transport: http.DefaultTransport,
 			}
+			c.auth = auth
+			c.Client.Transport = auth
 			return newTest{
 				name:     "auth success",
 				dsn:      authDSN.String(),

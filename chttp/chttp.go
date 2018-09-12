@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/go-kivik/kivik"
@@ -44,6 +45,7 @@ type Client struct {
 	rawDSN string
 	dsn    *url.URL
 	auth   Authenticator
+	authMU sync.Mutex
 }
 
 // New returns a connection to a remote CouchDB server. If credentials are
