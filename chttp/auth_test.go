@@ -126,7 +126,6 @@ func TestAuthenticate(t *testing.T) {
 					Path:     "/",
 					HttpOnly: true,
 				})
-				w.WriteHeader(200)
 			}
 		}
 		if ses := r.Header.Get("Cookie"); ses == "AuthSession=auth-token" {
@@ -146,6 +145,7 @@ func TestAuthenticate(t *testing.T) {
 
 	type authTest struct {
 		addr       string
+		jar        http.CookieJar
 		auther     Authenticator
 		authErr    string
 		authStatus int
@@ -181,12 +181,32 @@ func TestAuthenticate(t *testing.T) {
 		err:        "Unauthorized",
 		status:     http.StatusUnauthorized,
 	})
+	tests.Add("already authenticated with cookie", func() interface{} {
+		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, _ := url.Parse(s.URL)
+		jar.SetCookies(u, []*http.Cookie{{
+			Name:     kivik.SessionCookieName,
+			Value:    "auth-token",
+			Path:     "/",
+			HttpOnly: true,
+		}})
+		return authTest{
+			addr: s.URL,
+			jar:  jar,
+		}
+	})
 
 	tests.Run(t, func(t *testing.T, test authTest) {
 		ctx := context.Background()
 		c, err := New(ctx, test.addr)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if test.jar != nil {
+			c.Client.Jar = test.jar
 		}
 		if test.auther != nil {
 			e := c.Auth(ctx, test.auther)
@@ -281,11 +301,7 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.auth.Authenticate(context.Background(), test.client)
 			testy.StatusError(t, test.err, test.status, err)
-			cookie, ok := test.auth.Cookie()
-			if !ok {
-				t.Errorf("Expected cookie")
-				return
-			}
+			cookie := test.auth.Cookie()
 			if d := diff.Interface(test.expectedCookie, cookie); d != nil {
 				t.Error(d)
 			}
@@ -298,25 +314,21 @@ func TestCookie(t *testing.T) {
 		name     string
 		auth     *CookieAuth
 		expected *http.Cookie
-		found    bool
 	}{
 		{
 			name:     "No cookie jar",
 			auth:     &CookieAuth{},
 			expected: nil,
-			found:    false,
 		},
 		{
 			name:     "No dsn",
 			auth:     &CookieAuth{jar: &cookiejar.Jar{}},
 			expected: nil,
-			found:    false,
 		},
 		{
 			name:     "no cookies",
 			auth:     &CookieAuth{jar: &cookiejar.Jar{}, dsn: &url.URL{}},
 			expected: nil,
-			found:    false,
 		},
 		{
 			name: "cookie found",
@@ -339,15 +351,11 @@ func TestCookie(t *testing.T) {
 				}
 			}(),
 			expected: &http.Cookie{Name: kivik.SessionCookieName, Value: "foo"},
-			found:    true,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, found := test.auth.Cookie()
-			if found != test.found {
-				t.Errorf("Unexpected found: %T", found)
-			}
+			result := test.auth.Cookie()
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
