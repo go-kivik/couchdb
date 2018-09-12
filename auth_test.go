@@ -19,7 +19,7 @@ type mockAuther struct {
 
 var _ chttp.Authenticator = &mockAuther{}
 
-func (a *mockAuther) Authenticate(ctx context.Context, c *chttp.Client) error {
+func (a *mockAuther) Authenticate(c *chttp.Client) error {
 	a.authCalls++
 	return a.authErr
 }

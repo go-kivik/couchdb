@@ -1,7 +1,6 @@
 package chttp
 
 import (
-	"context"
 	"net/http/cookiejar"
 
 	"golang.org/x/net/publicsuffix"
@@ -9,7 +8,7 @@ import (
 
 // Authenticator is an interface that provides authentication to a server.
 type Authenticator interface {
-	Authenticate(context.Context, *Client) error
+	Authenticate(*Client) error
 }
 
 func (a *CookieAuth) setCookieJar(c *Client) {

@@ -1,7 +1,6 @@
 package chttp
 
 import (
-	"context"
 	"net/http"
 )
 
@@ -25,7 +24,7 @@ func (a *BasicAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // Authenticate sets HTTP Basic Auth headers for the client.
-func (a *BasicAuth) Authenticate(_ context.Context, c *Client) error {
+func (a *BasicAuth) Authenticate(c *Client) error {
 	a.transport = c.Transport
 	if a.transport == nil {
 		a.transport = http.DefaultTransport

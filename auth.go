@@ -11,7 +11,7 @@ import (
 
 func (c *client) Authenticate(ctx context.Context, a interface{}) error {
 	if auth, ok := a.(chttp.Authenticator); ok {
-		return auth.Authenticate(ctx, c.Client)
+		return auth.Authenticate(c.Client)
 	}
 	if auth, ok := a.(Authenticator); ok {
 		return auth.auth(ctx, c)

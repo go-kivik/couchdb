@@ -41,8 +41,8 @@ var _ driver.Client = &client{}
 // CookieAuth (or BasicAuth if compiled with GopherJS). If you wish to use a
 // different auth mechanism, do not specify credentials here, and instead call
 // Authenticate() later.
-func (d *Couch) NewClient(ctx context.Context, dsn string) (driver.Client, error) {
-	chttpClient, err := chttp.New(ctx, dsn)
+func (d *Couch) NewClient(_ context.Context, dsn string) (driver.Client, error) {
+	chttpClient, err := chttp.New(dsn)
 	if err != nil {
 		return nil, err
 	}
