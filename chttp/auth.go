@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/cookiejar"
-	"net/url"
 
 	"golang.org/x/net/publicsuffix"
 
@@ -55,11 +54,7 @@ type CookieAuth struct {
 	Username string `json:"name"`
 	Password string `json:"password"`
 
-	// Set to true if the authenticator created the cookie jar; It will then
-	// also destroy it on logout.
-	setJar bool
-	jar    http.CookieJar
-	dsn    *url.URL
+	client *Client
 }
 
 var _ Authenticator = &CookieAuth{}
@@ -69,8 +64,7 @@ func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 	if err := a.setCookieJar(c); err != nil {
 		return err // impossible error
 	}
-	a.jar = c.Jar
-	a.dsn = c.dsn
+	a.client = c
 	opts := &Options{
 		Body: EncodeBody(a),
 	}
@@ -82,10 +76,10 @@ func (a *CookieAuth) Authenticate(ctx context.Context, c *Client) error {
 
 // Cookie returns the current session cookie if found, or nil if not.
 func (a *CookieAuth) Cookie() *http.Cookie {
-	if a.jar == nil || a.dsn == nil {
+	if a.client == nil {
 		return nil
 	}
-	for _, cookie := range a.jar.Cookies(a.dsn) {
+	for _, cookie := range a.client.Jar.Cookies(a.client.dsn) {
 		if cookie.Name == kivik.SessionCookieName {
 			return cookie
 		}
@@ -122,6 +116,5 @@ func (a *CookieAuth) setCookieJar(c *Client) error {
 		return err // impossible error
 	}
 	c.Jar = jar
-	a.setJar = true
 	return nil
 }

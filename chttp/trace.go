@@ -8,12 +8,12 @@ import (
 	"net/http"
 )
 
-type clientTraceContextKey struct{}
+var clientTraceContextKey = &struct{ name string }{"client trace"}
 
 // ContextClientTrace returns the ClientTrace associated with the
 // provided context. If none, it returns nil.
 func ContextClientTrace(ctx context.Context) *ClientTrace {
-	trace, _ := ctx.Value(clientTraceContextKey{}).(*ClientTrace)
+	trace, _ := ctx.Value(clientTraceContextKey).(*ClientTrace)
 	return trace
 }
 
@@ -52,7 +52,7 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 	if trace == nil {
 		panic("nil trace")
 	}
-	return context.WithValue(ctx, clientTraceContextKey{}, trace)
+	return context.WithValue(ctx, clientTraceContextKey, trace)
 }
 
 func (t *ClientTrace) httpResponse(r *http.Response) {
