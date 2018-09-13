@@ -33,12 +33,9 @@ const (
 
 // Client represents a client connection. It embeds an *http.Client
 type Client struct {
-	// UserAgent is used to set the User-Agent header product string. If unset,
-	// a default value is used.
-	UserAgent string
-	// UserAgentVersion is used to set the User-Agent product version. If unset,
-	// the version of this module is used.
-	UserAgentVersion string
+	// UserAgents is appended to set the User-Agent header. Typically it should
+	// contain pairs of product name and version.
+	UserAgents []string
 
 	*http.Client
 
@@ -434,14 +431,7 @@ func ExitStatus(err error) int {
 }
 
 func (c *Client) userAgent() string {
-	ua := c.UserAgent
-	uav := c.UserAgentVersion
-	if ua == "" {
-		ua = UserAgent
-	}
-	if uav == "" {
-		uav = Version
-	}
-	return fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s)",
-		ua, uav, runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	ua := fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s)",
+		UserAgent, Version, runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	return strings.Join(append([]string{ua}, c.UserAgents...), " ")
 }
