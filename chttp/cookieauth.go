@@ -82,6 +82,8 @@ func (a *CookieAuth) authenticate(req *http.Request) error {
 	if _, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
 		return err
 	}
-	req.AddCookie(a.Cookie())
+	if c := a.Cookie(); c != nil {
+		req.AddCookie(c)
+	}
 	return nil
 }

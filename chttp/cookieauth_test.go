@@ -56,6 +56,19 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 			},
 		}
 	})
+	tests.Add("cookie not set", func(t *testing.T) interface{} {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("Content-Type", "application/json")
+			h.Set("Date", "Sat, 08 Sep 2018 15:49:29 GMT")
+			h.Set("Server", "CouchDB/2.2.0 (Erlang OTP/19)")
+			w.WriteHeader(200)
+		}))
+		return cookieTest{
+			dsn:  s.URL,
+			auth: &CookieAuth{Username: "foo", Password: "bar"},
+		}
+	})
 
 	tests.Run(t, func(t *testing.T, test cookieTest) {
 		c, err := New(test.dsn)
