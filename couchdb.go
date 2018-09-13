@@ -3,6 +3,7 @@ package couchdb
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/go-kivik/couchdb/chttp"
@@ -46,8 +47,10 @@ func (d *Couch) NewClient(dsn string) (driver.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	chttpClient.UserAgent = "Kivik CouchDB driver"
-	chttpClient.UserAgentVersion = Version
+	chttpClient.UserAgents = []string{
+		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
+		fmt.Sprintf("Kivik CouchDB driver/%s", Version),
+	}
 	c := &client{
 		Client: chttpClient,
 	}
