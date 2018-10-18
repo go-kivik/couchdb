@@ -1,4 +1,3 @@
-// Package couchdb is a driver for connecting with a CouchDB server over HTTP.
 package couchdb
 
 import (
