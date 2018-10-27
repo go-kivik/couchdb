@@ -19,7 +19,11 @@ func (c *client) Authenticate(ctx context.Context, a interface{}) error {
 	return errors.Status(kivik.StatusUnknownError, "kivik: invalid authenticator")
 }
 
-// Authenticator is a CouchDB authenticator.
+// Authenticator is a CouchDB authenticator. Direct use of the Authenticator
+// interface is for advanced usage. Typically, it is sufficient to provide
+// a username and password in the connecting DSN to perform authentication.
+// Only use one of these provided authenticators if you have specific, special
+// needs.
 type Authenticator interface {
 	auth(context.Context, *client) error
 }
@@ -51,4 +55,26 @@ func (a *xportAuth) auth(_ context.Context, c *client) error {
 //     client.Authenticate(setXport)
 func SetTransport(t http.RoundTripper) Authenticator {
 	return &xportAuth{t}
+}
+
+type authFunc func(context.Context, *client) error
+
+func (a authFunc) auth(ctx context.Context, c *client) error {
+	return a(ctx, c)
+}
+
+// BasicAuth provides support for HTTP Basic authentication.
+func BasicAuth(user, password string) Authenticator {
+	auth := chttp.BasicAuth{Username: user, Password: password}
+	return authFunc(func(ctx context.Context, c *client) error {
+		return auth.Authenticate(c.Client)
+	})
+}
+
+// CookieAuth provides support for CouchDB cookie-based authentication.
+func CookieAuth(user, password string) Authenticator {
+	auth := chttp.CookieAuth{Username: user, Password: password}
+	return authFunc(func(ctx context.Context, c *client) error {
+		return auth.Authenticate(c.Client)
+	})
 }
