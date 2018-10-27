@@ -2,10 +2,9 @@ package couchdb
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
+	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -13,11 +12,12 @@ import (
 
 func TestNewClient(t *testing.T) {
 	type ncTest struct {
-		name    string
-		dsn     string
-		status  int
-		err     string
-		cleanup func()
+		name       string
+		driver     *Couch
+		dsn        string
+		expectedUA []string
+		status     int
+		err        string
 	}
 	tests := []ncTest{
 		{
@@ -26,28 +26,39 @@ func TestNewClient(t *testing.T) {
 			status: kivik.StatusBadAPICall,
 			err:    `parse http://foo.com/%xxx: invalid URL escape "%xx"`,
 		},
-		func() ncTest {
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
-			s := httptest.NewServer(handler)
-			return ncTest{
-				name: "success",
-				dsn:  s.URL,
-				cleanup: func() {
-					s.Close()
-				},
-			}
-		}(),
+		{
+			name: "success",
+			dsn:  "http://foo.com/",
+			expectedUA: []string{
+				"Kivik/" + kivik.KivikVersion,
+				"Kivik CouchDB driver/" + Version,
+			},
+		},
+		{
+			name:   "User Agent",
+			dsn:    "http://foo.com/",
+			driver: &Couch{UserAgent: "test/foo"},
+			expectedUA: []string{
+				"Kivik/" + kivik.KivikVersion,
+				"Kivik CouchDB driver/" + Version,
+				"test/foo",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.cleanup != nil {
-				defer test.cleanup()
+			driver := test.driver
+			if driver == nil {
+				driver = &Couch{}
 			}
-			driver := &Couch{}
 			result, err := driver.NewClient(test.dsn)
 			testy.StatusError(t, test.err, test.status, err)
-			if _, ok := result.(*client); !ok {
+			client, ok := result.(*client)
+			if !ok {
 				t.Errorf("Unexpected type returned: %t", result)
+			}
+			if d := diff.Interface(test.expectedUA, client.Client.UserAgents); d != nil {
+				t.Error(d)
 			}
 		})
 	}
