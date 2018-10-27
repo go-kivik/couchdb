@@ -11,7 +11,11 @@ import (
 )
 
 // Couch represents the parent driver instance.
-type Couch struct{}
+type Couch struct {
+	// If provided, UserAgent is appended to the User-Agent header on all
+	// outbound requests.
+	UserAgent string
+}
 
 var _ driver.Driver = &Couch{}
 
@@ -50,10 +54,12 @@ func (d *Couch) NewClient(dsn string) (driver.Client, error) {
 		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
 		fmt.Sprintf("Kivik CouchDB driver/%s", Version),
 	}
-	c := &client{
-		Client: chttpClient,
+	if d.UserAgent != "" {
+		chttpClient.UserAgents = append(chttpClient.UserAgents, d.UserAgent)
 	}
-	return c, nil
+	return &client{
+		Client: chttpClient,
+	}, nil
 }
 
 func (c *client) DB(_ context.Context, dbName string, _ map[string]interface{}) (driver.DB, error) {
