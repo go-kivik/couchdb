@@ -310,9 +310,14 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 	if err != nil {
 		return "", err
 	}
+	params, err := optionsToParams(options)
+	if err != nil {
+		return "", err
+	}
 	opts := &chttp.Options{
 		Body:       chttp.EncodeBody(doc),
 		FullCommit: fullCommit,
+		Query:      params,
 	}
 	var result struct {
 		ID  string `json:"id"`
