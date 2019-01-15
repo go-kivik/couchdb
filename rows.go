@@ -100,8 +100,8 @@ func (r *rows) begin() error {
 		}
 		shouldConsume := true
 		switch key {
-		case "docs":
 		case "rows":
+		case "docs":
 			r.isFindRows = true
 		case "results":
 			r.isBulkGetRows = true
