@@ -19,6 +19,8 @@ type bulkResults struct {
 
 var _ driver.BulkResults = &bulkResults{}
 
+var bulkGetNotImplemented = errors.Status(kivik.StatusNotImplemented, "kivik: _bulk_get interface not implemented prior to CouchDB 2.0.0")
+
 func newBulkResults(body io.ReadCloser) (*bulkResults, error) {
 	dec := json.NewDecoder(body)
 	// Consume the opening '[' char
@@ -106,4 +108,25 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		return nil, bulkErr
 	}
 	return results, err
+}
+
+func (d *db) BulkGet(ctx context.Context, docs []driver.BulkDocReference, options map[string]interface{}) (driver.Rows, error) {
+	if d.client.noBulkGet || d.client.Compat == CompatCouch16 {
+		return nil, bulkGetNotImplemented
+	}
+	if options == nil {
+		options = make(map[string]interface{})
+	}
+	options["docs"] = docs
+	opts := &chttp.Options{
+		Body: chttp.EncodeBody(options),
+	}
+	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_get", nil), opts)
+	if err != nil {
+		return nil, err
+	}
+	if err = chttp.ResponseError(resp); err != nil {
+		return nil, err
+	}
+	return newRows(resp.Body), nil
 }

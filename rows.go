@@ -23,6 +23,8 @@ type rows struct {
 	closed bool
 	// isFindRows is set to true if this result set is from the _find interface.
 	isFindRows bool
+	// isBulkGetRows is set to true if the result sit is from the _bulk_get interface.
+	isBulkGetRows bool
 }
 
 var _ driver.Rows = &rows{}
@@ -96,8 +98,17 @@ func (r *rows) begin() error {
 			// The JSON parser should never permit this
 			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
 		}
-		if key == "rows" || key == "docs" {
-			r.isFindRows = key == "docs"
+		shouldConsume := true
+		switch key {
+		case "docs":
+		case "rows":
+			r.isFindRows = true
+		case "results":
+			r.isBulkGetRows = true
+		default:
+			shouldConsume = false
+		}
+		if shouldConsume {
 			// Consume the first '['
 			return consumeDelim(r.dec, json.Delim('['))
 		}
@@ -166,6 +177,9 @@ func (r *rows) nextRow(row *driver.Row) error {
 	}
 	if r.isFindRows {
 		return r.dec.Decode(&row.Doc)
+	}
+	if r.isBulkGetRows {
+		return r.dec.Decode(&row.Result)
 	}
 	return r.dec.Decode(row)
 }

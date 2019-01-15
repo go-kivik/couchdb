@@ -48,7 +48,8 @@ type client struct {
 
 	// noFind will be set to true if the Mango _find support is found not to be
 	// supported.
-	noFind bool
+	noFind    bool
+	noBulkGet bool
 }
 
 var _ driver.Client = &client{}
@@ -92,9 +93,11 @@ func (c *client) setCompatMode(ctx context.Context) {
 		case strings.HasPrefix(info.Version, "1.6"):
 			c.Compat = CompatCouch16
 			c.schedulerDetected = &schedulerSupported
+			c.noBulkGet = true
 		case strings.HasPrefix(info.Version, "1.7"):
 			c.Compat = CompatCouch16
 			c.noFind = true
+			c.noBulkGet = true
 			c.schedulerDetected = &schedulerSupported
 		}
 	}
