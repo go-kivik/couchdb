@@ -1,0 +1,47 @@
+package couchdb
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik/driver"
+)
+
+func (d *db) BulkGet(ctx context.Context, docs []driver.BulkDocReference, options map[string]interface{}) (driver.Rows, error) {
+	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_get"), nil)
+	if err != nil {
+		return nil, err
+	}
+	if err = chttp.ResponseError(resp); err != nil {
+		return nil, err
+	}
+	return newRows(resp.Body), nil
+}
+
+// BulkGetError represents an error for a single document returned by a
+// GetBulk call.
+type BulkGetError struct {
+	ID     string `json:"id"`
+	Rev    string `json:"rev"`
+	Err    string `json:"error"`
+	Reason string `json:"reason"`
+}
+
+var _ error = &BulkGetError{}
+
+func (e *BulkGetError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Err, e.Reason)
+}
+
+type bulkResultDoc struct {
+	Doc   json.RawMessage `json:"ok,omitempty"`
+	Error *BulkGetError   `json:"error,omitempty"`
+}
+
+type bulkResult struct {
+	ID   string          `json:"id"`
+	Docs []bulkResultDoc `json:"docs"`
+}

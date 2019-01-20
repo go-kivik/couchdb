@@ -49,6 +49,27 @@ func newFindRows(in io.ReadCloser) *rows {
 	return r
 }
 
+func newBulkGetRows(in io.ReadCloser) *rows {
+	r := &rows{
+		body:        in,
+		expectedKey: "results",
+	}
+	r.decodeRow = func(row *driver.Row) error {
+		var result bulkResult
+		if err := r.dec.Decode(&result); err != nil {
+			return err
+		}
+		row.ID = result.ID
+		row.Doc = result.Docs[0].Doc
+		row.Error = nil
+		if err := result.Docs[0].Error; err != nil {
+			row.Error = err
+		}
+		return nil
+	}
+	return r
+}
+
 func (r *rows) Offset() int64 {
 	return r.offset
 }
