@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
@@ -74,4 +75,15 @@ func (u *couchUpdates) Next(update *driver.DBUpdate) error {
 
 func (u *couchUpdates) Close() error {
 	return u.body.Close()
+}
+
+// Ping queries the /_up endpoint, and returns true if there are no errors, or
+// if a 400 (Bad Request) is returned, and the Server: header indicates a server
+// version prior to 2.x.
+func (c *client) Ping(ctx context.Context) bool {
+	resp, err := c.DoError(ctx, kivik.MethodHead, "/_up", nil)
+	if kivik.StatusCode(err) == kivik.StatusBadRequest {
+		return strings.HasPrefix(resp.Header.Get("Server"), "CouchDB/1.")
+	}
+	return err == nil
 }

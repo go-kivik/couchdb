@@ -306,3 +306,58 @@ func TestUpdatesClose(t *testing.T) {
 		t.Errorf("Failed to close")
 	}
 }
+
+func TestPing(t *testing.T) {
+	type pingTest struct {
+		name     string
+		client   *client
+		expected bool
+	}
+
+	tests := []pingTest{
+		{
+			name: "Couch 1.6",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusBadRequest,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header: http.Header{
+					"Server": []string{"CouchDB/1.6.1 (Erlang OTP/17)"},
+				},
+			}, nil),
+			expected: true,
+		},
+		{
+			name: "Couch 2.x offline",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusNotFound,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+			}, nil),
+			expected: false,
+		},
+		{
+			name: "Couch 2.x online",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+			}, nil),
+			expected: true,
+		},
+		{
+			name:     "network error",
+			client:   newTestClient(nil, errors.New("network error")),
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := test.client.Ping(context.Background())
+			if result != test.expected {
+				t.Errorf("Unexpected result: %t", result)
+			}
+		})
+	}
+}

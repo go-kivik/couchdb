@@ -380,7 +380,9 @@ func (c *Client) DoError(ctx context.Context, method, path string, opts *Options
 	if err != nil {
 		return res, err
 	}
-	defer res.Body.Close() // nolint: errcheck
+	if res.Body != nil {
+		defer res.Body.Close() // nolint: errcheck
+	}
 	err = ResponseError(res)
 	return res, err
 }

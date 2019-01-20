@@ -39,7 +39,9 @@ func ResponseError(resp *http.Response) error {
 	if resp.StatusCode < 400 {
 		return nil
 	}
-	defer func() { _ = resp.Body.Close() }()
+	if resp.Body != nil {
+		defer resp.Body.Close() // nolint: errcheck
+	}
 	httpErr := &HTTPError{
 		exitStatus: ExitNotRetrieved,
 	}
