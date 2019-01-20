@@ -10,15 +10,23 @@ import (
 	"github.com/go-kivik/kivik/driver"
 )
 
-func (d *db) BulkGet(ctx context.Context, docs []driver.BulkDocReference, options map[string]interface{}) (driver.Rows, error) {
-	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_get"), nil)
+func (d *db) BulkGet(ctx context.Context, docs []driver.BulkDocReference, opts map[string]interface{}) (driver.Rows, error) {
+	query, err := optionsToParams(opts)
+	if err != nil {
+		return nil, err
+	}
+	options := &chttp.Options{
+		Query: query,
+		Body:  chttp.EncodeBody(docs),
+	}
+	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_get"), options)
 	if err != nil {
 		return nil, err
 	}
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newRows(resp.Body), nil
+	return newBulkGetRows(resp.Body), nil
 }
 
 // BulkGetError represents an error for a single document returned by a

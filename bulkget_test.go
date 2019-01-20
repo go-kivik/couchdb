@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"strings"
 	"testing"
 	"unicode"
@@ -38,59 +39,103 @@ func TestBulkGet(t *testing.T) {
 		status: kivik.StatusNetworkError,
 		err:    "Post http://example.com/_bulk_get: random network error",
 	})
-	// 	tests.Add("valid document", tst{
-	// 		db: &db{
-	// 			client: newTestClient(&http.Response{
-	// 				StatusCode: http.StatusOK,
-	// 				ProtoMajor: 1,
-	// 				ProtoMinor: 1,
-	// 				Header: http.Header{
-	// 					"Content-Type": []string{"application/json"},
-	// 				},
-	// 				Body: ioutil.NopCloser(strings.NewReader(`{
-	//   "results": [
-	//     {
-	//       "id": "foo",
-	//       "docs": [
-	//         {
-	//           "ok": {
-	//             "_id": "foo",
-	//             "_rev": "4-753875d51501a6b1883a9d62b4d33f91",
-	//             "value": "this is foo",
-	//             "_revisions": {
-	//               "start": 4,
-	//               "ids": [
-	//                 "753875d51501a6b1883a9d62b4d33f91",
-	//                 "efc54218773c6acd910e2e97fea2a608",
-	//                 "2ee767305024673cfb3f5af037cd2729",
-	//                 "4a7e4ae49c4366eaed8edeaea8f784ad"
-	//               ]
-	//             }
-	//           }
-	//         }
-	//       ]
-	//     }
-	// ]`)),
-	// 			}, nil),
-	// 			dbName: "xxx",
-	// 		},
-	// 		expected: &driver.Row{},
-	// 	})
-
-	// tests.Add("invalid id", tst{
-	// 	db: &db{
-	// 		client: newTestClient(&http.Response{
-	// 			StatusCode: http.StatusBadRequest,
-	// 			ProtoMajor: 1,
-	// 			ProtoMinor: 1,
-	// 			Body:       ioutil.NopCloser(strings.NewReader("{}")),
-	// 		}, nil),
-	// 		dbName: "xxx",
-	// 	},
-	// 	docs:   []driver.BulkDocReference{{ID: ""}},
-	// 	status: http.StatusBadRequest,
-	// 	err:    "Bad Request",
-	// })
+	tests.Add("valid document", tst{
+		db: &db{
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header: http.Header{
+					"Content-Type": []string{"application/json"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(removeSpaces(`{
+	  "results": [
+	    {
+	      "id": "foo",
+	      "docs": [
+	        {
+	          "ok": {
+	            "_id": "foo",
+	            "_rev": "4-753875d51501a6b1883a9d62b4d33f91",
+	            "value": "this is foo"
+	          }
+	        }
+	      ]
+	    }
+	]`))),
+			}, nil),
+			dbName: "xxx",
+		},
+		expected: &driver.Row{
+			ID:  "foo",
+			Doc: []byte(`{"_id":"foo","_rev":"4-753875d51501a6b1883a9d62b4d33f91","value":"thisisfoo"}`),
+		},
+	})
+	tests.Add("invalid id", tst{
+		db: &db{
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Body:       ioutil.NopCloser(strings.NewReader(`{"results": [{"id": "", "docs": [{"error":{"id":"","rev":null,"error":"illegal_docid","reason":"Document id must not be empty"}}]}]}`)),
+			}, nil),
+			dbName: "xxx",
+		},
+		docs: []driver.BulkDocReference{{ID: ""}},
+		expected: &driver.Row{
+			Error: &BulkGetError{
+				ID:     "",
+				Rev:    "",
+				Err:    "illegal_docid",
+				Reason: "Document id must not be empty",
+			},
+		},
+	})
+	tests.Add("not found", tst{
+		db: &db{
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Body:       ioutil.NopCloser(strings.NewReader(`{"results": [{"id": "asdf", "docs": [{"error":{"id":"asdf","rev":"1-xxx","error":"not_found","reason":"missing"}}]}]}`)),
+			}, nil),
+			dbName: "xxx",
+		},
+		docs: []driver.BulkDocReference{{ID: ""}},
+		expected: &driver.Row{
+			ID: "asdf",
+			Error: &BulkGetError{
+				ID:     "asdf",
+				Rev:    "1-xxx",
+				Err:    "not_found",
+				Reason: "missing",
+			},
+		},
+	})
+	tests.Add("revs", tst{
+		db: &db{
+			client: newCustomClient(func(r *http.Request) (*http.Response, error) {
+				revs := r.URL.Query().Get("revs")
+				if revs != "true" {
+					return nil, errors.New("Expected revs=true")
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+					Body:       ioutil.NopCloser(strings.NewReader(`{"results": [{"id": "test1", "docs": [{"ok":{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}}]}]}`)),
+				}, nil
+			}),
+			dbName: "xxx",
+		},
+		options: map[string]interface{}{
+			"revs": true,
+		},
+		expected: &driver.Row{
+			ID:  "test1",
+			Doc: []byte(`{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}`),
+		},
+	})
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		rows, err := test.db.BulkGet(context.Background(), test.docs, test.options)
