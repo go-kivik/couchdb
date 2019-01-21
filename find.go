@@ -62,7 +62,7 @@ func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newRows(resp.Body), nil
+	return newFindRows(resp.Body), nil
 }
 
 type queryPlan struct {
