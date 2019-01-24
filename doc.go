@@ -22,5 +22,18 @@ The only exceptions to the above rule are:
  - the `keys` key, when passed to a view query, will result in a POST query
    being done, rather than a GET, to accomodate an arbitrary number of keys.
 
+Authentication
+
+The CouchDB driver supports a number of authentication methods. For most uses,
+you don't need to worry about authentication at all--just include authentication
+credentials in your connection DSN. This will use Cookie authentication by
+default.
+
+To use one of the explicit authentication mechanisms, you'll need to use kivik's
+Authenticate method.  For example:
+
+    client, _ := kivik.New("couch", "http://localhost:5984/")
+    err := client.Authenticate(couchdb.BasicAuth("bob", "abc123"))
+
 */
 package couchdb
