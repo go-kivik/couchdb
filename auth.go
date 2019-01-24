@@ -36,7 +36,7 @@ var _ Authenticator = &xportAuth{}
 
 func (a *xportAuth) auth(_ context.Context, c *client) error {
 	if c.Client.Client.Transport != nil {
-		return errors.New("kivik: HTTP client transport already set")
+		return errors.Status(kivik.StatusBadAPICall, "kivik: HTTP client transport already set")
 	}
 	c.Client.Client.Transport = a.RoundTripper
 	return nil
@@ -77,4 +77,35 @@ func CookieAuth(user, password string) Authenticator {
 	return authFunc(func(ctx context.Context, c *client) error {
 		return auth.Authenticate(c.Client)
 	})
+}
+
+type rawCookie struct {
+	cookie *http.Cookie
+	next   http.RoundTripper
+}
+
+var _ Authenticator = &rawCookie{}
+var _ http.RoundTripper = &rawCookie{}
+
+func (a *rawCookie) auth(_ context.Context, c *client) error {
+	if c.Client.Client.Transport != nil {
+		return errors.Status(kivik.StatusBadAPICall, "kivik: HTTP client transport already set")
+	}
+	a.next = c.Client.Client.Transport
+	if a.next == nil {
+		a.next = http.DefaultTransport
+	}
+	c.Client.Client.Transport = a
+	return nil
+}
+
+func (a *rawCookie) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.AddCookie(a.cookie)
+	return a.next.RoundTrip(r)
+}
+
+// SetCookie adds cookie to all outbound requests. This is useful when using
+// kivik as a proxy.
+func SetCookie(cookie *http.Cookie) Authenticator {
+	return &rawCookie{cookie: cookie}
 }
