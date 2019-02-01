@@ -154,7 +154,7 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: 500,
+			status: http.StatusInternalServerError,
 			err:    "EOF",
 		},
 		{
