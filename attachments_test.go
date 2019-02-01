@@ -154,7 +154,7 @@ func TestPutAttachment(t *testing.T) {
 				ContentType: "text/plain",
 				Content:     Body("x"),
 			},
-			status: 601,
+			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
 		},
 		{
@@ -461,7 +461,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   601,
+			status:   kivik.StatusNetworkError,
 			err:      "http://example.com/testdb/foo/foo.txt:",
 		},
 		{
@@ -471,7 +471,7 @@ func TestFetchAttachment(t *testing.T) {
 			filename: "foo.txt",
 			rev:      "1-xxx",
 			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   601,
+			status:   kivik.StatusNetworkError,
 			err:      "http://example.com/testdb/foo/foo.txt\\?rev=1-xxx:",
 		},
 		{

@@ -56,7 +56,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		case "conflict":
 			status = kivik.StatusConflict
 		default:
-			status = 600 // Unknown error
+			status = kivik.StatusUnknownError
 		}
 		update.Error = errors.Status(status, updateResult.Reason)
 	}
