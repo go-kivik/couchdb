@@ -9,7 +9,6 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type schedulerDoc struct {
@@ -91,7 +90,8 @@ func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
 		// 2.1.x +
 		supported = true
 	default:
-		return false, errors.Statusf(kivik.StatusBadResponse, "Unknown response code %d", resp.StatusCode)
+		// Assume not supported
+		supported = false
 	}
 	c.schedulerDetected = &supported
 	return supported, nil
