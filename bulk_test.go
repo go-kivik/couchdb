@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestBulkDocs(t *testing.T) {
@@ -206,7 +206,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(kivik.StatusConflict, "annoying conflict"),
+				Error: &kivik.Error{HTTPStatus: http.StatusConflict, FromServer: true, Err: errors.New("annoying conflict")},
 			},
 		},
 		{
@@ -220,7 +220,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(kivik.StatusUnknownError, "foo is erroneous"),
+				Error: &kivik.Error{HTTPStatus: http.StatusInternalServerError, FromServer: true, Err: errors.New("foo is erroneous")},
 			},
 		},
 	}

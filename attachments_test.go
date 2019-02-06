@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type closer struct {
@@ -503,7 +503,7 @@ func TestFetchAttachment(t *testing.T) {
 					return nil, err
 				}
 				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
-					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+					return nil, fmt.Errorf(`If-None-Match: %s != "foo"`, inm)
 				}
 				return nil, errors.New("success")
 			}),
@@ -660,7 +660,7 @@ func TestDeleteAttachment(t *testing.T) {
 					return nil, err
 				}
 				if foo := req.URL.Query().Get("foo"); foo != "oink" {
-					return nil, errors.Errorf("Unexpected query foo=%s", foo)
+					return nil, fmt.Errorf("Unexpected query foo=%s", foo)
 				}
 				return nil, errors.New("success")
 			}),

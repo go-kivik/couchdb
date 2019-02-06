@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+
+	"github.com/pkg/errors"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type rows struct {
@@ -106,7 +108,7 @@ func (r *rows) Next(row *driver.Row) error {
 			return err
 		}
 		if err := r.begin(); err != nil {
-			return errors.WrapStatus(kivik.StatusBadResponse, err)
+			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 		}
 	}
 
@@ -181,7 +183,7 @@ func (r *rows) parseMeta(key string) error {
 	case "bookmark":
 		return r.dec.Decode(&r.bookmark)
 	}
-	return errors.Statusf(kivik.StatusBadResponse, "Unexpected key: %s", key)
+	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
 func (r *rows) readUpdateSeq() error {
@@ -208,14 +210,14 @@ func (r *rows) nextRow(row *driver.Row) error {
 func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 	t, err := dec.Token()
 	if err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "no closing delimiter"))
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.Wrap(err, "no closing delimiter")}
 	}
 	d, ok := t.(json.Delim)
 	if !ok {
-		return errors.Statusf(kivik.StatusBadResponse, "Unexpected token %T: %v", t, t)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
 	}
 	if d != expectedDelim {
-		return errors.Statusf(kivik.StatusBadResponse, "Unexpected JSON delimiter: %c", d)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected JSON delimiter: %c", d)}
 	}
 	return nil
 }

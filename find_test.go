@@ -3,6 +3,8 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestExplain(t *testing.T) {
@@ -61,11 +62,11 @@ func TestExplain(t *testing.T) {
 				defer req.Body.Close() // nolint: errcheck
 				var result interface{}
 				if err := json.NewDecoder(req.Body).Decode(&result); err != nil {
-					return nil, errors.Errorf("decode error: %s", err)
+					return nil, fmt.Errorf("decode error: %s", err)
 				}
 				expected := map[string]interface{}{"_id": "foo"}
 				if d := diff.Interface(expected, result); d != nil {
-					return nil, errors.Errorf("Unexpected result:\n%s\n", d)
+					return nil, fmt.Errorf("Unexpected result:\n%s\n", d)
 				}
 				return nil, errors.New("success")
 			}),

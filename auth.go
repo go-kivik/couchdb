@@ -2,11 +2,11 @@ package couchdb
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func (c *client) Authenticate(ctx context.Context, a interface{}) error {
@@ -16,7 +16,7 @@ func (c *client) Authenticate(ctx context.Context, a interface{}) error {
 	if auth, ok := a.(Authenticator); ok {
 		return auth.auth(ctx, c)
 	}
-	return errors.Status(kivik.StatusUnknownError, "kivik: invalid authenticator")
+	return &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: errors.New("kivik: invalid authenticator")}
 }
 
 // Authenticator is a CouchDB authenticator. Direct use of the Authenticator
@@ -36,7 +36,7 @@ var _ Authenticator = &xportAuth{}
 
 func (a *xportAuth) auth(_ context.Context, c *client) error {
 	if c.Client.Client.Transport != nil {
-		return errors.Status(kivik.StatusBadAPICall, "kivik: HTTP client transport already set")
+		return &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: errors.New("kivik: HTTP client transport already set")}
 	}
 	c.Client.Client.Transport = a.RoundTripper
 	return nil
@@ -89,7 +89,7 @@ var _ http.RoundTripper = &rawCookie{}
 
 func (a *rawCookie) auth(_ context.Context, c *client) error {
 	if c.Client.Client.Transport != nil {
-		return errors.Status(kivik.StatusBadAPICall, "kivik: HTTP client transport already set")
+		return &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: errors.New("kivik: HTTP client transport already set")}
 	}
 	a.next = c.Client.Client.Transport
 	if a.next == nil {

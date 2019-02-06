@@ -210,7 +210,7 @@ func TestEncodeBody(t *testing.T) {
 		{
 			name:   "JSONError",
 			input:  func() {}, // Functions cannot be marshaled to JSON
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "json: unsupported type: func()",
 		},
 		{
@@ -644,7 +644,7 @@ func TestDoReq(t *testing.T) {
 	}{
 		{
 			name:       "no method",
-			status:     kivik.StatusBadAPICall,
+			status:     500,
 			curlStatus: 0,
 			err:        "chttp: method required",
 		},
@@ -843,7 +843,7 @@ func TestDoError(t *testing.T) {
 	}{
 		{
 			name:   "no method",
-			status: kivik.StatusBadAPICall,
+			status: 500,
 			err:    "chttp: method required",
 		},
 		{

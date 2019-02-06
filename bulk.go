@@ -3,12 +3,13 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type bulkResults struct {
@@ -44,7 +45,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		Reason string `json:"reason"`
 	}
 	if err := r.dec.Decode(&updateResult); err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	update.ID = updateResult.ID
 	update.Rev = updateResult.Rev
@@ -57,7 +58,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		default:
 			status = kivik.StatusUnknownError
 		}
-		update.Error = errors.Status(status, updateResult.Reason)
+		update.Error = &kivik.Error{HTTPStatus: status, FromServer: true, Err: errors.New(updateResult.Reason)}
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestReplicationError(t *testing.T) {
@@ -227,7 +227,7 @@ func TestReplicate(t *testing.T) {
 							Body: Body(fmt.Sprintf(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2078b23","id":null,"source":"foo","target":"bar","state":"failed","error_count":1,"info":"Replication %s specified by document %s already started, triggered by document %s from db %s","start_time":"2017-11-18T11:13:58Z","last_updated":"2017-11-18T11:13:58Z"}`, "`c636d089fbdc3a9a937a466acf8f42c3`", "`56d257bd2125c8f15870b3ddd2078b23`", "`56d257bd2125c8f15870b3ddd2074759`", "`_replicator`")),
 						}, nil
 					default:
-						return nil, errors.Errorf("Unexpected path: %s", req.URL.Path)
+						return nil, fmt.Errorf("Unexpected path: %s", req.URL.Path)
 					}
 				})
 				b := true
@@ -343,7 +343,7 @@ func TestGetReplications(t *testing.T) {
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/_replicator/_all_docs" {
-						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+						return nil, fmt.Errorf("Unexpected request path: %s\n", req.URL.Path)
 					}
 					return &http.Response{
 						StatusCode: 404,
@@ -363,7 +363,7 @@ func TestGetReplications(t *testing.T) {
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/_scheduler/docs" {
-						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+						return nil, fmt.Errorf("Unexpected request path: %s\n", req.URL.Path)
 					}
 					return &http.Response{
 						StatusCode: 404,
