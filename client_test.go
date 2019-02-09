@@ -312,6 +312,8 @@ func TestPing(t *testing.T) {
 		name     string
 		client   *client
 		expected bool
+		status   int
+		err      string
 	}
 
 	tests := []pingTest{
@@ -349,12 +351,15 @@ func TestPing(t *testing.T) {
 			name:     "network error",
 			client:   newTestClient(nil, errors.New("network error")),
 			expected: false,
+			status:   http.StatusBadGateway,
+			err:      "Head http://example.com/_up: network error",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := test.client.Ping(context.Background())
+			result, err := test.client.Ping(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
 			if result != test.expected {
 				t.Errorf("Unexpected result: %t", result)
 			}
