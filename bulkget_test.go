@@ -21,7 +21,7 @@ import (
 func TestBulkGet(t *testing.T) {
 	type tst struct {
 		db      *db
-		docs    []driver.BulkDocReference
+		docs    []driver.BulkGetReference
 		options map[string]interface{}
 		status  int
 		err     string
@@ -81,7 +81,7 @@ func TestBulkGet(t *testing.T) {
 			}, nil),
 			dbName: "xxx",
 		},
-		docs: []driver.BulkDocReference{{ID: ""}},
+		docs: []driver.BulkGetReference{{ID: ""}},
 		expected: &driver.Row{
 			Error: &BulkGetError{
 				ID:     "",
@@ -101,7 +101,7 @@ func TestBulkGet(t *testing.T) {
 			}, nil),
 			dbName: "xxx",
 		},
-		docs: []driver.BulkDocReference{{ID: ""}},
+		docs: []driver.BulkGetReference{{ID: ""}},
 		expected: &driver.Row{
 			ID: "asdf",
 			Error: &BulkGetError{

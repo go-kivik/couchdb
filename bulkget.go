@@ -10,7 +10,7 @@ import (
 	"github.com/go-kivik/kivik/driver"
 )
 
-func (d *db) BulkGet(ctx context.Context, docs []driver.BulkDocReference, opts map[string]interface{}) (driver.Rows, error) {
+func (d *db) BulkGet(ctx context.Context, docs []driver.BulkGetReference, opts map[string]interface{}) (driver.Rows, error) {
 	query, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
