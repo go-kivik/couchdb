@@ -268,10 +268,10 @@ func TestPutAttachment(t *testing.T) {
 
 func TestGetAttachmentMeta(t *testing.T) {
 	tests := []struct {
-		name              string
-		db                *db
-		id, rev, filename string
-		options           map[string]interface{}
+		name         string
+		db           *db
+		id, filename string
+		options      map[string]interface{}
 
 		expected *driver.Attachment
 		status   int
@@ -311,7 +311,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename, test.options)
+			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if d := diff.Interface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
@@ -362,10 +362,10 @@ func TestGetDigest(t *testing.T) {
 
 func TestGetAttachment(t *testing.T) {
 	tests := []struct {
-		name              string
-		db                *db
-		id, rev, filename string
-		options           map[string]interface{}
+		name         string
+		db           *db
+		id, filename string
+		options      map[string]interface{}
 
 		expected *driver.Attachment
 		content  string
@@ -408,7 +408,7 @@ func TestGetAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			att, err := test.db.GetAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
+			att, err := test.db.GetAttachment(context.Background(), test.id, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			fileContent, err := ioutil.ReadAll(att.Content)
 			if err != nil {
@@ -428,10 +428,10 @@ func TestGetAttachment(t *testing.T) {
 
 func TestFetchAttachment(t *testing.T) {
 	tests := []struct {
-		name                      string
-		db                        *db
-		method, id, rev, filename string
-		options                   map[string]interface{}
+		name                 string
+		db                   *db
+		method, id, filename string
+		options              map[string]interface{}
 
 		resp   *http.Response
 		status int
@@ -465,21 +465,10 @@ func TestFetchAttachment(t *testing.T) {
 			err:      "http://example.com/testdb/foo/foo.txt:",
 		},
 		{
-			name:     "with rev",
-			method:   "GET",
-			id:       "foo",
-			filename: "foo.txt",
-			rev:      "1-xxx",
-			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   kivik.StatusNetworkError,
-			err:      "http://example.com/testdb/foo/foo.txt\\?rev=1-xxx:",
-		},
-		{
 			name:     "success",
 			method:   "GET",
 			id:       "foo",
 			filename: "foo.txt",
-			rev:      "1-xxx",
 			db: newTestDB(&http.Response{
 				StatusCode: 200,
 			}, nil),
@@ -538,7 +527,7 @@ func TestFetchAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.rev, test.filename, test.options)
+			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			resp.Request = nil
 			if d := diff.Interface(test.resp, resp); d != nil {
