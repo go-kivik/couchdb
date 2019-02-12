@@ -55,8 +55,8 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 	return response.Rev, nil
 }
 
-func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (*driver.Attachment, error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename, options)
+func (d *db) GetAttachmentMeta(ctx context.Context, docID, filename string, options map[string]interface{}) (*driver.Attachment, error) {
+	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, filename, options)
 	if err != nil {
 		return nil, err
 	}
@@ -64,15 +64,15 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string,
 	return att, err
 }
 
-func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (*driver.Attachment, error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename, options)
+func (d *db) GetAttachment(ctx context.Context, docID, filename string, options map[string]interface{}) (*driver.Attachment, error) {
+	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, filename, options)
 	if err != nil {
 		return nil, err
 	}
 	return decodeAttachment(resp)
 }
 
-func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename string, options map[string]interface{}) (*http.Response, error) {
+func (d *db) fetchAttachment(ctx context.Context, method, docID, filename string, options map[string]interface{}) (*http.Response, error) {
 	if method == "" {
 		return nil, errors.New("method required")
 	}
@@ -91,9 +91,6 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	query, err := optionsToParams(options)
 	if err != nil {
 		return nil, err
-	}
-	if rev != "" {
-		query.Add("rev", rev)
 	}
 	opts := &chttp.Options{
 		IfNoneMatch: inm,
