@@ -251,7 +251,7 @@ func TestDBUpdates(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.DBUpdates()
+			result, err := test.client.DBUpdates(context.TODO())
 			testy.StatusError(t, test.err, test.status, err)
 			if _, ok := result.(*couchUpdates); !ok {
 				t.Errorf("Unexpected type returned: %t", result)

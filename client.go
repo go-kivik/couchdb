@@ -45,8 +45,8 @@ func (c *client) DestroyDB(ctx context.Context, dbName string, _ map[string]inte
 	return err
 }
 
-func (c *client) DBUpdates() (updates driver.DBUpdates, err error) {
-	resp, err := c.DoReq(context.Background(), kivik.MethodGet, "/_db_updates?feed=continuous&since=now", nil)
+func (c *client) DBUpdates(ctx context.Context) (updates driver.DBUpdates, err error) {
+	resp, err := c.DoReq(ctx, kivik.MethodGet, "/_db_updates?feed=continuous&since=now", nil)
 	if err != nil {
 		return nil, err
 	}
