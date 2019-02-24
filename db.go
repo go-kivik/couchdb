@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -322,8 +323,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		FullCommit: fullCommit,
 		Query:      params,
 	}
-	atts, ok := extractAttachments(doc)
-	if ok {
+	if atts, ok := extractAttachments(doc); ok {
 		boundary, multipartBody := newMultipartAttachments(opts.Body, atts)
 		opts.Body = multipartBody
 		fmt.Printf("boundary = %s\n", boundary)
@@ -424,9 +424,13 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachmen
 
 	for _, filename := range filenames {
 		att := (*atts)[filename]
+		if err := attachmentSize(att); err != nil {
+			return err
+		}
 		file, err := w.CreatePart(textproto.MIMEHeader{
 			"Content-Type":        {att.ContentType},
 			"Content-Disposition": {fmt.Sprintf(`attachment; filename=%q`, filename)},
+			"Content-Length":      {strconv.FormatInt(att.Size, 10)},
 		})
 		if err != nil {
 			return err
@@ -438,6 +442,95 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachmen
 	}
 
 	return w.Close()
+}
+
+type lener interface {
+	Len() int
+}
+
+type stater interface {
+	Stat() (os.FileInfo, error)
+}
+
+// attachmentSize determines the size of the `in` stream by reading the entire
+// stream first.  This method is a no-op if att.Size is already > , and sets the Size
+// parameter accordingly. If Size is already set, this function does nothing.
+// It attempts the following methods:
+//
+//    1. Calls `Len()`, if implemented by `in` (i.e. `*bytes.Buffer`)
+//    2. Calls `Stat()`, if implemented by `in` (i.e. `*os.File`) then returns
+//       the file's size
+//    3. Read the entire stream to determine the size, and replace att.Content
+//       to be replayed.
+func attachmentSize(att *kivik.Attachment) error {
+	if att.Size > 0 {
+		return nil
+	}
+	size, r, err := readerSize(att.Content)
+	if err != nil {
+		return err
+	}
+	rc, ok := r.(io.ReadCloser)
+	if !ok {
+		rc = ioutil.NopCloser(r)
+	}
+
+	att.Content = rc
+	att.Size = size
+	return nil
+}
+
+func readerSize(in io.Reader) (int64, io.Reader, error) {
+	if ln, ok := in.(lener); ok {
+		return int64(ln.Len()), in, nil
+	}
+	if st, ok := in.(stater); ok {
+		info, err := st.Stat()
+		if err != nil {
+			return 0, nil, err
+		}
+		return info.Size(), in, nil
+	}
+	content, err := ioutil.ReadAll(in)
+	if err != nil {
+		return 0, nil, err
+	}
+	buf := bytes.NewBuffer(content)
+	return int64(buf.Len()), ioutil.NopCloser(buf), nil
+}
+
+// NewAttachment is a convenience function, which sets the size of the attachment
+// based on content. This is intended for creating attachments to be uploaded
+// using multipart/related capabilities of Put().  The attachment size will be
+// set to the first of the following found:
+//
+//    1. `size`, if present. Only the first value is considered
+//    2. content.Len(), if implemented (i.e. *bytes.Buffer)
+//    3. content.Stat().Size(), if implemented (i.e. *os.File)
+//    4. Read the entire content into memory, to determine the size. This can
+//       use a lot of memory for large attachments. Please use a file, or
+//       specify the size directly instead.
+func NewAttachment(filename, contentType string, content io.Reader, size ...int64) (*kivik.Attachment, error) {
+	var filesize int64
+	if len(size) > 0 {
+		filesize = size[0]
+	} else {
+		var err error
+		filesize, content, err = readerSize(content)
+		if err != nil {
+			return nil, err
+		}
+	}
+	rc, ok := content.(io.ReadCloser)
+	if !ok {
+		rc = ioutil.NopCloser(content)
+	}
+	return &kivik.Attachment{
+		Filename:    filename,
+		ContentType: contentType,
+		Content:     rc,
+		Size:        filesize,
+	}, nil
 }
 
 // replaceAttachments reads a json stream on in, looking for the _attachments

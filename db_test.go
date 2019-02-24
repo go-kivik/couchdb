@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1847,6 +1848,7 @@ Content-Type: application/json
 }
 --%[1]s
 Content-Disposition: attachment; filename="foo.txt"
+Content-Length: 13
 Content-Type: text/plain
 
 test content
@@ -2003,4 +2005,166 @@ func TestStubMarshalJSON(t *testing.T) {
 	if d := diff.JSON([]byte(expected), result); d != nil {
 		t.Error(d)
 	}
+}
+
+func TestAttachmentSize(t *testing.T) {
+	type tst struct {
+		att      *kivik.Attachment
+		expected *kivik.Attachment
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("size already set", tst{
+		att:      &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 4},
+		expected: &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 4},
+	})
+	tests.Add("bytes buffer", tst{
+		att:      &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text")},
+		expected: &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 5},
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		err := attachmentSize(test.att)
+		testy.Error(t, test.err, err)
+		body, err := ioutil.ReadAll(test.att.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expBody, err := ioutil.ReadAll(test.expected.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(expBody, body); d != nil {
+			t.Errorf("Content differs:\n%s\n", d)
+		}
+		test.att.Content = nil
+		test.expected.Content = nil
+		if d := diff.Interface(test.expected, test.att); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+type lenReader interface {
+	io.Reader
+	lener
+}
+
+type myReader struct {
+	lenReader
+}
+
+var _ interface {
+	io.Closer
+	lenReader
+} = &myReader{}
+
+func (r *myReader) Close() error { return nil }
+
+func TestReaderSize(t *testing.T) {
+	type tst struct {
+		in   io.ReadCloser
+		size int64
+		body string
+		err  string
+	}
+	tests := testy.NewTable()
+	tests.Add("*bytes.Buffer", tst{
+		in:   &myReader{bytes.NewBuffer([]byte("foo bar"))},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("bytes.NewReader", tst{
+		in:   &myReader{bytes.NewReader([]byte("foo bar"))},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("strings.NewReader", tst{
+		in:   &myReader{strings.NewReader("foo bar")},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("file", func(t *testing.T) interface{} {
+		f, err := ioutil.TempFile("", "file-reader-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		tests.Cleanup(func() {
+			_ = os.Remove(f.Name())
+		})
+		if _, err := f.Write([]byte("foo bar")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.Seek(0, 0); err != nil {
+			t.Fatal(err)
+		}
+		return tst{
+			in:   f,
+			size: 7,
+			body: "foo bar",
+		}
+	})
+	tests.Add("nop closer", tst{
+		in:   ioutil.NopCloser(strings.NewReader("foo bar")),
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		size, r, err := readerSize(test.in)
+		testy.Error(t, test.err, err)
+		body, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(test.body, body); d != nil {
+			t.Errorf("Unexpected body content:\n%s\n", d)
+		}
+		if size != test.size {
+			t.Errorf("Unexpected size: %d\n", size)
+		}
+	})
+}
+
+func TestNewAttachment(t *testing.T) {
+	type tst struct {
+		content    io.Reader
+		size       []int64
+		expected   *kivik.Attachment
+		expContent string
+		err        string
+	}
+	tests := testy.NewTable()
+	tests.Add("size provided", tst{
+		content: strings.NewReader("xxx"),
+		size:    []int64{99},
+		expected: &kivik.Attachment{
+			Filename:    "foo.txt",
+			ContentType: "text/plain",
+			Size:        99,
+		},
+		expContent: "xxx",
+	})
+	tests.Add("strings.NewReader", tst{
+		content: strings.NewReader("xxx"),
+		expected: &kivik.Attachment{
+			Filename:    "foo.txt",
+			ContentType: "text/plain",
+			Size:        3,
+		},
+		expContent: "xxx",
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		result, err := NewAttachment("foo.txt", "text/plain", test.content, test.size...)
+		testy.Error(t, test.err, err)
+		content, err := ioutil.ReadAll(result.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(test.expContent, content); d != nil {
+			t.Errorf("Unexpected content:\n%s\n", d)
+		}
+		result.Content = nil
+		if d := diff.Interface(test.expected, result); d != nil {
+			t.Error(d)
+		}
+	})
 }
