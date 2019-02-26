@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
@@ -324,10 +325,13 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		Query:      params,
 	}
 	if atts, ok := extractAttachments(doc); ok {
-		boundary, multipartBody := newMultipartAttachments(opts.Body, atts)
+		boundary, size, multipartBody, err := newMultipartAttachments(opts.Body, atts)
+		if err != nil {
+			return "", err
+		}
 		opts.Body = multipartBody
-		fmt.Printf("boundary = %s\n", boundary)
-		opts.ContentType = fmt.Sprintf("multipart/related; boundary=%s", boundary)
+		opts.ContentLength = size
+		opts.ContentType = fmt.Sprintf("multipart/related;boundary=%q", boundary)
 	}
 	var result struct {
 		ID  string `json:"id"`
@@ -388,18 +392,24 @@ func interfaceToAttachments(i interface{}) (*kivik.Attachments, bool) {
 
 // newMultipartAttachments reads a json stream on in, and produces a
 // multipart/related output suitable for a PUT request.
-func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (string, io.ReadCloser) {
-	r, w := io.Pipe()
-	body := multipart.NewWriter(w)
+func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (boundary string, size int64, content io.ReadCloser, err error) {
+	buf := &bytes.Buffer{}
+	body := multipart.NewWriter(buf)
+	w := sync.WaitGroup{}
+	w.Add(1)
 	go func() {
-		err := createMultipart(body, in, att)
+		err = createMultipart(body, in, att)
 		e := in.Close()
 		if err == nil {
 			err = e
 		}
-		_ = w.CloseWithError(err)
+		w.Done()
 	}()
-	return body.Boundary(), r
+	w.Wait()
+	return body.Boundary(),
+		int64(buf.Len()),
+		ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())),
+		err
 }
 
 func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachments) error {
@@ -424,13 +434,13 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachmen
 
 	for _, filename := range filenames {
 		att := (*atts)[filename]
-		if err := attachmentSize(att); err != nil {
-			return err
-		}
+		// if err := attachmentSize(att); err != nil {
+		// 	return err
+		// }
 		file, err := w.CreatePart(textproto.MIMEHeader{
-			"Content-Type":        {att.ContentType},
-			"Content-Disposition": {fmt.Sprintf(`attachment; filename=%q`, filename)},
-			"Content-Length":      {strconv.FormatInt(att.Size, 10)},
+			// "Content-Type":        {att.ContentType},
+			// "Content-Disposition": {fmt.Sprintf(`attachment; filename=%q`, filename)},
+			// "Content-Length":      {strconv.FormatInt(att.Size, 10)},
 		})
 		if err != nil {
 			return err
@@ -538,7 +548,7 @@ func NewAttachment(filename, contentType string, content io.Reader, size ...int6
 func replaceAttachments(in io.ReadCloser, atts *kivik.Attachments) io.ReadCloser {
 	r, w := io.Pipe()
 	go func() {
-		err := copyWithAttachments(w, in, attachmentStubs(atts))
+		err := copyWithAttachmentStubs(w, in, attachmentStubs(atts))
 		e := in.Close()
 		if err == nil {
 			err = e
@@ -592,12 +602,14 @@ func setSize(att *kivik.Attachment) error {
 	return err
 }
 
-func copyWithAttachments(w io.Writer, r io.Reader, att map[string]*stub) error {
+// copyWithAttachmentStubs copies r to w, replacing the _attachment value with the
+// marshaled version of atts.
+func copyWithAttachmentStubs(w io.Writer, r io.Reader, atts map[string]*stub) error {
 	dec := json.NewDecoder(r)
 	t, err := dec.Token()
 	if err == nil {
 		if t != json.Delim('{') {
-			return fmt.Errorf("expected '{', found '%v'", t)
+			return errors.Statusf(http.StatusBadRequest, "expected '{', found '%v'", t)
 		}
 	}
 	if err != nil {
@@ -615,7 +627,7 @@ func copyWithAttachments(w io.Writer, r io.Reader, att map[string]*stub) error {
 			break
 		}
 		if err != nil {
-			return err
+			return errors.WrapStatus(http.StatusBadRequest, err)
 		}
 		switch tp := t.(type) {
 		case string:
@@ -633,7 +645,7 @@ func copyWithAttachments(w io.Writer, r io.Reader, att map[string]*stub) error {
 				return e
 			}
 			if tp == attachmentsKey {
-				if e := json.NewEncoder(w).Encode(att); e != nil {
+				if e := json.NewEncoder(w).Encode(atts); e != nil {
 					return e
 				}
 				// Once we're here, we can just stream the rest of the input

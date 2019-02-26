@@ -1820,6 +1820,7 @@ func TestMultipartAttachments(t *testing.T) {
 		input    string
 		atts     *kivik.Attachments
 		expected string
+		size     int64
 		err      string
 	}{
 		{
@@ -1833,6 +1834,7 @@ Content-Type: application/json
 {"foo":"bar","baz":"qux"}
 --%[1]s--
 `,
+			size: 191,
 		},
 		{
 			name:  "simple",
@@ -1847,22 +1849,23 @@ Content-Type: application/json
 {"_attachments":{"foo.txt":{"content_type":"text/plain","length":13,"follows":true}}
 }
 --%[1]s
-Content-Disposition: attachment; filename="foo.txt"
-Content-Length: 13
-Content-Type: text/plain
 
 test content
 
 --%[1]s--
 `,
+			size: 333,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			in := ioutil.NopCloser(strings.NewReader(test.input))
-			boundary, body := newMultipartAttachments(in, test.atts)
-			result, err := ioutil.ReadAll(body)
+			boundary, size, body, err := newMultipartAttachments(in, test.atts)
 			testy.Error(t, test.err, err)
+			if test.size != size {
+				t.Errorf("Unexpected size: %d (want %d)", size, test.size)
+			}
+			result, _ := ioutil.ReadAll(body)
 			expected := fmt.Sprintf(test.expected, boundary)
 			expected = strings.TrimPrefix(expected, "\n")
 			result = bytes.Replace(result, []byte("\r\n"), []byte("\n"), -1)
@@ -2164,6 +2167,66 @@ func TestNewAttachment(t *testing.T) {
 		}
 		result.Content = nil
 		if d := diff.Interface(test.expected, result); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+func TestCopyWithAttachmentStubs(t *testing.T) {
+	type tst struct {
+		input    io.Reader
+		w        io.Writer
+		expected string
+		atts     map[string]*stub
+		status   int
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("no attachments", tst{
+		input:    strings.NewReader("{}"),
+		expected: "{}",
+	})
+	tests.Add("Unexpected delim", tst{
+		input:  strings.NewReader("[]"),
+		status: http.StatusBadRequest,
+		err:    "expected '{', found '['",
+	})
+	tests.Add("read error", tst{
+		input:  testy.ErrorReader("", errors.New("read error")),
+		status: http.StatusInternalServerError,
+		err:    "read error",
+	})
+	tests.Add("write error", tst{
+		input:  strings.NewReader("{}"),
+		w:      testy.ErrorWriter(0, errors.New("write error")),
+		status: http.StatusInternalServerError,
+		err:    "write error",
+	})
+	tests.Add("decode error", tst{
+		input:  strings.NewReader("{}}"),
+		status: http.StatusBadRequest,
+		err:    "invalid character '}'  looking for beginning of value",
+	})
+	tests.Add("one attachment", tst{
+		input: strings.NewReader(`{"_attachments":{}}`),
+		atts: map[string]*stub{
+			"foo.txt": &stub{
+				ContentType: "text/plain",
+				Size:        3,
+			},
+		},
+		expected: `{"_attachments":{"foo.txt":{"content_type":"text/plain","length":3,"follows":true}}
+}`,
+	})
+
+	tests.Run(t, func(t *testing.T, test tst) {
+		w := test.w
+		if w == nil {
+			w = &bytes.Buffer{}
+		}
+		err := copyWithAttachmentStubs(w, test.input, test.atts)
+		testy.StatusError(t, test.err, test.status, err)
+		if d := diff.Text(test.expected, w.(*bytes.Buffer).String()); d != nil {
 			t.Error(d)
 		}
 	})
