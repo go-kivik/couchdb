@@ -324,14 +324,16 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		FullCommit: fullCommit,
 		Query:      params,
 	}
-	if atts, ok := extractAttachments(doc); ok {
-		boundary, size, multipartBody, err := newMultipartAttachments(opts.Body, atts)
-		if err != nil {
-			return "", err
+	if _, ok := options[NoMultipartPut]; !ok {
+		if atts, ok := extractAttachments(doc); ok {
+			boundary, size, multipartBody, e := newMultipartAttachments(opts.Body, atts)
+			if e != nil {
+				return "", e
+			}
+			opts.Body = multipartBody
+			opts.ContentLength = size
+			opts.ContentType = fmt.Sprintf("multipart/related;boundary=%q", boundary)
 		}
-		opts.Body = multipartBody
-		opts.ContentLength = size
-		opts.ContentType = fmt.Sprintf("multipart/related;boundary=%q", boundary)
 	}
 	var result struct {
 		ID  string `json:"id"`
