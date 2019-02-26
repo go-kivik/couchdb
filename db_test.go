@@ -831,7 +831,7 @@ func TestPut(t *testing.T) {
 			if test.finish != nil {
 				defer test.finish(t)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			rev, err := test.db.Put(ctx, test.id, test.doc, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)

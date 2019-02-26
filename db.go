@@ -393,8 +393,11 @@ func interfaceToAttachments(i interface{}) (*kivik.Attachments, bool) {
 // newMultipartAttachments reads a json stream on in, and produces a
 // multipart/related output suitable for a PUT request.
 func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (boundary string, size int64, content io.ReadCloser, err error) {
-	buf := &bytes.Buffer{}
-	body := multipart.NewWriter(buf)
+	tmp, err := ioutil.TempFile("", "kivik-multipart-*")
+	if err != nil {
+		return "", 0, nil, err
+	}
+	body := multipart.NewWriter(tmp)
 	w := sync.WaitGroup{}
 	w.Add(1)
 	go func() {
@@ -406,9 +409,22 @@ func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (boundary
 		w.Done()
 	}()
 	w.Wait()
+	if e := tmp.Sync(); err == nil {
+		err = e
+	}
+	if info, e := tmp.Stat(); e == nil {
+		size = info.Size()
+	} else {
+		if err == nil {
+			err = e
+		}
+	}
+	if _, e := tmp.Seek(0, 0); e != nil && err == nil {
+		err = e
+	}
 	return body.Boundary(),
-		int64(buf.Len()),
-		ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())),
+		size,
+		tmp,
 		err
 }
 
