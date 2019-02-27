@@ -307,33 +307,44 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]
 	return result.ID, result.Rev, err
 }
 
+func putOpts(doc interface{}, options map[string]interface{}) (*chttp.Options, error) {
+	fullCommit, err := fullCommit(options)
+	if err != nil {
+		return nil, err
+	}
+	params, err := optionsToParams(options)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := options[NoMultipartPut]; !ok {
+		if atts, ok := extractAttachments(doc); ok {
+			boundary, size, multipartBody, e := newMultipartAttachments(chttp.EncodeBody(doc), atts)
+			if e != nil {
+				return nil, e
+			}
+			return &chttp.Options{
+				Body:          multipartBody,
+				FullCommit:    fullCommit,
+				Query:         params,
+				ContentLength: size,
+				ContentType:   fmt.Sprintf("multipart/related;boundary=%q", boundary),
+			}, nil
+		}
+	}
+	return &chttp.Options{
+		Body:       chttp.EncodeBody(doc),
+		FullCommit: fullCommit,
+		Query:      params,
+	}, nil
+}
+
 func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	fullCommit, err := fullCommit(options)
+	opts, err := putOpts(doc, options)
 	if err != nil {
 		return "", err
-	}
-	params, err := optionsToParams(options)
-	if err != nil {
-		return "", err
-	}
-	opts := &chttp.Options{
-		Body:       chttp.EncodeBody(doc),
-		FullCommit: fullCommit,
-		Query:      params,
-	}
-	if _, ok := options[NoMultipartPut]; !ok {
-		if atts, ok := extractAttachments(doc); ok {
-			boundary, size, multipartBody, e := newMultipartAttachments(opts.Body, atts)
-			if e != nil {
-				return "", e
-			}
-			opts.Body = multipartBody
-			opts.ContentLength = size
-			opts.ContentType = fmt.Sprintf("multipart/related;boundary=%q", boundary)
-		}
 	}
 	var result struct {
 		ID  string `json:"id"`
