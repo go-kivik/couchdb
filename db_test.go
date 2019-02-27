@@ -1897,7 +1897,7 @@ func TestAttachmentStubs(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := attachmentStubs(test.atts)
+			result, _ := attachmentStubs(test.atts)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -1954,44 +1954,6 @@ func TestInterfaceToAttachments(t *testing.T) {
 			}
 			if d := diff.Interface(test.output, test.input); d != nil {
 				t.Errorf("Input not properly modified:\n%s\n", d)
-			}
-		})
-	}
-}
-
-func TestSetSize(t *testing.T) {
-	tests := []struct {
-		name     string
-		att      *kivik.Attachment
-		expected *kivik.Attachment
-		err      string
-	}{
-		{
-			name: "size set",
-			att: &kivik.Attachment{
-				Size: 123,
-			},
-			expected: &kivik.Attachment{
-				Size: 123,
-			},
-		},
-		{
-			name: "size not set",
-			att: &kivik.Attachment{
-				Content: Body("foo content"),
-			},
-			expected: &kivik.Attachment{
-				Size: 12,
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := setSize(test.att)
-			testy.Error(t, test.err, err)
-			test.att.Content = nil // Determinism
-			if d := diff.Interface(test.expected, test.att); d != nil {
-				t.Error(d)
 			}
 		})
 	}

@@ -463,9 +463,6 @@ func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachmen
 
 	for _, filename := range filenames {
 		att := (*atts)[filename]
-		// if err := attachmentSize(att); err != nil {
-		// 	return err
-		// }
 		file, err := w.CreatePart(textproto.MIMEHeader{
 			// "Content-Type":        {att.ContentType},
 			// "Content-Disposition": {fmt.Sprintf(`attachment; filename=%q`, filename)},
@@ -577,7 +574,13 @@ func NewAttachment(filename, contentType string, content io.Reader, size ...int6
 func replaceAttachments(in io.ReadCloser, atts *kivik.Attachments) io.ReadCloser {
 	r, w := io.Pipe()
 	go func() {
-		err := copyWithAttachmentStubs(w, in, attachmentStubs(atts))
+		stubs, err := attachmentStubs(atts)
+		if err != nil {
+			_ = w.CloseWithError(err)
+			_ = in.Close()
+			return
+		}
+		err = copyWithAttachmentStubs(w, in, stubs)
 		e := in.Close()
 		if err == nil {
 			err = e
@@ -604,31 +607,21 @@ func (s *stub) MarshalJSON() ([]byte, error) {
 	return json.Marshal(att)
 }
 
-func attachmentStubs(atts *kivik.Attachments) map[string]*stub {
+func attachmentStubs(atts *kivik.Attachments) (map[string]*stub, error) {
 	if atts == nil {
-		return nil
+		return nil, nil
 	}
 	result := make(map[string]*stub, len(*atts))
 	for filename, att := range *atts {
-		setSize(att)
+		if err := attachmentSize(att); err != nil {
+			return nil, err
+		}
 		result[filename] = &stub{
 			ContentType: att.ContentType,
 			Size:        att.Size,
 		}
 	}
-	return result
-}
-
-// setSize sets the attachment's size, if it's not already set
-func setSize(att *kivik.Attachment) error {
-	if att.Size > 0 {
-		return nil
-	}
-	buf := new(bytes.Buffer)
-	n, err := buf.ReadFrom(att.Content)
-	att.Size = n
-	att.Content = ioutil.NopCloser(buf)
-	return err
+	return result, nil
 }
 
 // copyWithAttachmentStubs copies r to w, replacing the _attachment value with the
