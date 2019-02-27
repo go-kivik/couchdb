@@ -100,21 +100,30 @@ func (rc *mockReadCloser) Close() error {
 }
 
 func realDB(t *testing.T) *db {
-	driver := &Couch{}
-	c, err := driver.NewClient(kt.DSN(t))
+	db, err := realDBConnect(t)
 	if err != nil {
 		if _, ok := errors.Cause(err).(*url.Error); ok {
 			t.Skip("Cannot connect to CouchDB")
 		}
+		if strings.HasSuffix(err.Error(), "connect: connection refused") {
+			t.Skip("Cannot connect to CouchDB")
+		}
 		t.Fatal(err)
+	}
+	return db
+}
+
+func realDBConnect(t *testing.T) (*db, error) {
+	driver := &Couch{}
+	c, err := driver.NewClient(kt.DSN(t))
+	if err != nil {
+		return nil, err
 	}
 	dbname := kt.TestDBName(t)
 
-	if err := c.CreateDB(context.Background(), dbname, nil); err != nil {
-		t.Fatal(err)
-	}
+	err = c.CreateDB(context.Background(), dbname, nil)
 	return &db{
 		client: c.(*client),
 		dbName: dbname,
-	}
+	}, err
 }
