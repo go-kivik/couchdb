@@ -2210,7 +2210,7 @@ func TestCopyWithAttachmentStubs(t *testing.T) {
 	tests.Add("one attachment", tst{
 		input: strings.NewReader(`{"_attachments":{}}`),
 		atts: map[string]*stub{
-			"foo.txt": &stub{
+			"foo.txt": {
 				ContentType: "text/plain",
 				Size:        3,
 			},
