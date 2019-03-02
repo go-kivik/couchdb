@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
+	"github.com/go-kivik/kivik"
 )
 
 func TestHTTPErrorError(t *testing.T) {
@@ -61,16 +62,20 @@ func TestResponseError(t *testing.T) {
 		{
 			name: "HEAD error",
 			resp: &http.Response{
-				StatusCode: 404,
+				StatusCode: http.StatusNotFound,
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			},
-			expected: &HTTPError{Code: 404, exitStatus: ExitNotRetrieved},
+			expected: &kivik.Error{
+				HTTPStatus: http.StatusNotFound,
+				FromServer: true,
+				Err:        &HTTPError{Code: http.StatusNotFound, exitStatus: ExitNotRetrieved},
+			},
 		},
 		{
 			name: "2.0.0 error",
 			resp: &http.Response{
-				StatusCode: 400,
+				StatusCode: http.StatusBadRequest,
 				Header: http.Header{
 					"Cache-Control":       {"must-revalidate"},
 					"Content-Length":      {"194"},
@@ -84,16 +89,20 @@ func TestResponseError(t *testing.T) {
 				Body:          Body(`{"error":"illegal_database_name","reason":"Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter."}`),
 				Request:       &http.Request{Method: "PUT"},
 			},
-			expected: &HTTPError{
-				Code:       400,
-				exitStatus: ExitNotRetrieved,
-				Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+			expected: &kivik.Error{
+				HTTPStatus: http.StatusBadRequest,
+				FromServer: true,
+				Err: &HTTPError{
+					Code:       http.StatusBadRequest,
+					exitStatus: ExitNotRetrieved,
+					Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+				},
 			},
 		},
 		{
 			name: "invalid json error",
 			resp: &http.Response{
-				StatusCode: 400,
+				StatusCode: http.StatusBadRequest,
 				Header: http.Header{
 					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 					"Date":           {"Fri, 27 Oct 2017 15:42:34 GMT"},
@@ -105,7 +114,11 @@ func TestResponseError(t *testing.T) {
 				Body:          Body("invalid json"),
 				Request:       &http.Request{Method: "PUT"},
 			},
-			expected: &HTTPError{Code: 400, exitStatus: ExitNotRetrieved},
+			expected: &kivik.Error{
+				HTTPStatus: http.StatusBadRequest,
+				FromServer: true,
+				Err:        &HTTPError{Code: http.StatusBadRequest, exitStatus: ExitNotRetrieved},
+			},
 		},
 	}
 	for _, test := range tests {
