@@ -752,17 +752,6 @@ func TestPut(t *testing.T) {
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
 		{
-			name: "unexpected id in response",
-			id:   "foo",
-			doc:  map[string]string{"foo": "bar"},
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusCreated,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"unexpected","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
-			}, nil),
-			status: kivik.StatusBadResponse,
-			err:    "modified document ID \\(unexpected\\) does not match that requested \\(foo\\)",
-		},
-		{
 			name: "full commit",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
 				if err := consume(req.Body); err != nil {

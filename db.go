@@ -354,10 +354,6 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 	if err != nil {
 		return "", err
 	}
-	if result.ID != docID {
-		// This should never happen; this is mostly for debugging and internal use
-		return result.Rev, errors.Statusf(kivik.StatusBadResponse, "modified document ID (%s) does not match that requested (%s)", result.ID, docID)
-	}
 	return result.Rev, nil
 }
 
