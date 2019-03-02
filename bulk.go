@@ -3,7 +3,6 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 
 	"github.com/go-kivik/couchdb/chttp"
@@ -93,9 +92,6 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 			Reason: "one or more document was rejected",
 		}
 	default:
-		if resp.StatusCode < 400 {
-			fmt.Printf("Unexpected BulkDoc response code: %d\n", resp.StatusCode)
-		}
 		// All other errors can consume the response body and return immediately
 		if e := chttp.ResponseError(resp); e != nil {
 			return nil, e
