@@ -1,6 +1,7 @@
 package couchdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,8 +11,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
@@ -674,7 +677,7 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	tests := []struct {
+	type pTest struct {
 		name    string
 		db      *db
 		id      string
@@ -683,7 +686,9 @@ func TestPut(t *testing.T) {
 		rev     string
 		status  int
 		err     string
-	}{
+		finish  func(*testing.T)
+	}
+	tests := []pTest{
 		{
 			name:   "missing docID",
 			status: kivik.StatusBadRequest,
@@ -800,10 +805,35 @@ func TestPut(t *testing.T) {
 			status: kivik.StatusNetworkError,
 			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
+		func() pTest {
+			db := realDB(t)
+			return pTest{
+				name: "real database, multipart attachments",
+				db:   db,
+				id:   "foo",
+				doc: map[string]interface{}{
+					"feet": 4,
+					"_attachments": &kivik.Attachments{
+						"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+					},
+				},
+				rev: "1-1e527110339245a3191b3f6cbea27ab1",
+				finish: func(t *testing.T) {
+					if err := db.client.DestroyDB(context.Background(), db.dbName, nil); err != nil {
+						t.Fatal(err)
+					}
+				},
+			}
+		}(),
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Put(context.Background(), test.id, test.doc, test.options)
+			if test.finish != nil {
+				defer test.finish(t)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			rev, err := test.db.Put(ctx, test.id, test.doc, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
@@ -1782,4 +1812,384 @@ func TestPurge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMultipartAttachments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		atts     *kivik.Attachments
+		expected string
+		size     int64
+		err      string
+	}{
+		{
+			name:  "no attachments",
+			input: `{"foo":"bar","baz":"qux"}`,
+			atts:  &kivik.Attachments{},
+			expected: `
+--%[1]s
+Content-Type: application/json
+
+{"foo":"bar","baz":"qux"}
+--%[1]s--
+`,
+			size: 191,
+		},
+		{
+			name:  "simple",
+			input: `{"_attachments":{}}`,
+			atts: &kivik.Attachments{
+				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+			},
+			expected: `
+--%[1]s
+Content-Type: application/json
+
+{"_attachments":{"foo.txt":{"content_type":"text/plain","length":13,"follows":true}}
+}
+--%[1]s
+
+test content
+
+--%[1]s--
+`,
+			size: 333,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			in := ioutil.NopCloser(strings.NewReader(test.input))
+			boundary, size, body, err := newMultipartAttachments(in, test.atts)
+			testy.Error(t, test.err, err)
+			if test.size != size {
+				t.Errorf("Unexpected size: %d (want %d)", size, test.size)
+			}
+			result, _ := ioutil.ReadAll(body)
+			expected := fmt.Sprintf(test.expected, boundary)
+			expected = strings.TrimPrefix(expected, "\n")
+			result = bytes.Replace(result, []byte("\r\n"), []byte("\n"), -1)
+			if d := diff.Text(expected, string(result)); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestAttachmentStubs(t *testing.T) {
+	tests := []struct {
+		name     string
+		atts     *kivik.Attachments
+		expected map[string]*stub
+	}{
+		{
+			name: "simple",
+			atts: &kivik.Attachments{
+				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+			},
+			expected: map[string]*stub{
+				"foo.txt": {
+					ContentType: "text/plain",
+					Size:        13,
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, _ := attachmentStubs(test.atts)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestInterfaceToAttachments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		output   interface{}
+		expected *kivik.Attachments
+		ok       bool
+	}{
+		{
+			name:     "non-attachment input",
+			input:    "foo",
+			output:   "foo",
+			expected: nil,
+			ok:       false,
+		},
+		{
+			name: "pointer input",
+			input: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			output: new(kivik.Attachments),
+			expected: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			ok: true,
+		},
+		{
+			name: "non-pointer input",
+			input: kivik.Attachments{
+				"foo.txt": nil,
+			},
+			output: kivik.Attachments{},
+			expected: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			ok: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, ok := interfaceToAttachments(test.input)
+			if ok != test.ok {
+				t.Errorf("Unexpected OK result: %v", result)
+			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Errorf("Unexpected result:\n%s\n", d)
+			}
+			if d := diff.Interface(test.output, test.input); d != nil {
+				t.Errorf("Input not properly modified:\n%s\n", d)
+			}
+		})
+	}
+}
+
+func TestStubMarshalJSON(t *testing.T) {
+	att := &stub{
+		ContentType: "text/plain",
+		Size:        123,
+	}
+	expected := `{"content_type":"text/plain","length":123,"follows":true}`
+	result, err := json.Marshal(att)
+	testy.Error(t, "", err)
+	if d := diff.JSON([]byte(expected), result); d != nil {
+		t.Error(d)
+	}
+}
+
+func TestAttachmentSize(t *testing.T) {
+	type tst struct {
+		att      *kivik.Attachment
+		expected *kivik.Attachment
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("size already set", tst{
+		att:      &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 4},
+		expected: &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 4},
+	})
+	tests.Add("bytes buffer", tst{
+		att:      &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text")},
+		expected: &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 5},
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		err := attachmentSize(test.att)
+		testy.Error(t, test.err, err)
+		body, err := ioutil.ReadAll(test.att.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expBody, err := ioutil.ReadAll(test.expected.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(expBody, body); d != nil {
+			t.Errorf("Content differs:\n%s\n", d)
+		}
+		test.att.Content = nil
+		test.expected.Content = nil
+		if d := diff.Interface(test.expected, test.att); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+type lenReader interface {
+	io.Reader
+	lener
+}
+
+type myReader struct {
+	lenReader
+}
+
+var _ interface {
+	io.Closer
+	lenReader
+} = &myReader{}
+
+func (r *myReader) Close() error { return nil }
+
+func TestReaderSize(t *testing.T) {
+	type tst struct {
+		in   io.ReadCloser
+		size int64
+		body string
+		err  string
+	}
+	tests := testy.NewTable()
+	tests.Add("*bytes.Buffer", tst{
+		in:   &myReader{bytes.NewBuffer([]byte("foo bar"))},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("bytes.NewReader", tst{
+		in:   &myReader{bytes.NewReader([]byte("foo bar"))},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("strings.NewReader", tst{
+		in:   &myReader{strings.NewReader("foo bar")},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("file", func(t *testing.T) interface{} {
+		f, err := ioutil.TempFile("", "file-reader-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		tests.Cleanup(func() {
+			_ = os.Remove(f.Name())
+		})
+		if _, err := f.Write([]byte("foo bar")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.Seek(0, 0); err != nil {
+			t.Fatal(err)
+		}
+		return tst{
+			in:   f,
+			size: 7,
+			body: "foo bar",
+		}
+	})
+	tests.Add("nop closer", tst{
+		in:   ioutil.NopCloser(strings.NewReader("foo bar")),
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		size, r, err := readerSize(test.in)
+		testy.Error(t, test.err, err)
+		body, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(test.body, body); d != nil {
+			t.Errorf("Unexpected body content:\n%s\n", d)
+		}
+		if size != test.size {
+			t.Errorf("Unexpected size: %d\n", size)
+		}
+	})
+}
+
+func TestNewAttachment(t *testing.T) {
+	type tst struct {
+		content    io.Reader
+		size       []int64
+		expected   *kivik.Attachment
+		expContent string
+		err        string
+	}
+	tests := testy.NewTable()
+	tests.Add("size provided", tst{
+		content: strings.NewReader("xxx"),
+		size:    []int64{99},
+		expected: &kivik.Attachment{
+			Filename:    "foo.txt",
+			ContentType: "text/plain",
+			Size:        99,
+		},
+		expContent: "xxx",
+	})
+	tests.Add("strings.NewReader", tst{
+		content: strings.NewReader("xxx"),
+		expected: &kivik.Attachment{
+			Filename:    "foo.txt",
+			ContentType: "text/plain",
+			Size:        3,
+		},
+		expContent: "xxx",
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		result, err := NewAttachment("foo.txt", "text/plain", test.content, test.size...)
+		testy.Error(t, test.err, err)
+		content, err := ioutil.ReadAll(result.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(test.expContent, content); d != nil {
+			t.Errorf("Unexpected content:\n%s\n", d)
+		}
+		result.Content = nil
+		if d := diff.Interface(test.expected, result); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+func TestCopyWithAttachmentStubs(t *testing.T) {
+	type tst struct {
+		input    io.Reader
+		w        io.Writer
+		expected string
+		atts     map[string]*stub
+		status   int
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("no attachments", tst{
+		input:    strings.NewReader("{}"),
+		expected: "{}",
+	})
+	tests.Add("Unexpected delim", tst{
+		input:  strings.NewReader("[]"),
+		status: http.StatusBadRequest,
+		err:    `^expected '{', found '\['$`,
+	})
+	tests.Add("read error", tst{
+		input:  testy.ErrorReader("", errors.New("read error")),
+		status: http.StatusInternalServerError,
+		err:    "^read error$",
+	})
+	tests.Add("write error", tst{
+		input:  strings.NewReader("{}"),
+		w:      testy.ErrorWriter(0, errors.New("write error")),
+		status: http.StatusInternalServerError,
+		err:    "^write error$",
+	})
+	tests.Add("decode error", tst{
+		input:  strings.NewReader("{}}"),
+		status: http.StatusBadRequest,
+		err:    "^invalid character '}' +looking for beginning of value$",
+	})
+	tests.Add("one attachment", tst{
+		input: strings.NewReader(`{"_attachments":{}}`),
+		atts: map[string]*stub{
+			"foo.txt": {
+				ContentType: "text/plain",
+				Size:        3,
+			},
+		},
+		expected: `{"_attachments":{"foo.txt":{"content_type":"text/plain","length":3,"follows":true}}
+}`,
+	})
+
+	tests.Run(t, func(t *testing.T, test tst) {
+		w := test.w
+		if w == nil {
+			w = &bytes.Buffer{}
+		}
+		err := copyWithAttachmentStubs(w, test.input, test.atts)
+		testy.StatusErrorRE(t, test.err, test.status, err)
+		if d := diff.Text(test.expected, w.(*bytes.Buffer).String()); d != nil {
+			t.Error(d)
+		}
+	})
 }

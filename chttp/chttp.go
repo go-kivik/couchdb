@@ -117,6 +117,9 @@ type Options struct {
 	// ContentType sets the requests's Content-Type header. Defaults to "application/json".
 	ContentType string
 
+	// ContentLength, if set, sets the ContentLength of the request
+	ContentLength int64
+
 	// Body sets the body of the request.
 	Body io.ReadCloser
 
@@ -355,6 +358,9 @@ func setHeaders(req *http.Request, opts *Options) {
 		if opts.IfNoneMatch != "" {
 			inm := "\"" + strings.Trim(opts.IfNoneMatch, "\"") + "\""
 			req.Header.Set("If-None-Match", inm)
+		}
+		if opts.ContentLength != 0 {
+			req.ContentLength = opts.ContentLength
 		}
 	}
 	req.Header.Add("Accept", accept)

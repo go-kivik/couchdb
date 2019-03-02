@@ -19,4 +19,9 @@ const (
 	//
 	//    row, err := db.Get(ctx, "doc_id", kivik.Options{couchdb.OptionIfNoneMatch: "1-xxx"})
 	OptionIfNoneMatch = "If-None-Match"
+
+	// NoMultipartPut instructs the Put() method not to use CouchDB's
+	// multipart/related upload capabilities. This only affects PUT requests that
+	// also include attachments.
+	NoMultipartPut = "kivik:no-multipart-put"
 )
