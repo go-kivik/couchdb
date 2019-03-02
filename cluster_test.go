@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
 )
 
 const optionEnsureDBsExist = "ensure_dbs_exist"
@@ -57,7 +57,7 @@ func TestClusterStatus(t *testing.T) {
 		client: newCustomClient(func(r *http.Request) (*http.Response, error) {
 			result := []string{}
 			err := json.Unmarshal([]byte(r.URL.Query().Get(optionEnsureDBsExist)), &result)
-			return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+			return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 		}),
 		options: map[string]interface{}{
 			optionEnsureDBsExist: "foo,bar,baz",

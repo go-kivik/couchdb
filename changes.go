@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 // Changes returns the changes stream for the database.
@@ -60,5 +60,8 @@ func (r *changesRows) Next(row *driver.Change) error {
 		return io.EOF
 	}
 
-	return errors.WrapStatus(kivik.StatusBadResponse, r.dec.Decode(row))
+	if err := r.dec.Decode(row); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+	}
+	return nil
 }

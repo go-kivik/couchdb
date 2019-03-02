@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+
+	"github.com/go-kivik/kivik"
 )
 
 // HTTPError is an error that represents an HTTP transport error.
@@ -51,7 +53,7 @@ func ResponseError(resp *http.Response) error {
 		}
 	}
 	httpErr.Code = resp.StatusCode
-	return httpErr
+	return &kivik.Error{HTTPStatus: httpErr.Code, FromServer: true, Err: httpErr}
 }
 
 type curlError struct {

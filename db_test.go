@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,7 +23,6 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestAllDocs(t *testing.T) {
@@ -122,7 +122,7 @@ func TestGet(t *testing.T) {
 					return nil, err
 				}
 				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
-					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+					return nil, fmt.Errorf(`If-None-Match: %s != "foo"`, inm)
 				}
 				return nil, errors.New("success")
 			}),
@@ -752,17 +752,6 @@ func TestPut(t *testing.T) {
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
 		{
-			name: "unexpected id in response",
-			id:   "foo",
-			doc:  map[string]string{"foo": "bar"},
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusCreated,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"unexpected","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
-			}, nil),
-			status: kivik.StatusBadResponse,
-			err:    "modified document ID \\(unexpected\\) does not match that requested \\(foo\\)",
-		},
-		{
 			name: "full commit",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
 				if err := consume(req.Body); err != nil {
@@ -914,7 +903,7 @@ func TestDelete(t *testing.T) {
 					return nil, err
 				}
 				if batch := req.URL.Query().Get("batch"); batch != "ok" {
-					return nil, errors.Errorf("Unexpected query batch=%s", batch)
+					return nil, fmt.Errorf("Unexpected query batch=%s", batch)
 				}
 				return nil, errors.New("success")
 			}),
@@ -1735,13 +1724,13 @@ func TestPurge(t *testing.T) {
 			name: "1.7.1, nothing deleted",
 			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
 				if r.Method != "POST" {
-					return nil, errors.Errorf("Unexpected method: %s", r.Method)
+					return nil, fmt.Errorf("Unexpected method: %s", r.Method)
 				}
 				if r.URL.Path != "/testdb/_purge" {
-					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+					return nil, fmt.Errorf("Unexpected path: %s", r.URL.Path)
 				}
 				if ct := r.Header.Get("Content-Type"); ct != "application/json" {
-					return nil, errors.Errorf("Unexpected Content-Type: %s", ct)
+					return nil, fmt.Errorf("Unexpected Content-Type: %s", ct)
 				}
 				defer r.Body.Close() // nolint: errcheck
 				var result interface{}
@@ -1749,7 +1738,7 @@ func TestPurge(t *testing.T) {
 					return nil, err
 				}
 				if d := diff.AsJSON(expectedDocMap, result); d != nil {
-					return nil, errors.Errorf("Unexpected payload:\n%s", d)
+					return nil, fmt.Errorf("Unexpected payload:\n%s", d)
 				}
 				return &http.Response{
 					StatusCode: kivik.StatusOK,

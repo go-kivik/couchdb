@@ -5,6 +5,7 @@ package chttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,7 +19,6 @@ import (
 	"syscall"
 
 	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
 )
 
 const (
@@ -159,13 +159,10 @@ type Response struct {
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
 	defer r.Body.Close() // nolint: errcheck
-	err := json.NewDecoder(r.Body).Decode(i)
-	switch err.(type) {
-	case *json.SyntaxError, *json.UnmarshalFieldError, *json.UnmarshalTypeError:
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
-	default:
-		return errors.WrapStatus(kivik.StatusNetworkError, err)
+	if err := json.NewDecoder(r.Body).Decode(i); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
+	return nil
 }
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
@@ -198,7 +195,7 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	u.RawQuery = reqPath.RawQuery
 	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadAPICall, err)
+		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 	}
 	req.Header.Add("User-Agent", c.userAgent())
 	return req.WithContext(ctx), nil
@@ -209,7 +206,7 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 // or 500, does _not_ cause an error to be returned.
 func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) (*http.Response, error) {
 	if method == "" {
-		return nil, errors.Status(kivik.StatusBadAPICall, "chttp: method required")
+		return nil, errors.New("chttp: method required")
 	}
 	var body io.Reader
 	if opts != nil {
@@ -315,7 +312,7 @@ func EncodeBody(i interface{}) io.ReadCloser {
 			err = json.NewEncoder(w).Encode(i)
 			switch err.(type) {
 			case *json.MarshalerError, *json.UnsupportedTypeError, *json.UnsupportedValueError:
-				err = errors.WrapStatus(kivik.StatusBadAPICall, err)
+				err = &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 			}
 		}
 		_ = w.CloseWithError(err)
