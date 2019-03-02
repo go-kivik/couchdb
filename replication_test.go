@@ -343,7 +343,7 @@ func TestGetReplications(t *testing.T) {
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/_replicator/_all_docs" {
-						return nil, fmt.Errorf("Unexpected request path: %s\n", req.URL.Path)
+						return nil, fmt.Errorf("unexpected request path: %s", req.URL.Path)
 					}
 					return &http.Response{
 						StatusCode: 404,
@@ -363,7 +363,7 @@ func TestGetReplications(t *testing.T) {
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/_scheduler/docs" {
-						return nil, fmt.Errorf("Unexpected request path: %s\n", req.URL.Path)
+						return nil, fmt.Errorf("unexpected request path: %s", req.URL.Path)
 					}
 					return &http.Response{
 						StatusCode: 404,

@@ -66,7 +66,7 @@ func TestExplain(t *testing.T) {
 				}
 				expected := map[string]interface{}{"_id": "foo"}
 				if d := diff.Interface(expected, result); d != nil {
-					return nil, fmt.Errorf("Unexpected result:\n%s\n", d)
+					return nil, fmt.Errorf("unexpected result:\n%s", d)
 				}
 				return nil, errors.New("success")
 			}),
