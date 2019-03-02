@@ -2151,23 +2151,23 @@ func TestCopyWithAttachmentStubs(t *testing.T) {
 	tests.Add("Unexpected delim", tst{
 		input:  strings.NewReader("[]"),
 		status: http.StatusBadRequest,
-		err:    "expected '{', found '['",
+		err:    `^expected '{', found '\['$`,
 	})
 	tests.Add("read error", tst{
 		input:  testy.ErrorReader("", errors.New("read error")),
 		status: http.StatusInternalServerError,
-		err:    "read error",
+		err:    "^read error$",
 	})
 	tests.Add("write error", tst{
 		input:  strings.NewReader("{}"),
 		w:      testy.ErrorWriter(0, errors.New("write error")),
 		status: http.StatusInternalServerError,
-		err:    "write error",
+		err:    "^write error$",
 	})
 	tests.Add("decode error", tst{
 		input:  strings.NewReader("{}}"),
 		status: http.StatusBadRequest,
-		err:    "invalid character '}'  looking for beginning of value",
+		err:    "^invalid character '}' +looking for beginning of value$",
 	})
 	tests.Add("one attachment", tst{
 		input: strings.NewReader(`{"_attachments":{}}`),
@@ -2187,7 +2187,7 @@ func TestCopyWithAttachmentStubs(t *testing.T) {
 			w = &bytes.Buffer{}
 		}
 		err := copyWithAttachmentStubs(w, test.input, test.atts)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if d := diff.Text(test.expected, w.(*bytes.Buffer).String()); d != nil {
 			t.Error(d)
 		}
