@@ -1,7 +1,6 @@
 package couchdb
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
@@ -63,12 +62,9 @@ func (d *Couch) NewClient(dsn string) (driver.Client, error) {
 	}, nil
 }
 
-func (c *client) DB(_ context.Context, dbName string, _ map[string]interface{}) (driver.DB, error) {
-	if dbName == "" {
-		return nil, missingArg("dbName")
-	}
+func (c *client) DB(dbName string, _ map[string]interface{}) driver.DB {
 	return &db{
 		client: c,
 		dbName: dbName,
-	}, nil
+	}
 }

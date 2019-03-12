@@ -1,7 +1,6 @@
 package couchdb
 
 import (
-	"context"
 	"testing"
 
 	"github.com/flimzy/diff"
@@ -71,14 +70,7 @@ func TestDB(t *testing.T) {
 		dbName   string
 		options  map[string]interface{}
 		expected *db
-		status   int
-		err      string
 	}{
-		{
-			name:   "no dbname",
-			status: kivik.StatusBadRequest,
-			err:    "kivik: dbName required",
-		},
 		{
 			name:   "no full commit",
 			dbName: "foo",
@@ -89,8 +81,7 @@ func TestDB(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.DB(context.Background(), test.dbName, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			result := test.client.DB(test.dbName, test.options)
 			if _, ok := result.(*db); !ok {
 				t.Errorf("Unexpected result type: %T", result)
 			}
