@@ -3,6 +3,7 @@ package couchdb
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -13,7 +14,10 @@ import (
 )
 
 // Couch represents the parent driver instance.
-type Couch struct{}
+type Couch struct {
+	// If provided, HTTPClient will be used for requests to the CouchDB server.
+	HTTPClient *http.Client
+}
 
 var _ driver.Driver = &Couch{}
 
@@ -62,6 +66,9 @@ func (d *Couch) NewClient(ctx context.Context, dsn string) (driver.Client, error
 	chttpClient, err := chttp.New(ctx, dsn)
 	if err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+	}
+	if d.HTTPClient != nil {
+		chttpClient.Client = d.HTTPClient
 	}
 	c := &client{
 		Client: chttpClient,

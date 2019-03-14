@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
@@ -38,6 +39,7 @@ func TestNewClient(t *testing.T) {
 			}
 		}(),
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.cleanup != nil {
@@ -151,6 +153,18 @@ func TestSetCompatMode(t *testing.T) {
 			}
 		})
 	}
+	t.Run("custom HTTP client", func(t *testing.T) {
+		custom := &Couch{
+			HTTPClient: &http.Client{Timeout: time.Millisecond},
+		}
+		c, err := custom.NewClient(context.TODO(), "http://example.com/")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.(*client).Client.Timeout != time.Millisecond {
+			t.Error("Unexpected *http.Client returned")
+		}
+	})
 }
 
 func TestDB(t *testing.T) {
