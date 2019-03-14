@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"reflect"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
@@ -45,12 +44,7 @@ func (s *dbStats) driverStats() *driver.DBStats {
 		stats.ActiveSize = s.Sizes.Active
 	}
 	stats.UpdateSeq = string(bytes.Trim(s.UpdateSeq, `"`))
-	// Reflection is used to preserve backward compatibility with Kivik stable
-	// 1.7.3 and unstable prior to 25 June 2018. The reflection hack can be
-	// removed at some point in the reasonable future.
-	if v := reflect.ValueOf(stats).Elem().FieldByName("RawResponse"); v.CanSet() {
-		v.Set(reflect.ValueOf(s.rawBody))
-	}
+	stats.RawResponse = s.rawBody
 	return stats
 }
 
