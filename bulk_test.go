@@ -70,7 +70,7 @@ func TestBulkDocs(t *testing.T) {
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
 			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: invalid character 'i' looking for beginning of value",
+			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "unexpected response code",
@@ -167,7 +167,7 @@ func TestBulkNext(t *testing.T) {
 				return r
 			}(),
 			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			err:    "EOF",
 		},
 		{
 			name: "invalid doc json",
@@ -222,6 +222,18 @@ func TestBulkNext(t *testing.T) {
 				ID:    "foo",
 				Error: &kivik.Error{HTTPStatus: http.StatusInternalServerError, FromServer: true, Err: errors.New("foo is erroneous")},
 			},
+		},
+		{
+			name: "read error",
+			results: func() *bulkResults {
+				r, err := newBulkResults(ioutil.NopCloser(testy.ErrorReader("[", errors.New("read error"))))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			status: http.StatusBadGateway,
+			err:    "read error",
 		},
 	}
 	for _, test := range tests {

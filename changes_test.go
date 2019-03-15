@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -94,6 +95,14 @@ func TestChangesNext(t *testing.T) {
 				Deleted: true,
 				Changes: []string{"2-185ccf92154a9f24a4f4fd12233bf463"},
 			},
+		},
+		{
+			name: "read error",
+			changes: &changesRows{
+				body: ioutil.NopCloser(testy.ErrorReader("", errors.New("read error"))),
+			},
+			status: http.StatusBadGateway,
+			err:    "read error",
 		},
 		{
 			name: "end of input",

@@ -57,7 +57,11 @@ func (r *changesRows) Next(row *driver.Change) error {
 		r.dec = json.NewDecoder(r.body)
 	}
 	if !r.dec.More() {
-		return io.EOF
+		_, err := r.dec.Token()
+		if err != io.EOF {
+			err = &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		}
+		return err
 	}
 
 	if err := r.dec.Decode(row); err != nil {

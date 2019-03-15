@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
@@ -210,7 +208,7 @@ func (r *rows) nextRow(row *driver.Row) error {
 func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 	t, err := dec.Token()
 	if err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.Wrap(err, "no closing delimiter")}
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	d, ok := t.(json.Delim)
 	if !ok {
