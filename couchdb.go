@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/go-kivik/couchdb/chttp"
@@ -15,6 +16,9 @@ type Couch struct {
 	// If provided, UserAgent is appended to the User-Agent header on all
 	// outbound requests.
 	UserAgent string
+
+	// If provided, HTTPClient will be used for requests to the CouchDB server.
+	HTTPClient *http.Client
 }
 
 var _ driver.Driver = &Couch{}
@@ -50,6 +54,9 @@ func (d *Couch) NewClient(dsn string) (driver.Client, error) {
 	chttpClient, err := chttp.New(dsn)
 	if err != nil {
 		return nil, err
+	}
+	if d.HTTPClient != nil {
+		chttpClient.Client = d.HTTPClient
 	}
 	chttpClient.UserAgents = []string{
 		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
