@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-    client, err := kivik.New(context.TODO(), "pouch", "")
+    client, err := kivik.New(context.TODO(), "couch", "")
     // ...
 }
 ```
