@@ -50,6 +50,12 @@ type Client struct {
 // use HTTP BasicAuth or some other authentication mechanism, do not specify
 // credentials in the URL, and instead call the Auth() method later.
 func New(dsn string) (*Client, error) {
+	return NewWithClient(&http.Client{}, dsn)
+}
+
+// NewWithClient works the same as New(), but allows providing a custom
+// *http.Client for all network connections.
+func NewWithClient(client *http.Client, dsn string) (*Client, error) {
 	dsnURL, err := parseDSN(dsn)
 	if err != nil {
 		return nil, err
@@ -57,7 +63,7 @@ func New(dsn string) (*Client, error) {
 	user := dsnURL.User
 	dsnURL.User = nil
 	c := &Client{
-		Client: &http.Client{},
+		Client: client,
 		dsn:    dsnURL,
 		rawDSN: dsn,
 	}

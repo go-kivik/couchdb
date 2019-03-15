@@ -51,12 +51,13 @@ var _ driver.DBUpdater = &client{}
 // different auth mechanism, do not specify credentials here, and instead call
 // Authenticate() later.
 func (d *Couch) NewClient(dsn string) (driver.Client, error) {
-	chttpClient, err := chttp.New(dsn)
+	httpClient := d.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
+	chttpClient, err := chttp.NewWithClient(httpClient, dsn)
 	if err != nil {
 		return nil, err
-	}
-	if d.HTTPClient != nil {
-		chttpClient.Client = d.HTTPClient
 	}
 	chttpClient.UserAgents = []string{
 		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
