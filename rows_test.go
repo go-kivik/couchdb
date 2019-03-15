@@ -85,7 +85,7 @@ func TestRowsIteratorErrors(t *testing.T) {
 			name:   "empty input",
 			input:  "",
 			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			err:    "EOF",
 		},
 		{
 			name:   "unexpected delimiter",
@@ -103,7 +103,7 @@ func TestRowsIteratorErrors(t *testing.T) {
 			name:   "missing closing delimiter",
 			input:  `{"rows":[{"id":"1","key":"1","value":1}`,
 			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			err:    "EOF",
 		},
 		{
 			name:   "unexpected key",
