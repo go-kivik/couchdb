@@ -12,9 +12,13 @@ import (
 	"github.com/go-kivik/kivik/driver"
 )
 
-func (c *client) AllDBs(ctx context.Context, _ map[string]interface{}) ([]string, error) {
+func (c *client) AllDBs(ctx context.Context, opts map[string]interface{}) ([]string, error) {
+	query, err := optionsToParams(opts)
+	if err != nil {
+		return nil, err
+	}
 	var allDBs []string
-	_, err := c.DoJSON(ctx, kivik.MethodGet, "/_all_dbs", nil, &allDBs)
+	_, err = c.DoJSON(ctx, kivik.MethodGet, "/_all_dbs", &chttp.Options{Query: query}, &allDBs)
 	return allDBs, err
 }
 
@@ -29,11 +33,15 @@ func (c *client) DBExists(ctx context.Context, dbName string, _ map[string]inter
 	return err == nil, err
 }
 
-func (c *client) CreateDB(ctx context.Context, dbName string, _ map[string]interface{}) error {
+func (c *client) CreateDB(ctx context.Context, dbName string, opts map[string]interface{}) error {
 	if dbName == "" {
 		return missingArg("dbName")
 	}
-	_, err := c.DoError(ctx, kivik.MethodPut, dbName, nil)
+	query, err := optionsToParams(opts)
+	if err != nil {
+		return err
+	}
+	_, err = c.DoError(ctx, kivik.MethodPut, dbName, &chttp.Options{Query: query})
 	return err
 }
 
