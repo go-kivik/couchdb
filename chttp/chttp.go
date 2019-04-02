@@ -281,7 +281,7 @@ func GetRev(resp *http.Response) (rev string, err error) {
 	}
 	etag, ok := resp.Header["Etag"]
 	if !ok {
-		etag, ok = resp.Header["ETag"]
+		etag, ok = resp.Header["ETag"] // nolint: staticcheck
 	}
 	if !ok {
 		return "", errors.New("no ETag header found")

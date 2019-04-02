@@ -452,7 +452,7 @@ func TestCompact(t *testing.T) {
 		{
 			name: "1.6.1",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" { // nolint: goconst
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{

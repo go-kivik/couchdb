@@ -140,7 +140,7 @@ func getContentType(resp *http.Response) (ctype string, ok bool) {
 func getMD5Checksum(resp *http.Response) (md5sum driver.MD5sum, err error) {
 	etag, ok := resp.Header["Etag"]
 	if !ok {
-		etag, ok = resp.Header["ETag"]
+		etag, ok = resp.Header["ETag"] // nolint: staticcheck
 	}
 	if !ok {
 		return driver.MD5sum{}, errors.Status(kivik.StatusBadResponse, "ETag header not found")
