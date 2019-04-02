@@ -3,6 +3,8 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestExplain(t *testing.T) {
@@ -26,18 +27,10 @@ func TestExplain(t *testing.T) {
 		err      string
 	}{
 		{
-			name: "CouchDB 1.6",
-			db: &db{
-				client: &client{Compat: CompatCouch16},
-			},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "invalid query",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_explain: json: unsupported type: chan int",
 		},
 		{
@@ -69,11 +62,11 @@ func TestExplain(t *testing.T) {
 				defer req.Body.Close() // nolint: errcheck
 				var result interface{}
 				if err := json.NewDecoder(req.Body).Decode(&result); err != nil {
-					return nil, errors.Errorf("decode error: %s", err)
+					return nil, fmt.Errorf("decode error: %s", err)
 				}
 				expected := map[string]interface{}{"_id": "foo"}
 				if d := diff.Interface(expected, result); d != nil {
-					return nil, errors.Errorf("Unexpected result:\n%s\n", d)
+					return nil, fmt.Errorf("unexpected result:\n%s", d)
 				}
 				return nil, errors.New("success")
 			}),
@@ -150,12 +143,6 @@ func TestCreateIndex(t *testing.T) {
 		err             string
 	}{
 		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "invalid JSON index",
 			db:     newTestDB(nil, nil),
 			index:  `invalid json`,
@@ -166,7 +153,7 @@ func TestCreateIndex(t *testing.T) {
 			name:   "invalid raw index",
 			db:     newTestDB(nil, nil),
 			index:  map[string]interface{}{"foo": make(chan int)},
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_index: json: unsupported type: chan int",
 		},
 		{
@@ -208,12 +195,6 @@ func TestGetIndexes(t *testing.T) {
 		status   int
 		err      string
 	}{
-		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
@@ -277,12 +258,6 @@ func TestDeleteIndex(t *testing.T) {
 		err             string
 	}{
 		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "no ddoc",
 			status: kivik.StatusBadRequest,
 			db:     newTestDB(nil, nil),
@@ -339,16 +314,10 @@ func TestFind(t *testing.T) {
 		err    string
 	}{
 		{
-			name:   "Couch 1.6",
-			db:     &db{client: &client{Compat: CompatCouch16}},
-			status: kivik.StatusNotImplemented,
-			err:    "kivik: Find interface not implemented prior to CouchDB 2.0.0",
-		},
-		{
 			name:   "invalid query json",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_find: json: unsupported type: chan int",
 		},
 		{

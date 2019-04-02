@@ -6,8 +6,8 @@ import (
 	"github.com/go-kivik/kiviktest/kt"
 )
 
-func registerSuiteCouch20() {
-	kiviktest.RegisterSuite(kiviktest.SuiteCouch20, kt.SuiteConfig{
+func registerSuiteCouch22() {
+	kiviktest.RegisterSuite(kiviktest.SuiteCouch22, kt.SuiteConfig{
 		"AllDBs.expected": []string{"_global_changes", "_replicator", "_users"},
 
 		"CreateDB/RW/NoAuth.status":         kivik.StatusUnauthorized,
@@ -37,6 +37,31 @@ func registerSuiteCouch20() {
 		"Explain/Admin/_duck.status":    kivik.StatusNotFound,
 		"Explain/NoAuth/chicken.status": kivik.StatusNotFound,
 		"Explain/NoAuth/_duck.status":   kivik.StatusUnauthorized,
+		"Explain.plan": &kivik.QueryPlan{
+			Index: map[string]interface{}{
+				"ddoc": nil,
+				"name": "_all_docs",
+				"type": "special",
+				"def":  map[string]interface{}{"fields": []interface{}{map[string]string{"_id": "asc"}}},
+			},
+			Selector: map[string]interface{}{"_id": map[string]interface{}{"$gt": nil}},
+			Options: map[string]interface{}{
+				"bookmark":        "nil",
+				"conflicts":       false,
+				"execution_stats": false,
+				"r":               []int{49},
+				"sort":            map[string]interface{}{},
+				"use_index":       []interface{}{},
+				"stable":          false,
+				"stale":           false,
+				"update":          true,
+				"skip":            0,
+				"limit":           25,
+				"fields":          "all_fields",
+			},
+			Range: nil,
+			Limit: 25,
+		},
 
 		"DBExists.databases":              []string{"_users", "chicken", "_duck"},
 		"DBExists/Admin/_users.exists":    true,
@@ -50,9 +75,9 @@ func registerSuiteCouch20() {
 
 		"Log.skip": true, // This was removed in CouchDB 2.0
 
-		"Version.version":        `^2\.0\.0$`,
+		"Version.version":        `^2\.2\.`,
 		"Version.vendor":         `^The Apache Software Foundation$`,
-		"Version.vendor_version": ``, // CouchDB 2.0 no longer has a vendor version
+		"Version.vendor_version": ``, // CouchDB 2.0+ no longer has a vendor version
 
 		"Get/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
@@ -63,8 +88,8 @@ func registerSuiteCouch20() {
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/NoAuth/chicken/DoFlush.status": kivik.StatusNotFound,
 		"Flush/Admin/chicken/DoFlush.status":  kivik.StatusNotFound,
-		"Flush/Admin/_duck/DoFlush.status":    kivik.StatusNotFound,
-		"Flush/NoAuth/_duck/DoFlush.status":   kivik.StatusUnauthorized,
+		// "Flush/Admin/_duck/DoFlush.status":    kivik.StatusNotFound, // Possible bug: https://github.com/apache/couchdb/issues/1585
+		"Flush/NoAuth/_duck/DoFlush.status": kivik.StatusUnauthorized,
 
 		"Delete/RW/Admin/group/MissingDoc.status":        kivik.StatusNotFound,
 		"Delete/RW/Admin/group/InvalidRevFormat.status":  kivik.StatusBadRequest,
@@ -97,8 +122,11 @@ func registerSuiteCouch20() {
 		"Session/Post/BadQueryParam.status":                         kivik.StatusUnauthorized,
 		"Session/Post/BadCredsJSON.status":                          kivik.StatusUnauthorized,
 		"Session/Post/BadCredsForm.status":                          kivik.StatusUnauthorized,
-		"Session/Post/GoodCredsJSONRemoteRedirHeaderInjection.skip": true, // CouchDB allows header injection
-		"Session/Post/GoodCredsJSONRemoteRedirInvalidURL.skip":      true, // CouchDB doesn't sanitize the Location value, so sends unparseable headers.
+		"Session/Post/GoodCredsJSONRemoteRedirAbsolute.status":      kivik.StatusBadRequest, // As of 2.1.1 all redirect paths must begin with '/'
+		"Session/Post/GoodCredsJSONRedirEmpty.status":               kivik.StatusBadRequest, // As of 2.1.1 all redirect paths must begin with '/'
+		"Session/Post/GoodCredsJSONRedirRelativeNoSlash.status":     kivik.StatusBadRequest, // As of 2.1.1 all redirect paths must begin with '/'
+		"Session/Post/GoodCredsJSONRemoteRedirHeaderInjection.skip": true,                   // CouchDB allows header injection
+		"Session/Post/GoodCredsJSONRemoteRedirInvalidURL.skip":      true,                   // CouchDB doesn't sanitize the Location value, so sends unparseable headers.
 
 		"Stats.databases":             []string{"_users", "chicken", "_duck"},
 		"Stats/Admin/chicken.status":  kivik.StatusNotFound,
@@ -106,7 +134,8 @@ func registerSuiteCouch20() {
 		"Stats/NoAuth/chicken.status": kivik.StatusNotFound,
 		"Stats/NoAuth/_duck.status":   kivik.StatusUnauthorized,
 
-		"Compact.skip": false,
+		"Compact.skip":             false,
+		"Compact/RW/NoAuth.status": kivik.StatusUnauthorized,
 
 		"Security.databases":                     []string{"_replicator", "_users", "_global_changes", "chicken", "_duck"},
 		"Security/Admin/chicken.status":          kivik.StatusNotFound,
@@ -131,15 +160,15 @@ func registerSuiteCouch20() {
 		"GetAttachmentMeta/RW/group/Admin/foo/NotFound.status":  kivik.StatusNotFound,
 		"GetAttachmentMeta/RW/group/NoAuth/foo/NotFound.status": kivik.StatusNotFound,
 
-		"PutAttachment/RW/group/Admin/Conflict.status":         kivik.StatusInternalServerError, // COUCHDB-3361
-		"PutAttachment/RW/group/NoAuth/Conflict.status":        kivik.StatusInternalServerError, // COUCHDB-3361
+		"PutAttachment/RW/group/Admin/Conflict.status":         kivik.StatusConflict,
+		"PutAttachment/RW/group/NoAuth/Conflict.status":        kivik.StatusConflict,
 		"PutAttachment/RW/group/NoAuth/UpdateDesignDoc.status": kivik.StatusUnauthorized,
 		"PutAttachment/RW/group/NoAuth/CreateDesignDoc.status": kivik.StatusUnauthorized,
 
 		// "DeleteAttachment/RW/group/Admin/NotFound.status":  kivik.StatusNotFound, // COUCHDB-3362
 		// "DeleteAttachment/RW/group/NoAuth/NotFound.status": kivik.StatusNotFound, // COUCHDB-3362
-		"DeleteAttachment/RW/group/Admin/NoDoc.status":      kivik.StatusInternalServerError,
-		"DeleteAttachment/RW/group/NoAuth/NoDoc.status":     kivik.StatusInternalServerError,
+		"DeleteAttachment/RW/group/Admin/NoDoc.status":      kivik.StatusConflict,
+		"DeleteAttachment/RW/group/NoAuth/NoDoc.status":     kivik.StatusConflict,
 		"DeleteAttachment/RW/group/NoAuth/DesignDoc.status": kivik.StatusUnauthorized,
 
 		"Put/RW/Admin/group/LeadingUnderscoreInID.status":  kivik.StatusBadRequest,
@@ -171,6 +200,19 @@ func registerSuiteCouch20() {
 		"GetIndexes/NoAuth/_global_changes.status": kivik.StatusUnauthorized,
 		"GetIndexes/NoAuth/chicken.status":         kivik.StatusNotFound,
 		"GetIndexes/NoAuth/_duck.status":           kivik.StatusUnauthorized,
+		"GetIndexes/RW.indexes": []kivik.Index{kt.AllDocsIndex,
+			{
+				DesignDoc: "_design/foo",
+				Name:      "bar",
+				Type:      "json",
+				Definition: map[string]interface{}{
+					"fields": []map[string]string{
+						{"foo": "asc"},
+					},
+					"partial_filter_selector": map[string]string{},
+				},
+			},
+		},
 
 		"DeleteIndex/RW/Admin/group/NotFoundDdoc.status":  kivik.StatusNotFound,
 		"DeleteIndex/RW/Admin/group/NotFoundName.status":  kivik.StatusNotFound,
@@ -183,10 +225,12 @@ func registerSuiteCouch20() {
 		"Replicate.timeoutSeconds":                              60,
 		"Replicate.prefix":                                      "http://localhost:5984/",
 		"Replicate/RW/NoAuth.status":                            kivik.StatusForbidden,
-		"Replicate/RW/Admin/group/MissingSource/Results.status": kivik.StatusInternalServerError,
-		"Replicate/RW/Admin/group/MissingTarget/Results.status": kivik.StatusInternalServerError,
+		"Replicate/RW/Admin/group/MissingSource/Results.status": kivik.StatusNotFound,
+		"Replicate/RW/Admin/group/MissingTarget/Results.status": kivik.StatusNotFound,
 
 		"Query/RW/group/Admin/WithoutDocs/ScanDoc.status":  kivik.StatusBadAPICall,
 		"Query/RW/group/NoAuth/WithoutDocs/ScanDoc.status": kivik.StatusBadAPICall,
+
+		"ViewCleanup/RW/NoAuth.status": kivik.StatusUnauthorized,
 	})
 }

@@ -10,8 +10,10 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
@@ -21,20 +23,34 @@ import (
 	"github.com/go-kivik/kivik/errors"
 )
 
+var defaultUA = func() string {
+	c := &Client{}
+	return c.userAgent()
+}()
+
 func TestNew(t *testing.T) {
 	type newTest struct {
-		name     string
-		dsn      string
-		expected *Client
-		status   int
-		err      string
+		name       string
+		dsn        string
+		expected   *Client
+		status     int
+		curlStatus int
+		err        string
 	}
 	tests := []newTest{
 		{
-			name:   "invalid url",
-			dsn:    "http://foo.com/%xx",
-			status: kivik.StatusBadRequest,
-			err:    `parse http://foo.com/%xx: invalid URL escape "%xx"`,
+			name:       "invalid url",
+			dsn:        "http://foo.com/%xx",
+			status:     kivik.StatusBadAPICall,
+			curlStatus: ExitStatusURLMalformed,
+			err:        `parse http://foo.com/%xx: invalid URL escape "%xx"`,
+		},
+		{
+			name:       "no url",
+			dsn:        "",
+			status:     kivik.StatusBadAPICall,
+			curlStatus: ExitFailedToInitialize,
+			err:        "no URL specified",
 		},
 		{
 			name: "no auth",
@@ -51,52 +67,91 @@ func TestNew(t *testing.T) {
 		},
 		func() newTest {
 			h := func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(kivik.StatusUnauthorized)
-			}
-			s := httptest.NewServer(http.HandlerFunc(h))
-			dsn, _ := url.Parse(s.URL)
-			dsn.User = url.UserPassword("user", "password")
-			return newTest{
-				name:   "auth failed",
-				dsn:    dsn.String(),
-				status: kivik.StatusUnauthorized,
-				err:    "Unauthorized",
-			}
-		}(),
-		func() newTest {
-			h := func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(kivik.StatusOK)
-				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`)
+				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`) // nolint: errcheck
 			}
 			s := httptest.NewServer(http.HandlerFunc(h))
 			authDSN, _ := url.Parse(s.URL)
-			dsn, _ := url.Parse(s.URL)
+			dsn, _ := url.Parse(s.URL + "/")
 			authDSN.User = url.UserPassword("user", "password")
 			jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+			c := &Client{
+				Client: &http.Client{Jar: jar},
+				rawDSN: authDSN.String(),
+				dsn:    dsn,
+			}
+			auth := &CookieAuth{
+				Username:  "user",
+				Password:  "password",
+				client:    c,
+				transport: http.DefaultTransport,
+			}
+			c.auth = auth
+			c.Client.Transport = auth
 			return newTest{
-				name: "auth success",
-				dsn:  authDSN.String(),
-				expected: &Client{
-					Client: &http.Client{Jar: jar},
-					rawDSN: authDSN.String(),
-					dsn:    dsn,
-					auth: &CookieAuth{
-						Username: "user",
-						Password: "password",
-						dsn:      dsn,
-						setJar:   true,
-						jar:      jar,
-					},
-				},
+				name:     "auth success",
+				dsn:      authDSN.String(),
+				expected: c,
 			}
 		}(),
+		{
+			name: "default url scheme",
+			dsn:  "foo.com",
+			expected: &Client{
+				Client: &http.Client{},
+				rawDSN: "foo.com",
+				dsn: &url.URL{
+					Scheme: "http",
+					Host:   "foo.com",
+					Path:   "/",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := New(context.Background(), test.dsn)
-			testy.StatusError(t, test.err, test.status, err)
+			result, err := New(test.dsn)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestParseDSN(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              string
+		expected           *url.URL
+		status, curlStatus int
+		err                string
+	}{
+		{
+			name:  "happy path",
+			input: "http://foo.com/",
+			expected: &url.URL{
+				Scheme: "http",
+				Host:   "foo.com",
+				Path:   "/",
+			},
+		},
+		{
+			name:  "default scheme",
+			input: "foo.com",
+			expected: &url.URL{
+				Scheme: "http",
+				Host:   "foo.com",
+				Path:   "/",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := parseDSN(test.input)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Fatal(d)
 			}
 		})
 	}
@@ -155,7 +210,7 @@ func TestEncodeBody(t *testing.T) {
 		{
 			name:   "JSONError",
 			input:  func() {}, // Functions cannot be marshaled to JSON
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "json: unsupported type: func()",
 		},
 		{
@@ -248,6 +303,15 @@ func TestSetHeaders(t *testing.T) {
 				"If-None-Match": {`"foo"`},
 			},
 		},
+		{
+			Name:    "Unquoted If-None-Match",
+			Options: &Options{IfNoneMatch: `foo`},
+			Expected: http.Header{
+				"Accept":        {"application/json"},
+				"Content-Type":  {"application/json"},
+				"If-None-Match": {`"foo"`},
+			},
+		},
 	}
 	for _, test := range tests {
 		func(test shTest) {
@@ -263,6 +327,47 @@ func TestSetHeaders(t *testing.T) {
 				}
 			})
 		}(test)
+	}
+}
+
+func TestSetQuery(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      *http.Request
+		opts     *Options
+		expected *http.Request
+	}{
+		{
+			name:     "nil query",
+			req:      &http.Request{URL: &url.URL{}},
+			expected: &http.Request{URL: &url.URL{}},
+		},
+		{
+			name:     "empty query",
+			req:      &http.Request{URL: &url.URL{RawQuery: "a=b"}},
+			opts:     &Options{Query: url.Values{}},
+			expected: &http.Request{URL: &url.URL{RawQuery: "a=b"}},
+		},
+		{
+			name:     "options query",
+			req:      &http.Request{URL: &url.URL{}},
+			opts:     &Options{Query: url.Values{"foo": []string{"a"}}},
+			expected: &http.Request{URL: &url.URL{RawQuery: "foo=a"}},
+		},
+		{
+			name:     "merged queries",
+			req:      &http.Request{URL: &url.URL{RawQuery: "bar=b"}},
+			opts:     &Options{Query: url.Values{"foo": []string{"a"}}},
+			expected: &http.Request{URL: &url.URL{RawQuery: "bar=b&foo=a"}},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setQuery(test.req, test.opts)
+			if d := diff.Interface(test.expected, test.req); d != nil {
+				t.Error(d)
+			}
+		})
 	}
 }
 
@@ -468,27 +573,30 @@ func TestDoJSON(t *testing.T) {
 
 func TestNewRequest(t *testing.T) {
 	tests := []struct {
-		name         string
-		method, path string
-		body         io.Reader
-		expected     *http.Request
-		client       *Client
-		status       int
-		err          string
+		name               string
+		method, path       string
+		body               io.Reader
+		expected           *http.Request
+		client             *Client
+		status, curlStatus int
+		err                string
 	}{
 		{
-			name:   "invalid URL",
-			method: "GET",
-			path:   "%xx",
-			status: kivik.StatusBadRequest,
-			err:    `parse %xx: invalid URL escape "%xx"`,
+			name:       "invalid URL",
+			client:     newTestClient(nil, nil),
+			method:     "GET",
+			path:       "%xx",
+			status:     kivik.StatusBadAPICall,
+			curlStatus: ExitStatusURLMalformed,
+			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
 		{
-			name:   "invlaid method",
-			method: "FOO BAR",
-			client: newTestClient(nil, nil),
-			status: kivik.StatusBadRequest,
-			err:    `net/http: invalid method "FOO BAR"`,
+			name:       "invalid method",
+			method:     "FOO BAR",
+			client:     newTestClient(nil, nil),
+			status:     kivik.StatusBadAPICall,
+			curlStatus: 0,
+			err:        `net/http: invalid method "FOO BAR"`,
 		},
 		{
 			name:   "success",
@@ -505,15 +613,17 @@ func TestNewRequest(t *testing.T) {
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
-				Header:     http.Header{},
-				Host:       "example.com",
+				Header: http.Header{
+					"User-Agent": []string{defaultUA},
+				},
+				Host: "example.com",
 			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
-			testy.StatusError(t, test.err, test.status, err)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			test.expected = test.expected.WithContext(req.Context()) // determinism
 			if d := diff.Interface(test.expected, req); d != nil {
 				t.Error(d)
@@ -524,25 +634,28 @@ func TestNewRequest(t *testing.T) {
 
 func TestDoReq(t *testing.T) {
 	tests := []struct {
-		name         string
-		method, path string
-		opts         *Options
-		client       *Client
-		status       int
-		err          string
+		name               string
+		trace              func(t *testing.T, success *bool) *ClientTrace
+		method, path       string
+		opts               *Options
+		client             *Client
+		status, curlStatus int
+		err                string
 	}{
 		{
-			name:   "no method",
-			status: kivik.StatusBadRequest,
-			err:    "chttp: method required",
+			name:       "no method",
+			status:     500,
+			curlStatus: 0,
+			err:        "chttp: method required",
 		},
 		{
-			name:   "invalid url",
-			method: "GET",
-			path:   "%xx",
-			client: newTestClient(nil, nil),
-			status: kivik.StatusBadRequest,
-			err:    `parse %xx: invalid URL escape "%xx"`,
+			name:       "invalid url",
+			method:     "GET",
+			path:       "%xx",
+			client:     newTestClient(nil, nil),
+			status:     kivik.StatusBadAPICall,
+			curlStatus: ExitStatusURLMalformed,
+			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
 		{
 			name:   "network error",
@@ -580,11 +693,141 @@ func TestDoReq(t *testing.T) {
 			status: kivik.StatusBadRequest,
 			err:    "Put http://example.com/foo: bad request",
 		},
+		{
+			name: "response trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPResponse: func(r *http.Response) {
+						*success = true
+						expected := &http.Response{StatusCode: 200}
+						if d := diff.HTTPResponse(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "GET",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body(""),
+			}, nil),
+			// response body trace
+		},
+		{
+			name: "response body trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPResponseBody: func(r *http.Response) {
+						*success = true
+						expected := &http.Response{
+							StatusCode: 200,
+							Body:       Body("foo"),
+						}
+						if d := diff.HTTPResponse(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			// response trace
+		},
+		{
+			name: "request trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequest: func(r *http.Request) {
+						*success = true
+						expected := httptest.NewRequest("PUT", "/foo", nil)
+						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Content-Type", "application/json")
+						expected.Header.Add("User-Agent", defaultUA)
+						if d := diff.HTTPRequest(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "/foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			opts: &Options{
+				Body: Body("bar"),
+			},
+			// request trace
+		},
+		{
+			name: "request body trace",
+			trace: func(t *testing.T, success *bool) *ClientTrace {
+				return &ClientTrace{
+					HTTPRequestBody: func(r *http.Request) {
+						*success = true
+						expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
+						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Content-Type", "application/json")
+						expected.Header.Add("User-Agent", defaultUA)
+						if d := diff.HTTPRequest(expected, r); d != nil {
+							t.Error(d)
+						}
+					},
+				}
+			},
+			method: "PUT",
+			path:   "/foo",
+			client: newTestClient(&http.Response{
+				StatusCode: 200,
+				Body:       Body("foo"),
+			}, nil),
+			opts: &Options{
+				Body: Body("bar"),
+			},
+			// request body trace
+		},
+		{
+			name: "couchdb mounted below root",
+			client: newCustomClient("http://foo.com/dbroot/", func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path != "/dbroot/foo" {
+					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+				}
+				return &http.Response{}, nil
+			}),
+			method: "GET",
+			path:   "/foo",
+		},
+		{
+			name: "user agent",
+			client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+				if ua := r.UserAgent(); ua != defaultUA {
+					return nil, errors.Errorf("Unexpected User Agent: %s", ua)
+				}
+				return &http.Response{}, nil
+			}),
+			method: "GET",
+			path:   "/foo",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := test.client.DoReq(context.Background(), test.method, test.path, test.opts)
-			testy.StatusError(t, test.err, test.status, err)
+			ctx := context.Background()
+			traceSuccess := true
+			if test.trace != nil {
+				traceSuccess = false
+				ctx = WithClientTrace(ctx, test.trace(t, &traceSuccess))
+			}
+			_, err := test.client.DoReq(ctx, test.method, test.path, test.opts)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
+			if !traceSuccess {
+				t.Error("Trace failed")
+			}
 		})
 	}
 }
@@ -600,7 +843,7 @@ func TestDoError(t *testing.T) {
 	}{
 		{
 			name:   "no method",
-			status: kivik.StatusBadRequest,
+			status: 500,
 			err:    "chttp: method required",
 		},
 		{
@@ -640,13 +883,77 @@ func TestNetError(t *testing.T) {
 		name  string
 		input error
 
-		status int
-		err    string
+		status, curlStatus int
+		err                string
 	}{
 		{
-			name:  "nil",
-			input: nil,
-			err:   "",
+			name:       "nil",
+			input:      nil,
+			status:     0,
+			curlStatus: 0,
+			err:        "",
+		},
+		{
+			name: "timeout",
+			input: func() error {
+				s := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+					time.Sleep(1 * time.Second)
+				}))
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+				defer cancel()
+				req, err := http.NewRequest("GET", s.URL, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = http.DefaultClient.Do(req.WithContext(ctx))
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitOperationTimeout,
+			err:        `Get http://127.0.0.1:\d+: context deadline exceeded`,
+		},
+		{
+			name: "cannot resolve host",
+			input: func() error {
+				req, err := http.NewRequest("GET", "http://foo.com.invalid.hostname", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = http.DefaultClient.Do(req)
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitHostNotResolved,
+			err:        ": no such host$",
+		},
+		{
+			name: "connection refused",
+			input: func() error {
+				req, err := http.NewRequest("GET", "http://localhost:99", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = http.DefaultClient.Do(req)
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitFailedToConnect,
+			err:        ": connection refused$",
+		},
+		{
+			name: "too many redirects",
+			input: func() error {
+				var s *httptest.Server
+				redirHandler := func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, s.URL, 302)
+				}
+				s = httptest.NewServer(http.HandlerFunc(redirHandler))
+				_, err := http.Get(s.URL)
+				return err
+			}(),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitTooManyRedirects,
+			err:        `^Get http://127.0.0.1:\d+: stopped after 10 redirects$`,
 		},
 		{
 			name: "url error",
@@ -656,7 +963,8 @@ func TestNetError(t *testing.T) {
 				Err: errors.New("some error"),
 			},
 			status: kivik.StatusNetworkError,
-			err:    "Get http://foo.com/: some error",
+			// curlStatus: ExitStatusURLMalformed,
+			err: "Get http://foo.com/: some error",
 		},
 		{
 			name: "url error with embedded status",
@@ -669,22 +977,61 @@ func TestNetError(t *testing.T) {
 			err:    "Get http://foo.com/: some error",
 		},
 		{
-			name:   "other error",
-			input:  errors.New("other error"),
-			status: kivik.StatusNetworkError,
-			err:    "other error",
+			name:       "other error",
+			input:      errors.New("other error"),
+			status:     kivik.StatusNetworkError,
+			curlStatus: ExitUnknownFailure,
+			err:        "other error",
 		},
 		{
-			name:   "other error with embedded status",
-			input:  errors.Status(kivik.StatusBadRequest, "bad req"),
-			status: kivik.StatusBadRequest,
-			err:    "bad req",
+			name:       "other error with embedded status",
+			input:      errors.Status(kivik.StatusBadRequest, "bad req"),
+			status:     kivik.StatusBadRequest,
+			curlStatus: 0,
+			err:        "bad req",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := netError(test.input)
-			testy.StatusError(t, test.err, test.status, err)
+			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
+		})
+	}
+}
+
+func TestUserAgent(t *testing.T) {
+	tests := []struct {
+		name     string
+		ua       []string
+		expected string
+	}{
+		{
+			name: "defaults",
+			expected: fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s)",
+				UserAgent, Version, runtime.Version(), runtime.GOARCH, runtime.GOOS),
+		},
+		{
+			name: "custom",
+			ua:   []string{"Oinky/1.2.3"},
+			expected: fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s) Oinky/1.2.3",
+				UserAgent, Version, runtime.Version(), runtime.GOARCH, runtime.GOOS),
+		},
+		{
+			name: "multiple",
+			ua:   []string{"Oinky/1.2.3", "Moo/5.4.3"},
+			expected: fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s) Oinky/1.2.3 Moo/5.4.3",
+				UserAgent, Version, runtime.Version(), runtime.GOARCH, runtime.GOOS),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := &Client{
+				UserAgents: test.ua,
+			}
+			result := c.userAgent()
+			if result != test.expected {
+				t.Errorf("Unexpected user agent: %s", result)
+			}
 		})
 	}
 }

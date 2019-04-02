@@ -5,11 +5,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kiviktest/kt"
+	"github.com/pkg/errors"
 )
 
 type customTransport func(*http.Request) (*http.Response, error)
@@ -49,7 +52,7 @@ func newTestClient(response *http.Response, err error) *client {
 }
 
 func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
-	chttpClient, _ := chttp.New(context.Background(), "http://example.com/")
+	chttpClient, _ := chttp.New("http://example.com/")
 	chttpClient.Client.Transport = customTransport(fn)
 	return &client{
 		Client: chttpClient,
@@ -94,4 +97,33 @@ func (rc *mockReadCloser) Read(p []byte) (int, error) {
 
 func (rc *mockReadCloser) Close() error {
 	return rc.CloseFunc()
+}
+
+func realDB(t *testing.T) *db {
+	db, err := realDBConnect(t)
+	if err != nil {
+		if _, ok := errors.Cause(err).(*url.Error); ok {
+			t.Skip("Cannot connect to CouchDB")
+		}
+		if strings.HasSuffix(err.Error(), "connect: connection refused") {
+			t.Skip("Cannot connect to CouchDB")
+		}
+		t.Fatal(err)
+	}
+	return db
+}
+
+func realDBConnect(t *testing.T) (*db, error) {
+	driver := &Couch{}
+	c, err := driver.NewClient(kt.DSN(t))
+	if err != nil {
+		return nil, err
+	}
+	dbname := kt.TestDBName(t)
+
+	err = c.CreateDB(context.Background(), dbname, nil)
+	return &db{
+		client: c.(*client),
+		dbName: dbname,
+	}, err
 }

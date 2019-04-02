@@ -1,8 +1,10 @@
 package couchdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,8 +12,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
@@ -19,13 +23,24 @@ import (
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestAllDocs(t *testing.T) {
 	db := newTestDB(nil, errors.New("test error"))
 	_, err := db.AllDocs(context.Background(), nil)
 	testy.Error(t, "Get http://example.com/testdb/_all_docs: test error", err)
+}
+
+func TestDesignDocs(t *testing.T) {
+	db := newTestDB(nil, errors.New("test error"))
+	_, err := db.DesignDocs(context.Background(), nil)
+	testy.Error(t, "Get http://example.com/testdb/_design_docs: test error", err)
+}
+
+func TestLocalDocs(t *testing.T) {
+	db := newTestDB(nil, errors.New("test error"))
+	_, err := db.LocalDocs(context.Background(), nil)
+	testy.Error(t, "Get http://example.com/testdb/_local_docs: test error", err)
 }
 
 func TestQuery(t *testing.T) {
@@ -62,7 +77,7 @@ func TestGet(t *testing.T) {
 			name:    "invalid options",
 			id:      "foo",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -107,7 +122,7 @@ func TestGet(t *testing.T) {
 					return nil, err
 				}
 				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
-					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+					return nil, fmt.Errorf(`If-None-Match: %s != "foo"`, inm)
 				}
 				return nil, errors.New("success")
 			}),
@@ -385,7 +400,7 @@ func TestCreateDoc(t *testing.T) {
 			name:   "invalid doc",
 			doc:    make(chan int),
 			db:     newTestDB(nil, errors.New("")),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb: json: unsupported type: chan int",
 		},
 		{
@@ -455,7 +470,7 @@ func TestCreateDoc(t *testing.T) {
 			name:    "invalid options",
 			db:      &db{},
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -472,79 +487,6 @@ func TestCreateDoc(t *testing.T) {
 			testy.StatusError(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
-			}
-		})
-	}
-}
-
-func TestStats(t *testing.T) {
-	tests := []struct {
-		name     string
-		db       *db
-		expected *driver.DBStats
-		status   int
-		err      string
-	}{
-		{
-			name:   "network error",
-			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/testdb: net error",
-		},
-		{
-			name: "1.6.1",
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Thu, 26 Oct 2017 12:58:14 GMT"},
-					"Content-Type":   {"text/plain; charset=utf-8"},
-					"Content-Length": {"235"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"db_name":"_users","doc_count":3,"doc_del_count":14,"update_seq":31,"purge_seq":0,"compact_running":false,"disk_size":127080,"data_size":6028,"instance_start_time":"1509022681259533","disk_format_version":6,"committed_update_seq":31}`)),
-			}, nil),
-			expected: &driver.DBStats{
-				Name:         "_users",
-				DocCount:     3,
-				DeletedCount: 14,
-				UpdateSeq:    "31",
-				DiskSize:     127080,
-				ActiveSize:   6028,
-			},
-		},
-		{
-			name: "2.0.0",
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
-				Header: http.Header{
-					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
-					"Date":                {"Thu, 26 Oct 2017 13:01:13 GMT"},
-					"Content-Type":        {"application/json"},
-					"Content-Length":      {"429"},
-					"Cache-Control":       {"must-revalidate"},
-					"X-Couch-Request-ID":  {"2486f27546"},
-					"X-CouchDB-Body-Time": {"0"},
-				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"db_name":"_users","update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw","sizes":{"file":87323,"external":2495,"active":6082},"purge_seq":0,"other":{"data_size":2495},"doc_del_count":6,"doc_count":1,"disk_size":87323,"disk_format_version":6,"data_size":6082,"compact_running":false,"instance_start_time":"0"}`)),
-			}, nil),
-			expected: &driver.DBStats{
-				Name:         "_users",
-				DocCount:     1,
-				DeletedCount: 6,
-				UpdateSeq:    "13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw",
-				DiskSize:     87323,
-				ActiveSize:   6082,
-				ExternalSize: 2495,
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result, err := test.db.Stats(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
-				t.Error(d)
 			}
 		})
 	}
@@ -735,7 +677,7 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	tests := []struct {
+	type pTest struct {
 		name    string
 		db      *db
 		id      string
@@ -744,7 +686,9 @@ func TestPut(t *testing.T) {
 		rev     string
 		status  int
 		err     string
-	}{
+		finish  func(*testing.T)
+	}
+	tests := []pTest{
 		{
 			name:   "missing docID",
 			status: kivik.StatusBadRequest,
@@ -785,7 +729,7 @@ func TestPut(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Put http://example.com/testdb/foo: json: unsupported type: chan int",
 		},
 		{
@@ -806,17 +750,6 @@ func TestPut(t *testing.T) {
 				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"foo","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
 			}, nil),
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
-		},
-		{
-			name: "unexpected id in response",
-			id:   "foo",
-			doc:  map[string]string{"foo": "bar"},
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusCreated,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"unexpected","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
-			}, nil),
-			status: kivik.StatusBadResponse,
-			err:    "modified document ID \\(unexpected\\) does not match that requested \\(foo\\)",
 		},
 		{
 			name: "full commit",
@@ -847,7 +780,7 @@ func TestPut(t *testing.T) {
 		{
 			name: "connection refused",
 			db: func() *db {
-				c, err := chttp.New(context.Background(), "http://127.0.0.1:1/")
+				c, err := chttp.New("http://127.0.0.1:1/")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -861,10 +794,35 @@ func TestPut(t *testing.T) {
 			status: kivik.StatusNetworkError,
 			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
+		func() pTest {
+			db := realDB(t)
+			return pTest{
+				name: "real database, multipart attachments",
+				db:   db,
+				id:   "foo",
+				doc: map[string]interface{}{
+					"feet": 4,
+					"_attachments": &kivik.Attachments{
+						"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+					},
+				},
+				rev: "1-1e527110339245a3191b3f6cbea27ab1",
+				finish: func(t *testing.T) {
+					if err := db.client.DestroyDB(context.Background(), db.dbName, nil); err != nil {
+						t.Fatal(err)
+					}
+				},
+			}
+		}(),
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Put(context.Background(), test.id, test.doc, test.options)
+			if test.finish != nil {
+				defer test.finish(t)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			rev, err := test.db.Put(ctx, test.id, test.doc, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
@@ -945,7 +903,7 @@ func TestDelete(t *testing.T) {
 					return nil, err
 				}
 				if batch := req.URL.Query().Get("batch"); batch != "ok" {
-					return nil, errors.Errorf("Unexpected query batch=%s", batch)
+					return nil, fmt.Errorf("Unexpected query batch=%s", batch)
 				}
 				return nil, errors.New("success")
 			}),
@@ -961,7 +919,7 @@ func TestDelete(t *testing.T) {
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -1086,7 +1044,7 @@ func TestRowsQuery(t *testing.T) {
 			name:    "invalid options",
 			path:    "_all_docs",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -1209,128 +1167,47 @@ func TestRowsQuery(t *testing.T) {
 				},
 			},
 		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			rows, err := test.db.rowsQuery(context.Background(), test.path, test.options)
-			testy.StatusError(t, test.err, test.status, err)
-			result := queryResult{
-				Rows: []driver.Row{},
-			}
-			for {
-				var row driver.Row
-				if e := rows.Next(&row); e != nil {
-					if e != io.EOF {
-						result.Err = e.Error()
-					}
-					break
-				}
-				result.Rows = append(result.Rows, row)
-			}
-			result.Offset = rows.Offset()
-			result.TotalRows = rows.TotalRows()
-			result.UpdateSeq = rows.UpdateSeq()
-			if warner, ok := rows.(driver.RowsWarner); ok {
-				result.Warning = warner.Warning()
-			} else {
-				t.Errorf("RowsWarner interface not satisified!!?")
-			}
-
-			if d := diff.Interface(test.expected, result); d != nil {
-				t.Error(d)
-			}
-		})
-	}
-}
-
-func TestRowsQueryKeys(t *testing.T) {
-	type queryResult struct {
-		Offset    int64
-		TotalRows int64
-		Warning   string
-		UpdateSeq string
-		Err       string
-		Rows      []driver.Row
-	}
-	tests := []struct {
-		name     string
-		db       *db
-		path     string
-		options  map[string]interface{}
-		expected queryResult
-		status   int
-		err      string
-	}{
 		{
-			name:    "url keys",
-			path:    "_design/ddoc/_view/view",
-			options: map[string]interface{}{"keys": `["one","two"]`},
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if req.Body != nil {
-					return nil, errors.New("wrong body")
-				}
-				keys := string(req.URL.Query().Get("keys"))
-				if keys != `["one","two"]` {
-					return nil, fmt.Errorf("wrong keys: '%s'", keys)
-				}
-				resp := &http.Response{
-					StatusCode: kivik.StatusOK,
-					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":2,"offset":0,"rows":[
-{"key":"one","value":{"rev":"1-75efcce1f083316d622d389f3f9813f7"}},
-{"key":"two","value":{"rev":"1-747e6766038164010fd0efcabd1a31dd"}}
-]}
-`)),
-				}
-				req.Response = resp
-				return resp, nil
-			}),
-			expected: queryResult{
-				TotalRows: 2,
-				Rows: []driver.Row{
-					{
-						Key:   []byte(`"one"`),
-						Value: []byte(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
-					},
-					{
-						Key:   []byte(`"two"`),
-						Value: []byte(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
-					},
-				},
+			name: "all docs with keys",
+			path: "/_all_docs",
+			options: map[string]interface{}{
+				"keys": []string{"_design/_auth", "foo"},
 			},
-		},
-		{
-			name:    "url long keys",
-			path:    "_design/ddoc/_view/view",
-			options: map[string]interface{}{"keys": fmt.Sprintf(`["one","%s"]`, strings.Repeat("two", 1000))},
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if req.Body == nil {
-					return nil, errors.New("no body")
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				if r.Method != kivik.MethodPost {
+					t.Errorf("Unexpected method: %s", r.Method)
 				}
-				b, _ := ioutil.ReadAll(req.Body)
-				if string(b) != fmt.Sprintf(`{"keys":["one","%s"]}`, strings.Repeat("two", 1000)) {
-					return nil, errors.New("body did not match")
+				defer r.Body.Close() // nolint: errcheck
+				if d := diff.AsJSON(map[string][]string{"keys": {"_design/_auth", "foo"}}, r.Body); d != nil {
+					t.Error(d)
 				}
-				resp := &http.Response{
+				if keys := r.URL.Query().Get("keys"); keys != "" {
+					t.Error("query key 'keys' should be absent")
+				}
+				return &http.Response{
 					StatusCode: kivik.StatusOK,
-					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":2,"offset":0,"rows":[
-{"key":"one","value":{"rev":"1-75efcce1f083316d622d389f3f9813f7"}},
-{"key":"two","value":{"rev":"1-747e6766038164010fd0efcabd1a31dd"}}
-]}
-`)),
-				}
-				req.Response = resp
-				return resp, nil
+					Header: http.Header{
+						"Transfer-Encoding":  {"chunked"},
+						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
+						"Server":             {"CouchDB/2.2.0 (Erlang OTP/19)"},
+						"Content-Type":       {"application/json"},
+						"Cache-Control":      {"must-revalidate"},
+						"X-Couch-Request-ID": {"24fdb3fd86"},
+						"X-Couch-Body-Time":  {"0"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+{"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-6e609020e0371257432797b4319c5829"}}
+]}`)),
+				}, nil
 			}),
 			expected: queryResult{
-				TotalRows: 2,
+				TotalRows: 1,
+				UpdateSeq: "",
 				Rows: []driver.Row{
 					{
-						Key:   []byte(`"one"`),
-						Value: []byte(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
-					},
-					{
-						Key:   []byte(`"two"`),
-						Value: []byte(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
+						ID:    "_design/_auth",
+						Key:   []byte(`"_design/_auth"`),
+						Value: []byte(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
 					},
 				},
 			},
@@ -1567,13 +1444,13 @@ func TestCopy(t *testing.T) {
 	}{
 		{
 			name:   "missing source",
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "kivik: sourceID required",
 		},
 		{
 			name:   "missing target",
 			source: "foo",
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "kivik: targetID required",
 		},
 		{
@@ -1590,7 +1467,7 @@ func TestCopy(t *testing.T) {
 			source:  "foo",
 			target:  "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -1827,4 +1704,481 @@ func TestMultipartAttachmentsClose(t *testing.T) {
 	}
 
 	testy.Error(t, err, atts.Close())
+}
+
+func TestPurge(t *testing.T) {
+	expectedDocMap := map[string][]string{
+		"foo": {"1-abc", "2-def"},
+		"bar": {"3-ghi"},
+	}
+	tests := []struct {
+		name   string
+		db     *db
+		docMap map[string][]string
+
+		expected *driver.PurgeResult
+		err      string
+		status   int
+	}{
+		{
+			name: "1.7.1, nothing deleted",
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				if r.Method != "POST" {
+					return nil, fmt.Errorf("Unexpected method: %s", r.Method)
+				}
+				if r.URL.Path != "/testdb/_purge" {
+					return nil, fmt.Errorf("Unexpected path: %s", r.URL.Path)
+				}
+				if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+					return nil, fmt.Errorf("Unexpected Content-Type: %s", ct)
+				}
+				defer r.Body.Close() // nolint: errcheck
+				var result interface{}
+				if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
+					return nil, err
+				}
+				if d := diff.AsJSON(expectedDocMap, result); d != nil {
+					return nil, fmt.Errorf("Unexpected payload:\n%s", d)
+				}
+				return &http.Response{
+					StatusCode: kivik.StatusOK,
+					Header: http.Header{
+						"Server":         []string{"CouchDB/1.7.1 (Erlang OTP/17)"},
+						"Date":           []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
+						"Content-Type":   []string{"text/plain; charset=utf-8"},
+						"Content-Length": []string{"28"},
+						"Cache-Control":  []string{"must-revalidate"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"purge_seq":3,"purged":{}}`)),
+				}, nil
+			}),
+			docMap:   expectedDocMap,
+			expected: &driver.PurgeResult{Seq: 3, Purged: map[string][]string{}},
+		},
+		{
+			name: "1.7.1, all deleted",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Server":         []string{"CouchDB/1.7.1 (Erlang OTP/17)"},
+					"Date":           []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
+					"Content-Type":   []string{"text/plain; charset=utf-8"},
+					"Content-Length": []string{"168"},
+					"Cache-Control":  []string{"must-revalidate"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"purge_seq":5,"purged":{"foo":["1-abc","2-def"],"bar":["3-ghi"]}}`)),
+			}, nil),
+			docMap:   expectedDocMap,
+			expected: &driver.PurgeResult{Seq: 5, Purged: expectedDocMap},
+		},
+		{
+			name: "2.2.0, not supported",
+			db: newTestDB(&http.Response{
+				StatusCode:    501,
+				ContentLength: 75,
+				Header: http.Header{
+					"Server":              []string{"CouchDB/2.2.0 (Erlang OTP/19)"},
+					"Date":                []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
+					"Content-Type":        []string{"application/json"},
+					"Content-Length":      []string{"75"},
+					"Cache-Control":       []string{"must-revalidate"},
+					"X-Couch-Request-ID":  []string{"03e91291c8"},
+					"X-CouchDB-Body-Time": []string{"0"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"error":"not_implemented","reason":"this feature is not yet implemented"}`)),
+			}, nil),
+			docMap: expectedDocMap,
+			err:    "Not Implemented: this feature is not yet implemented",
+			status: kivik.StatusNotImplemented,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.db.Purge(context.Background(), test.docMap)
+			testy.StatusError(t, test.err, test.status, err)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestMultipartAttachments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		atts     *kivik.Attachments
+		expected string
+		size     int64
+		err      string
+	}{
+		{
+			name:  "no attachments",
+			input: `{"foo":"bar","baz":"qux"}`,
+			atts:  &kivik.Attachments{},
+			expected: `
+--%[1]s
+Content-Type: application/json
+
+{"foo":"bar","baz":"qux"}
+--%[1]s--
+`,
+			size: 191,
+		},
+		{
+			name:  "simple",
+			input: `{"_attachments":{}}`,
+			atts: &kivik.Attachments{
+				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+			},
+			expected: `
+--%[1]s
+Content-Type: application/json
+
+{"_attachments":{"foo.txt":{"content_type":"text/plain","length":13,"follows":true}}
+}
+--%[1]s
+
+test content
+
+--%[1]s--
+`,
+			size: 333,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			in := ioutil.NopCloser(strings.NewReader(test.input))
+			boundary, size, body, err := newMultipartAttachments(in, test.atts)
+			testy.Error(t, test.err, err)
+			if test.size != size {
+				t.Errorf("Unexpected size: %d (want %d)", size, test.size)
+			}
+			result, _ := ioutil.ReadAll(body)
+			expected := fmt.Sprintf(test.expected, boundary)
+			expected = strings.TrimPrefix(expected, "\n")
+			result = bytes.Replace(result, []byte("\r\n"), []byte("\n"), -1)
+			if d := diff.Text(expected, string(result)); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestAttachmentStubs(t *testing.T) {
+	tests := []struct {
+		name     string
+		atts     *kivik.Attachments
+		expected map[string]*stub
+	}{
+		{
+			name: "simple",
+			atts: &kivik.Attachments{
+				"foo.txt": &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("test content")},
+			},
+			expected: map[string]*stub{
+				"foo.txt": {
+					ContentType: "text/plain",
+					Size:        13,
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, _ := attachmentStubs(test.atts)
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestInterfaceToAttachments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		output   interface{}
+		expected *kivik.Attachments
+		ok       bool
+	}{
+		{
+			name:     "non-attachment input",
+			input:    "foo",
+			output:   "foo",
+			expected: nil,
+			ok:       false,
+		},
+		{
+			name: "pointer input",
+			input: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			output: new(kivik.Attachments),
+			expected: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			ok: true,
+		},
+		{
+			name: "non-pointer input",
+			input: kivik.Attachments{
+				"foo.txt": nil,
+			},
+			output: kivik.Attachments{},
+			expected: &kivik.Attachments{
+				"foo.txt": nil,
+			},
+			ok: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, ok := interfaceToAttachments(test.input)
+			if ok != test.ok {
+				t.Errorf("Unexpected OK result: %v", result)
+			}
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Errorf("Unexpected result:\n%s\n", d)
+			}
+			if d := diff.Interface(test.output, test.input); d != nil {
+				t.Errorf("Input not properly modified:\n%s\n", d)
+			}
+		})
+	}
+}
+
+func TestStubMarshalJSON(t *testing.T) {
+	att := &stub{
+		ContentType: "text/plain",
+		Size:        123,
+	}
+	expected := `{"content_type":"text/plain","length":123,"follows":true}`
+	result, err := json.Marshal(att)
+	testy.Error(t, "", err)
+	if d := diff.JSON([]byte(expected), result); d != nil {
+		t.Error(d)
+	}
+}
+
+func TestAttachmentSize(t *testing.T) {
+	type tst struct {
+		att      *kivik.Attachment
+		expected *kivik.Attachment
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("size already set", tst{
+		att:      &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 4},
+		expected: &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 4},
+	})
+	tests.Add("bytes buffer", tst{
+		att:      &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text")},
+		expected: &kivik.Attachment{Filename: "foo.txt", ContentType: "text/plain", Content: Body("text"), Size: 5},
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		err := attachmentSize(test.att)
+		testy.Error(t, test.err, err)
+		body, err := ioutil.ReadAll(test.att.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expBody, err := ioutil.ReadAll(test.expected.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(expBody, body); d != nil {
+			t.Errorf("Content differs:\n%s\n", d)
+		}
+		test.att.Content = nil
+		test.expected.Content = nil
+		if d := diff.Interface(test.expected, test.att); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+type lenReader interface {
+	io.Reader
+	lener
+}
+
+type myReader struct {
+	lenReader
+}
+
+var _ interface {
+	io.Closer
+	lenReader
+} = &myReader{}
+
+func (r *myReader) Close() error { return nil }
+
+func TestReaderSize(t *testing.T) {
+	type tst struct {
+		in   io.ReadCloser
+		size int64
+		body string
+		err  string
+	}
+	tests := testy.NewTable()
+	tests.Add("*bytes.Buffer", tst{
+		in:   &myReader{bytes.NewBuffer([]byte("foo bar"))},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("bytes.NewReader", tst{
+		in:   &myReader{bytes.NewReader([]byte("foo bar"))},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("strings.NewReader", tst{
+		in:   &myReader{strings.NewReader("foo bar")},
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Add("file", func(t *testing.T) interface{} {
+		f, err := ioutil.TempFile("", "file-reader-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		tests.Cleanup(func() {
+			_ = os.Remove(f.Name())
+		})
+		if _, err := f.Write([]byte("foo bar")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.Seek(0, 0); err != nil {
+			t.Fatal(err)
+		}
+		return tst{
+			in:   f,
+			size: 7,
+			body: "foo bar",
+		}
+	})
+	tests.Add("nop closer", tst{
+		in:   ioutil.NopCloser(strings.NewReader("foo bar")),
+		size: 7,
+		body: "foo bar",
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		size, r, err := readerSize(test.in)
+		testy.Error(t, test.err, err)
+		body, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(test.body, body); d != nil {
+			t.Errorf("Unexpected body content:\n%s\n", d)
+		}
+		if size != test.size {
+			t.Errorf("Unexpected size: %d\n", size)
+		}
+	})
+}
+
+func TestNewAttachment(t *testing.T) {
+	type tst struct {
+		content    io.Reader
+		size       []int64
+		expected   *kivik.Attachment
+		expContent string
+		err        string
+	}
+	tests := testy.NewTable()
+	tests.Add("size provided", tst{
+		content: strings.NewReader("xxx"),
+		size:    []int64{99},
+		expected: &kivik.Attachment{
+			Filename:    "foo.txt",
+			ContentType: "text/plain",
+			Size:        99,
+		},
+		expContent: "xxx",
+	})
+	tests.Add("strings.NewReader", tst{
+		content: strings.NewReader("xxx"),
+		expected: &kivik.Attachment{
+			Filename:    "foo.txt",
+			ContentType: "text/plain",
+			Size:        3,
+		},
+		expContent: "xxx",
+	})
+	tests.Run(t, func(t *testing.T, test tst) {
+		result, err := NewAttachment("foo.txt", "text/plain", test.content, test.size...)
+		testy.Error(t, test.err, err)
+		content, err := ioutil.ReadAll(result.Content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := diff.Text(test.expContent, content); d != nil {
+			t.Errorf("Unexpected content:\n%s\n", d)
+		}
+		result.Content = nil
+		if d := diff.Interface(test.expected, result); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+func TestCopyWithAttachmentStubs(t *testing.T) {
+	type tst struct {
+		input    io.Reader
+		w        io.Writer
+		expected string
+		atts     map[string]*stub
+		status   int
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("no attachments", tst{
+		input:    strings.NewReader("{}"),
+		expected: "{}",
+	})
+	tests.Add("Unexpected delim", tst{
+		input:  strings.NewReader("[]"),
+		status: http.StatusBadRequest,
+		err:    `^expected '{', found '\['$`,
+	})
+	tests.Add("read error", tst{
+		input:  testy.ErrorReader("", errors.New("read error")),
+		status: http.StatusInternalServerError,
+		err:    "^read error$",
+	})
+	tests.Add("write error", tst{
+		input:  strings.NewReader("{}"),
+		w:      testy.ErrorWriter(0, errors.New("write error")),
+		status: http.StatusInternalServerError,
+		err:    "^write error$",
+	})
+	tests.Add("decode error", tst{
+		input:  strings.NewReader("{}}"),
+		status: http.StatusBadRequest,
+		err:    "^invalid character '}' +looking for beginning of value$",
+	})
+	tests.Add("one attachment", tst{
+		input: strings.NewReader(`{"_attachments":{}}`),
+		atts: map[string]*stub{
+			"foo.txt": {
+				ContentType: "text/plain",
+				Size:        3,
+			},
+		},
+		expected: `{"_attachments":{"foo.txt":{"content_type":"text/plain","length":3,"follows":true}}
+}`,
+	})
+
+	tests.Run(t, func(t *testing.T, test tst) {
+		w := test.w
+		if w == nil {
+			w = &bytes.Buffer{}
+		}
+		err := copyWithAttachmentStubs(w, test.input, test.atts)
+		testy.StatusErrorRE(t, test.err, test.status, err)
+		if d := diff.Text(test.expected, w.(*bytes.Buffer).String()); d != nil {
+			t.Error(d)
+		}
+	})
 }

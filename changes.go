@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 // Changes returns the changes stream for the database.
@@ -18,11 +18,14 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 		"since":     "now",
 		"heartbeat": 6000,
 	}
-	options, err := optionsToParams(opts, overrideOpts)
+	query, err := optionsToParams(opts, overrideOpts)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path("_changes", options), nil)
+	options := &chttp.Options{
+		Query: query,
+	}
+	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path("_changes"), options)
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +57,15 @@ func (r *changesRows) Next(row *driver.Change) error {
 		r.dec = json.NewDecoder(r.body)
 	}
 	if !r.dec.More() {
-		return io.EOF
+		_, err := r.dec.Token()
+		if err != io.EOF {
+			err = &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		}
+		return err
 	}
 
-	return errors.WrapStatus(kivik.StatusBadResponse, r.dec.Decode(row))
+	if err := r.dec.Decode(row); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+	}
+	return nil
 }

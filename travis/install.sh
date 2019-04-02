@@ -25,16 +25,6 @@ function wait_for_server {
     printf "ready!\n"
 }
 
-function setup_couch16 {
-    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-        return
-    fi
-    docker pull couchdb:1.6.1
-    docker run -d -p 6000:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb16 couchdb:1.6.1
-    wait_for_server http://localhost:6000/
-    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6000/_config/replicator/connection_timeout -d '"5000"'
-}
-
 function setup_couch17 {
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         return
@@ -61,8 +51,8 @@ function setup_couch21 {
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         return
     fi
-    docker pull apache/couchdb:2.1.1
-    docker run -d -p 6002:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb21 apache/couchdb:2.1.1
+    docker pull apache/couchdb:2.1.2
+    docker run -d -p 6002:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb21 apache/couchdb:2.1.2
     wait_for_server http://localhost:6002/
     curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6002/_users
     curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6002/_replicator
@@ -70,17 +60,30 @@ function setup_couch21 {
     curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6002/_node/nonode@nohost/_config/replicator/interval -d '"1000"'
 }
 
+function setup_couch22 {
+    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+        return
+    fi
+    docker pull apache/couchdb:2.2.0
+    docker run -d -p 6004:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb22 apache/couchdb:2.2.0
+    wait_for_server http://localhost:6004/
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6004/_users
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6004/_replicator
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6004/_global_changes
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6004/_node/nonode@nohost/_config/replicator/interval -d '"1000"'
+}
+
 case "$1" in
     "standard")
-        setup_couch16
         setup_couch17
         setup_couch20
         setup_couch21
+        setup_couch22
         generate
     ;;
     "linter")
-        go get -u gopkg.in/alecthomas/gometalinter.v1
-        gometalinter.v1 --install
+        go get -u gopkg.in/alecthomas/gometalinter.v2
+        gometalinter.v2 --install
     ;;
     "coverage")
         generate

@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 func TestBulkDocs(t *testing.T) {
@@ -39,7 +39,7 @@ func TestBulkDocs(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			docs:   []interface{}{make(chan int)},
-			status: kivik.StatusBadRequest,
+			status: kivik.StatusBadAPICall,
 			err:    "Post http://example.com/testdb/_bulk_docs: json: unsupported type: chan int",
 		},
 		{
@@ -70,7 +70,7 @@ func TestBulkDocs(t *testing.T) {
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
 			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: invalid character 'i' looking for beginning of value",
+			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "unexpected response code",
@@ -154,7 +154,7 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: 500,
+			status: http.StatusInternalServerError,
 			err:    "EOF",
 		},
 		{
@@ -167,7 +167,7 @@ func TestBulkNext(t *testing.T) {
 				return r
 			}(),
 			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			err:    "EOF",
 		},
 		{
 			name: "invalid doc json",
@@ -206,7 +206,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(kivik.StatusConflict, "annoying conflict"),
+				Error: &kivik.Error{HTTPStatus: http.StatusConflict, FromServer: true, Err: errors.New("annoying conflict")},
 			},
 		},
 		{
@@ -220,8 +220,20 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(kivik.StatusUnknownError, "foo is erroneous"),
+				Error: &kivik.Error{HTTPStatus: http.StatusInternalServerError, FromServer: true, Err: errors.New("foo is erroneous")},
 			},
+		},
+		{
+			name: "read error",
+			results: func() *bulkResults {
+				r, err := newBulkResults(ioutil.NopCloser(testy.ErrorReader("[", errors.New("read error"))))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			status: http.StatusBadGateway,
+			err:    "read error",
 		},
 	}
 	for _, test := range tests {

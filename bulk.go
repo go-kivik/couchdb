@@ -3,13 +3,13 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
+	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type bulkResults struct {
@@ -45,7 +45,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		Reason string `json:"reason"`
 	}
 	if err := r.dec.Decode(&updateResult); err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	update.ID = updateResult.ID
 	update.Rev = updateResult.Rev
@@ -56,9 +56,9 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		case "conflict":
 			status = kivik.StatusConflict
 		default:
-			status = 600 // Unknown error
+			status = kivik.StatusUnknownError
 		}
-		update.Error = errors.Status(status, updateResult.Reason)
+		update.Error = &kivik.Error{HTTPStatus: status, FromServer: true, Err: errors.New(updateResult.Reason)}
 	}
 	return nil
 }
@@ -71,7 +71,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	if options == nil {
 		options = make(map[string]interface{})
 	}
-	fullCommit, err := fullCommit(false, options)
+	fullCommit, err := fullCommit(options)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		Body:       chttp.EncodeBody(options),
 		FullCommit: fullCommit,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs", nil), opts)
+	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs"), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -93,9 +93,6 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 			Reason: "one or more document was rejected",
 		}
 	default:
-		if resp.StatusCode < 400 {
-			fmt.Printf("Unexpected BulkDoc response code: %d\n", resp.StatusCode)
-		}
 		// All other errors can consume the response body and return immediately
 		if e := chttp.ResponseError(resp); e != nil {
 			return nil, e

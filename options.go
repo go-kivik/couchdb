@@ -1,23 +1,23 @@
 package couchdb
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
 )
 
-func fullCommit(fullCommit bool, opts map[string]interface{}) (bool, error) {
-	for _, key := range []string{optionForceCommit, OptionFullCommit} {
-		fc, ok := opts[key]
-		if ok {
-			fcBool, ok := fc.(bool)
-			if !ok {
-				return false, errors.Statusf(kivik.StatusBadRequest, "kivik: option '%s' must be bool, not %T", key, fc)
-			}
-			fullCommit = fcBool
-			delete(opts, key)
-		}
+func fullCommit(opts map[string]interface{}) (bool, error) {
+	fc, ok := opts[OptionFullCommit]
+	if !ok {
+		return false, nil
 	}
-	return fullCommit, nil
+	fcBool, ok := fc.(bool)
+	if !ok {
+		return false, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be bool, not %T", OptionFullCommit, fc)}
+	}
+	delete(opts, OptionFullCommit)
+	return fcBool, nil
 }
 
 func ifNoneMatch(opts map[string]interface{}) (string, error) {
@@ -27,7 +27,7 @@ func ifNoneMatch(opts map[string]interface{}) (string, error) {
 	}
 	inmString, ok := inm.(string)
 	if !ok {
-		return "", errors.Statusf(kivik.StatusBadRequest, "kivik: option '%s' must be string, not %T", OptionIfNoneMatch, inm)
+		return "", &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be string, not %T", OptionIfNoneMatch, inm)}
 	}
 	delete(opts, OptionIfNoneMatch)
 	if inmString[0] != '"' {

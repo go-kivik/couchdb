@@ -17,6 +17,7 @@ func TestAllDBs(t *testing.T) {
 	tests := []struct {
 		name     string
 		client   *client
+		options  map[string]interface{}
 		expected []string
 		status   int
 		err      string
@@ -44,10 +45,16 @@ func TestAllDBs(t *testing.T) {
 			}, nil),
 			expected: []string{"_global_changes", "_replicator", "_users"},
 		},
+		{
+			name:    "bad options",
+			options: map[string]interface{}{"foo": func() {}},
+			status:  http.StatusBadRequest,
+			err:     "kivik: invalid type func() for options",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.AllDBs(context.Background(), nil)
+			result, err := test.client.AllDBs(context.Background(), test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if d := diff.Interface(test.expected, result); d != nil {
 				t.Error(d)
@@ -123,11 +130,12 @@ func TestDBExists(t *testing.T) {
 
 func TestCreateDB(t *testing.T) {
 	tests := []struct {
-		name   string
-		dbName string
-		client *client
-		status int
-		err    string
+		name    string
+		dbName  string
+		options map[string]interface{}
+		client  *client
+		status  int
+		err     string
 	}{
 		{
 			name:   "missing dbname",
@@ -159,10 +167,17 @@ func TestCreateDB(t *testing.T) {
 			status: kivik.StatusPreconditionFailed,
 			err:    "Precondition Failed: The database could not be created, the file already exists.",
 		},
+		{
+			name:    "bad options",
+			dbName:  "foo",
+			options: map[string]interface{}{"foo": func() {}},
+			status:  http.StatusBadRequest,
+			err:     "kivik: invalid type func() for options",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.client.CreateDB(context.Background(), test.dbName, nil)
+			err := test.client.CreateDB(context.Background(), test.dbName, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 		})
 	}
@@ -251,7 +266,7 @@ func TestDBUpdates(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.DBUpdates()
+			result, err := test.client.DBUpdates(context.TODO())
 			testy.StatusError(t, test.err, test.status, err)
 			if _, ok := result.(*couchUpdates); !ok {
 				t.Errorf("Unexpected type returned: %t", result)
@@ -304,5 +319,65 @@ func TestUpdatesClose(t *testing.T) {
 	}
 	if !body.closed {
 		t.Errorf("Failed to close")
+	}
+}
+
+func TestPing(t *testing.T) {
+	type pingTest struct {
+		name     string
+		client   *client
+		expected bool
+		status   int
+		err      string
+	}
+
+	tests := []pingTest{
+		{
+			name: "Couch 1.6",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusBadRequest,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header: http.Header{
+					"Server": []string{"CouchDB/1.6.1 (Erlang OTP/17)"},
+				},
+			}, nil),
+			expected: true,
+		},
+		{
+			name: "Couch 2.x offline",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusNotFound,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+			}, nil),
+			expected: false,
+		},
+		{
+			name: "Couch 2.x online",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+			}, nil),
+			expected: true,
+		},
+		{
+			name:     "network error",
+			client:   newTestClient(nil, errors.New("network error")),
+			expected: false,
+			status:   http.StatusBadGateway,
+			err:      "Head http://example.com/_up: network error",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.Ping(context.Background())
+			testy.StatusError(t, test.err, test.status, err)
+			if result != test.expected {
+				t.Errorf("Unexpected result: %t", result)
+			}
+		})
 	}
 }

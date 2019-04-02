@@ -5,52 +5,96 @@ package chttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
+	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
 )
 
 const (
 	typeJSON = "application/json"
 )
 
+// The default UserAgent values
+const (
+	UserAgent = "Kivik chttp"
+	Version   = "2.0.0-prerelease"
+)
+
 // Client represents a client connection. It embeds an *http.Client
 type Client struct {
+	// UserAgents is appended to set the User-Agent header. Typically it should
+	// contain pairs of product name and version.
+	UserAgents []string
+
 	*http.Client
 
 	rawDSN string
 	dsn    *url.URL
 	auth   Authenticator
+	authMU sync.Mutex
 }
 
 // New returns a connection to a remote CouchDB server. If credentials are
-// included in the URL, CookieAuth is attempted first, with BasicAuth used as
-// a fallback. If both fail, an error is returned. If you wish to use some other
-// authentication mechanism, do not specify credentials in the URL, and instead
-// call the Auth() method later.
-func New(ctx context.Context, dsn string) (*Client, error) {
-	dsnURL, err := url.Parse(dsn)
+// included in the URL, requests will be authenticated using Cookie Auth. To
+// use HTTP BasicAuth or some other authentication mechanism, do not specify
+// credentials in the URL, and instead call the Auth() method later.
+func New(dsn string) (*Client, error) {
+	return NewWithClient(&http.Client{}, dsn)
+}
+
+// NewWithClient works the same as New(), but allows providing a custom
+// *http.Client for all network connections.
+func NewWithClient(client *http.Client, dsn string) (*Client, error) {
+	dsnURL, err := parseDSN(dsn)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, err
 	}
 	user := dsnURL.User
 	dsnURL.User = nil
 	c := &Client{
-		Client: &http.Client{},
+		Client: client,
 		dsn:    dsnURL,
 		rawDSN: dsn,
 	}
 	if user != nil {
 		password, _ := user.Password()
-		if err := c.defaultAuth(ctx, user.Username(), password); err != nil {
+		err := c.Auth(&CookieAuth{
+			Username: user.Username(),
+			Password: password,
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
 	return c, nil
+}
+
+func parseDSN(dsn string) (*url.URL, error) {
+	if dsn == "" {
+		return nil, &HTTPError{Code: kivik.StatusBadAPICall, Reason: "no URL specified", exitStatus: ExitFailedToInitialize}
+	}
+	if !strings.HasPrefix(dsn, "http://") && !strings.HasPrefix(dsn, "https://") {
+		dsn = "http://" + dsn
+	}
+	dsnURL, err := url.Parse(dsn)
+	if err != nil {
+		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
+	}
+	if dsnURL.Path == "" {
+		dsnURL.Path = "/"
+	}
+	return dsnURL, nil
 }
 
 // DSN returns the unparsed DSN used to connect.
@@ -58,26 +102,12 @@ func (c *Client) DSN() string {
 	return c.rawDSN
 }
 
-func (c *Client) defaultAuth(ctx context.Context, username, password string) error {
-	err := c.Auth(ctx, &CookieAuth{
-		Username: username,
-		Password: password,
-	})
-	if err == nil {
-		return nil
-	}
-	return c.Auth(ctx, &BasicAuth{
-		Username: username,
-		Password: password,
-	})
-}
-
 // Auth authenticates using the provided Authenticator.
-func (c *Client) Auth(ctx context.Context, a Authenticator) error {
+func (c *Client) Auth(a Authenticator) error {
 	if c.auth != nil {
-		return errors.New("auth already set; log out first")
+		return errors.New("auth already set")
 	}
-	if err := a.Authenticate(ctx, c); err != nil {
+	if err := a.Authenticate(c); err != nil {
 		return err
 	}
 	c.auth = a
@@ -93,6 +123,9 @@ type Options struct {
 	// ContentType sets the requests's Content-Type header. Defaults to "application/json".
 	ContentType string
 
+	// ContentLength, if set, sets the ContentLength of the request
+	ContentLength int64
+
 	// Body sets the body of the request.
 	Body io.ReadCloser
 
@@ -107,11 +140,17 @@ type Options struct {
 	// FullCommit adds the X-Couch-Full-Commit: true header to requests
 	FullCommit bool
 
-	// IfNoneMatch adds the If-None-Match header.
+	// IfNoneMatch adds the If-None-Match header. The value will be quoted if
+	// it is not already.
 	IfNoneMatch string
 
 	// Destination is the target ID for COPY
 	Destination string
+
+	// Query is appended to the exiting url, if present. If the passed url
+	// already contains query parameters, the values in Query are appended.
+	// No merging takes place.
+	Query url.Values
 }
 
 // Response represents a response from a CouchDB server.
@@ -126,7 +165,10 @@ type Response struct {
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
 	defer r.Body.Close() // nolint: errcheck
-	return errors.WrapStatus(kivik.StatusBadResponse, json.NewDecoder(r.Body).Decode(i))
+	if err := json.NewDecoder(r.Body).Decode(i); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+	}
+	return nil
 }
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
@@ -146,17 +188,22 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 // NewRequest returns a new *http.Request to the CouchDB server, and the
 // specified path. The host, schema, etc, of the specified path are ignored.
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
-	reqPath, err := url.Parse(path)
-	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+	fullPath := path
+	if cPath := strings.TrimSuffix(c.dsn.Path, "/"); cPath != "" {
+		fullPath = cPath + "/" + strings.TrimPrefix(path, "/")
 	}
-	url := *c.dsn // Make a copy
-	url.Path = reqPath.Path
-	url.RawQuery = reqPath.RawQuery
-	req, err := http.NewRequest(method, url.String(), body)
+	reqPath, err := url.Parse(fullPath)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadRequest, err)
+		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
 	}
+	u := *c.dsn // Make a copy
+	u.Path = reqPath.Path
+	u.RawQuery = reqPath.RawQuery
+	req, err := http.NewRequest(method, u.String(), body)
+	if err != nil {
+		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
+	}
+	req.Header.Add("User-Agent", c.userAgent())
 	return req.WithContext(ctx), nil
 }
 
@@ -165,12 +212,13 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 // or 500, does _not_ cause an error to be returned.
 func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) (*http.Response, error) {
 	if method == "" {
-		return nil, errors.Status(kivik.StatusBadRequest, "chttp: method required")
+		return nil, errors.New("chttp: method required")
 	}
 	var body io.Reader
 	if opts != nil {
 		if opts.Body != nil {
 			body = opts.Body
+			defer opts.Body.Close() // nolint: errcheck
 		}
 	}
 	req, err := c.NewRequest(ctx, method, path, body)
@@ -179,8 +227,19 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	}
 	fixPath(req, path)
 	setHeaders(req, opts)
+	setQuery(req, opts)
+
+	trace := ContextClientTrace(ctx)
+	if trace != nil {
+		trace.httpRequest(req)
+		trace.httpRequestBody(req)
+	}
 
 	response, err := c.Do(req)
+	if trace != nil {
+		trace.httpResponse(response)
+		trace.httpResponseBody(response)
+	}
 	return response, netError(err)
 }
 
@@ -195,12 +254,41 @@ func netError(err error) error {
 		if status == kivik.StatusInternalServerError {
 			status = kivik.StatusNetworkError
 		}
-		return errors.WrapStatus(status, err)
+		return fullError(status, curlStatus(err), err)
 	}
 	if status := kivik.StatusCode(err); status != kivik.StatusInternalServerError {
 		return err
 	}
-	return errors.WrapStatus(kivik.StatusNetworkError, err)
+	return fullError(kivik.StatusNetworkError, ExitUnknownFailure, err)
+}
+
+var tooManyRecirectsRE = regexp.MustCompile(`stopped after \d+ redirect`)
+
+func curlStatus(err error) int {
+	if urlErr, ok := err.(*url.Error); ok {
+		// Timeout error
+		if urlErr.Timeout() {
+			return ExitOperationTimeout
+		}
+		// Host lookup failure
+		if opErr, ok := urlErr.Err.(*net.OpError); ok {
+			if _, ok := opErr.Err.(*net.DNSError); ok {
+				return ExitHostNotResolved
+			}
+			if scErr, ok := opErr.Err.(*os.SyscallError); ok {
+				if errno, ok := scErr.Err.(syscall.Errno); ok {
+					if errno == syscall.ECONNREFUSED {
+						return ExitFailedToConnect
+					}
+				}
+			}
+		}
+
+		if tooManyRecirectsRE.MatchString(urlErr.Err.Error()) {
+			return ExitTooManyRedirects
+		}
+	}
+	return 0
 }
 
 // fixPath sets the request's URL.RawPath to work with escaped characters in
@@ -211,12 +299,13 @@ func fixPath(req *http.Request, path string) {
 	req.URL.RawPath = "/" + strings.TrimPrefix(parts[0], "/")
 }
 
-// EncodeBody JSON encodes i to r. A call to errFunc will block until encoding
-// has completed, then return the errur status of the encoding job. If an
-// encoding error occurs, cancel() called.
+// EncodeBody JSON encodes i to an io.ReadCloser. If an encoding error
+// occurs, it will be returned on the next read.
 func EncodeBody(i interface{}) io.ReadCloser {
+	done := make(chan struct{})
 	r, w := io.Pipe()
 	go func() {
+		defer close(done)
 		var err error
 		switch t := i.(type) {
 		case []byte:
@@ -229,12 +318,28 @@ func EncodeBody(i interface{}) io.ReadCloser {
 			err = json.NewEncoder(w).Encode(i)
 			switch err.(type) {
 			case *json.MarshalerError, *json.UnsupportedTypeError, *json.UnsupportedValueError:
-				err = errors.WrapStatus(kivik.StatusBadRequest, err)
+				err = &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 			}
 		}
 		_ = w.CloseWithError(err)
 	}()
-	return r
+	return &ebReader{
+		ReadCloser: r,
+		done:       done,
+	}
+}
+
+type ebReader struct {
+	io.ReadCloser
+	done <-chan struct{}
+}
+
+var _ io.ReadCloser = &ebReader{}
+
+func (r *ebReader) Close() error {
+	err := r.ReadCloser.Close()
+	<-r.done
+	return err
 }
 
 func setHeaders(req *http.Request, opts *Options) {
@@ -254,11 +359,26 @@ func setHeaders(req *http.Request, opts *Options) {
 			req.Header.Add("Destination", opts.Destination)
 		}
 		if opts.IfNoneMatch != "" {
-			req.Header.Set("If-None-Match", opts.IfNoneMatch)
+			inm := "\"" + strings.Trim(opts.IfNoneMatch, "\"") + "\""
+			req.Header.Set("If-None-Match", inm)
+		}
+		if opts.ContentLength != 0 {
+			req.ContentLength = opts.ContentLength
 		}
 	}
 	req.Header.Add("Accept", accept)
 	req.Header.Add("Content-Type", contentType)
+}
+
+func setQuery(req *http.Request, opts *Options) {
+	if opts == nil || len(opts.Query) == 0 {
+		return
+	}
+	if req.URL.RawQuery == "" {
+		req.URL.RawQuery = opts.Query.Encode()
+		return
+	}
+	req.URL.RawQuery = strings.Join([]string{req.URL.RawQuery, opts.Query.Encode()}, "&")
 }
 
 // DoError is the same as DoReq(), followed by checking the response error. This
@@ -269,7 +389,9 @@ func (c *Client) DoError(ctx context.Context, method, path string, opts *Options
 	if err != nil {
 		return res, err
 	}
-	defer func() { _ = res.Body.Close() }()
+	if res.Body != nil {
+		defer res.Body.Close() // nolint: errcheck
+	}
 	err = ResponseError(res)
 	return res, err
 }
@@ -300,4 +422,27 @@ func GetRev(resp *http.Response) (rev string, err error) {
 		return "", errors.New("no ETag header found")
 	}
 	return rev, nil
+}
+
+type exitStatuser interface {
+	ExitStatus() int
+}
+
+// ExitStatus returns the curl exit status embedded in the error, or 1 (unknown
+// error), if there was no specified exit status.  If err is nil, ExitStatus
+// returns 0.
+func ExitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	if statuser, ok := err.(exitStatuser); ok {
+		return statuser.ExitStatus()
+	}
+	return 0
+}
+
+func (c *Client) userAgent() string {
+	ua := fmt.Sprintf("%s/%s (Language=%s; Platform=%s/%s)",
+		UserAgent, Version, runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	return strings.Join(append([]string{ua}, c.UserAgents...), " ")
 }

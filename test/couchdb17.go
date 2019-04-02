@@ -26,12 +26,12 @@ func registerSuiteCouch17() {
 		"AllDocs/NoAuth/_duck.status":        kivik.StatusBadRequest,
 
 		"Find.databases":     []string{"_users"},
-		"Find.status":        kivik.StatusNotImplemented, // Couchdb 1.7 doesn't support the find interface
-		"CreateIndex.status": kivik.StatusNotImplemented, // Couchdb 1.7 doesn't support the find interface
-		"GetIndexes.skip":    true,                       // Couchdb 1.7 doesn't support the find interface
-		"DeleteIndex.skip":   true,                       // Couchdb 1.7 doesn't support the find interface
+		"Find.status":        kivik.StatusBadRequest, // Couchdb 1.7 doesn't support the find interface
+		"CreateIndex.status": kivik.StatusBadRequest, // Couchdb 1.7 doesn't support the find interface
+		"GetIndexes.skip":    true,                   // Couchdb 1.7 doesn't support the find interface
+		"DeleteIndex.skip":   true,                   // Couchdb 1.7 doesn't support the find interface
 		"Explain.databases":  []string{"_users"},
-		"Explain.status":     kivik.StatusNotImplemented, // Couchdb 1.7 doesn't support the find interface
+		"Explain.status":     kivik.StatusBadRequest, // Couchdb 1.7 doesn't support the find interface
 
 		"DBExists.databases":              []string{"_users", "chicken", "_duck"},
 		"DBExists/Admin/_users.exists":    true,
@@ -157,7 +157,7 @@ func registerSuiteCouch17() {
 		"Replicate/RW/Admin/group/MissingSource/Results.status": kivik.StatusNotFound,
 		"Replicate/RW/Admin/group/MissingTarget/Results.status": kivik.StatusNotFound,
 
-		"Query/RW/group/Admin/WithoutDocs/ScanDoc.status":  kivik.StatusBadRequest,
-		"Query/RW/group/NoAuth/WithoutDocs/ScanDoc.status": kivik.StatusBadRequest,
+		"Query/RW/group/Admin/WithoutDocs/ScanDoc.status":  kivik.StatusBadAPICall,
+		"Query/RW/group/NoAuth/WithoutDocs/ScanDoc.status": kivik.StatusBadAPICall,
 	})
 }

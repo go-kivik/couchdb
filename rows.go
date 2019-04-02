@@ -5,32 +5,69 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
 )
 
 type rows struct {
-	offset    int64
-	totalRows int64
-	updateSeq string
-	warning   string
-	bookmark  string
-	body      io.ReadCloser
-	dec       *json.Decoder
+	offset      int64
+	totalRows   int64
+	updateSeq   string
+	warning     string
+	bookmark    string
+	body        io.ReadCloser
+	dec         *json.Decoder
+	expectedKey string
+	decodeRow   func(*driver.Row) error
 	// closed is true after all rows have been processed
 	closed bool
-	// isFindRows is set to true if this result set is from the _find interface.
-	isFindRows bool
 }
 
 var _ driver.Rows = &rows{}
 
-func newRows(r io.ReadCloser) *rows {
-	return &rows{
-		body: r,
+func newRows(in io.ReadCloser) *rows {
+	r := &rows{
+		body:        in,
+		expectedKey: "rows",
 	}
+	r.decodeRow = func(row *driver.Row) error {
+		return r.dec.Decode(row)
+	}
+	return r
+}
+
+func newFindRows(in io.ReadCloser) *rows {
+	r := &rows{
+		body:        in,
+		expectedKey: "docs",
+	}
+	r.decodeRow = func(row *driver.Row) error {
+		return r.dec.Decode(&row.Doc)
+	}
+	return r
+}
+
+func newBulkGetRows(in io.ReadCloser) *rows {
+	r := &rows{
+		body:        in,
+		expectedKey: "results",
+	}
+	r.decodeRow = func(row *driver.Row) error {
+		var result bulkResult
+		if err := r.dec.Decode(&result); err != nil {
+			return err
+		}
+		row.ID = result.ID
+		row.Doc = result.Docs[0].Doc
+		row.Error = nil
+		if err := result.Docs[0].Error; err != nil {
+			row.Error = err
+		}
+		return nil
+	}
+	return r
 }
 
 func (r *rows) Offset() int64 {
@@ -69,7 +106,7 @@ func (r *rows) Next(row *driver.Row) error {
 			return err
 		}
 		if err := r.begin(); err != nil {
-			return errors.WrapStatus(kivik.StatusBadResponse, err)
+			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 		}
 	}
 
@@ -96,8 +133,7 @@ func (r *rows) begin() error {
 			// The JSON parser should never permit this
 			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
 		}
-		if key == "rows" || key == "docs" {
-			r.isFindRows = key == "docs"
+		if key == r.expectedKey {
 			// Consume the first '['
 			return consumeDelim(r.dec, json.Delim('['))
 		}
@@ -145,7 +181,7 @@ func (r *rows) parseMeta(key string) error {
 	case "bookmark":
 		return r.dec.Decode(&r.bookmark)
 	}
-	return errors.Statusf(kivik.StatusBadResponse, "Unexpected key: %s", key)
+	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
 func (r *rows) readUpdateSeq() error {
@@ -164,10 +200,7 @@ func (r *rows) nextRow(row *driver.Row) error {
 		}
 		return io.EOF
 	}
-	if r.isFindRows {
-		return r.dec.Decode(&row.Doc)
-	}
-	return r.dec.Decode(row)
+	return r.decodeRow(row)
 }
 
 // consumeDelim consumes the expected delimiter from the stream, or returns an
@@ -175,14 +208,14 @@ func (r *rows) nextRow(row *driver.Row) error {
 func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 	t, err := dec.Token()
 	if err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "no closing delimiter"))
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	d, ok := t.(json.Delim)
 	if !ok {
-		return errors.Statusf(kivik.StatusBadResponse, "Unexpected token %T: %v", t, t)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
 	}
 	if d != expectedDelim {
-		return errors.Statusf(kivik.StatusBadResponse, "Unexpected JSON delimiter: %c", d)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected JSON delimiter: %c", d)}
 	}
 	return nil
 }

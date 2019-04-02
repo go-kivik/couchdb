@@ -135,7 +135,7 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadRequest,
+			status:  kivik.StatusBadAPICall,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -424,9 +424,8 @@ func TestSchedulerSupported(t *testing.T) {
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			}, nil),
-			expectedState: nil,
-			status:        kivik.StatusBadResponse,
-			err:           "Unknown response code 500",
+			expected:      false,
+			expectedState: &unsupported,
 		},
 	}
 	for _, test := range tests {
