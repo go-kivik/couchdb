@@ -20,7 +20,7 @@ The only exceptions to the above rule are:
    and `OptionIfNoneMatch`. These options set the appropriate HTTP request
    headers rather than setting a URL parameter.
  - the `keys` key, when passed to a view query, will result in a POST query
-   being done, rather than a GET, to accomodate an arbitrary number of keys.
+   being done, rather than a GET, to accommodate an arbitrary number of keys.
 -  the 'NoMultipartPut' option is interpreted by the kivik CouchDB driver
    to disable multipart/related PUT uploads.
 

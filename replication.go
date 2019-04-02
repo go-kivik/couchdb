@@ -34,8 +34,7 @@ func (re *replicationError) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &re.reason); err != nil {
 		return err
 	}
-	parts := strings.SplitN(re.reason, ":", 2)
-	switch string(parts[0]) {
+	switch (strings.SplitN(re.reason, ":", 2))[0] {
 	case "db_not_found":
 		re.status = kivik.StatusNotFound
 	case "timeout":
@@ -292,10 +291,10 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if _, ok := options["target"]; !ok {
 		options["target"] = targetDSN
 	}
-	if t, _ := options["target"]; t == "" {
+	if t := options["target"]; t == "" {
 		return nil, missingArg("targetDSN")
 	}
-	if s, _ := options["source"]; s == "" {
+	if s := options["source"]; s == "" {
 		return nil, missingArg("sourceDSN")
 	}
 
