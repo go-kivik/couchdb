@@ -103,7 +103,7 @@ func TestGet(t *testing.T) {
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusOK,
 				Header: http.Header{
-					"Content-Type": {"application/json"},
+					"Content-Type": {typeJSON},
 					"ETag":         {`"12-xxx"`},
 				},
 				ContentLength: 13,
@@ -173,7 +173,7 @@ func TestGet(t *testing.T) {
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusOK,
 				Header: http.Header{
-					"Content-Type": {"multipart/related"},
+					"Content-Type": {typeMPRelated},
 					"ETag":         {`"12-xxx"`},
 				},
 				ContentLength: 13,
@@ -561,7 +561,7 @@ func TestCompact(t *testing.T) {
 		{
 			name: "1.6.1",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != typeJSON {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
@@ -610,7 +610,7 @@ func TestCompactView(t *testing.T) {
 			name: "1.6.1",
 			id:   "foo",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != typeJSON {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
@@ -651,7 +651,7 @@ func TestViewCleanup(t *testing.T) {
 		{
 			name: "1.6.1",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != typeJSON {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
@@ -976,7 +976,7 @@ func TestFlush(t *testing.T) {
 		{
 			name: "1.6.1",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != typeJSON {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
@@ -995,7 +995,7 @@ func TestFlush(t *testing.T) {
 		{
 			name: "2.0.0",
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != typeJSON {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
@@ -1003,7 +1003,7 @@ func TestFlush(t *testing.T) {
 					Header: http.Header{
 						"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
 						"Date":                {"Thu, 26 Oct 2017 13:07:52 GMT"},
-						"Content-Type":        {"application/json"},
+						"Content-Type":        {typeJSON},
 						"Content-Length":      {"38"},
 						"Cache-Control":       {"must-revalidate"},
 						"X-Couch-Request-ID":  {"e454023cb8"},
@@ -1145,7 +1145,7 @@ func TestRowsQuery(t *testing.T) {
 					"Transfer-Encoding":  {"chunked"},
 					"Date":               {"Tue, 24 Oct 2017 21:21:30 GMT"},
 					"Server":             {"CouchDB/2.0.0 (Erlang OTP/17)"},
-					"Content-Type":       {"application/json"},
+					"Content-Type":       {typeJSON},
 					"Cache-Control":      {"must-revalidate"},
 					"X-Couch-Request-ID": {"a9688d9335"},
 					"X-Couch-Body-Time":  {"0"},
@@ -1190,7 +1190,7 @@ func TestRowsQuery(t *testing.T) {
 						"Transfer-Encoding":  {"chunked"},
 						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
 						"Server":             {"CouchDB/2.2.0 (Erlang OTP/19)"},
-						"Content-Type":       {"application/json"},
+						"Content-Type":       {typeJSON},
 						"Cache-Control":      {"must-revalidate"},
 						"X-Couch-Request-ID": {"24fdb3fd86"},
 						"X-Couch-Body-Time":  {"0"},
@@ -1332,7 +1332,7 @@ func TestSetSecurity(t *testing.T) {
 			},
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
 				defer req.Body.Close() // nolint: errcheck
-				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "application/json" {
+				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != typeJSON {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				var body interface{}
@@ -1729,7 +1729,7 @@ func TestPurge(t *testing.T) {
 				if r.URL.Path != "/testdb/_purge" {
 					return nil, fmt.Errorf("Unexpected path: %s", r.URL.Path)
 				}
-				if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+				if ct := r.Header.Get("Content-Type"); ct != typeJSON {
 					return nil, fmt.Errorf("Unexpected Content-Type: %s", ct)
 				}
 				defer r.Body.Close() // nolint: errcheck
@@ -1779,7 +1779,7 @@ func TestPurge(t *testing.T) {
 				Header: http.Header{
 					"Server":              []string{"CouchDB/2.2.0 (Erlang OTP/19)"},
 					"Date":                []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
-					"Content-Type":        []string{"application/json"},
+					"Content-Type":        []string{typeJSON},
 					"Content-Length":      []string{"75"},
 					"Cache-Control":       []string{"must-revalidate"},
 					"X-Couch-Request-ID":  []string{"03e91291c8"},

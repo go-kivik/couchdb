@@ -20,7 +20,7 @@ case "$1" in
         go test -race $(go list ./... | grep -v /vendor/)
     ;;
     "linter")
-        gometalinter.v2 --config .linter.json ./...
+        golangci-lint run ./...
     ;;
     "coverage")
         echo "" > coverage.txt

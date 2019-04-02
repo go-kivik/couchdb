@@ -57,7 +57,7 @@ func TestAuthenticate(t *testing.T) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		if r.URL.Path == "/_session" {
+		if r.URL.Path == "/_session" { // nolint: goconst
 			_, _ = w.Write([]byte(`{"userCtx":{"name":"admin"}}`))
 			return
 		}

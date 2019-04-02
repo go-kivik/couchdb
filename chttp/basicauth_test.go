@@ -28,7 +28,7 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 					if !ok {
 						t.Error("BasicAuth not set in request")
 					}
-					if u != "foo" || p != "bar" {
+					if u != "foo" || p != "bar" { // nolint: goconst
 						t.Errorf("Unexpected user/password: %s/%s", u, p)
 					}
 					return &http.Response{StatusCode: 200}, nil

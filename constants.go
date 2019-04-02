@@ -25,3 +25,8 @@ const (
 	// also include attachments.
 	NoMultipartPut = "kivik:no-multipart-put"
 )
+
+const (
+	typeJSON      = "application/json"
+	typeMPRelated = "multipart/related"
+)
