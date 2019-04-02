@@ -123,13 +123,13 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		return nil, &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	switch ct {
-	case "application/json":
+	case typeJSON:
 		return &driver.Document{
 			Rev:           rev,
 			ContentLength: resp.ContentLength,
 			Body:          resp.Body,
 		}, nil
-	case "multipart/related":
+	case typeMPRelated:
 		boundary := strings.Trim(params["boundary"], "\"")
 		if boundary == "" {
 			return nil, &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.New("kivik: boundary missing for multipart/related response")}
@@ -264,7 +264,7 @@ func (d *db) get(ctx context.Context, method string, docID string, options map[s
 		return nil, "", err
 	}
 	opts := &chttp.Options{
-		Accept:      "application/json",
+		Accept:      typeJSON,
 		IfNoneMatch: inm,
 		Query:       params,
 	}
@@ -327,7 +327,7 @@ func putOpts(doc interface{}, options map[string]interface{}) (*chttp.Options, e
 				FullCommit:    fullCommit,
 				Query:         params,
 				ContentLength: size,
-				ContentType:   fmt.Sprintf("multipart/related;boundary=%q", boundary),
+				ContentType:   fmt.Sprintf(typeMPRelated+"; boundary=%q", boundary),
 			}, nil
 		}
 	}
@@ -439,7 +439,7 @@ func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (boundary
 
 func createMultipart(w *multipart.Writer, r io.ReadCloser, atts *kivik.Attachments) error {
 	doc, err := w.CreatePart(textproto.MIMEHeader{
-		"Content-Type": {"application/json"},
+		"Content-Type": {typeJSON},
 	})
 	if err != nil {
 		return err
