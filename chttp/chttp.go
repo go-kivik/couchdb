@@ -404,7 +404,7 @@ func ETag(resp *http.Response) (string, bool) {
 	}
 	etag, ok := resp.Header["Etag"]
 	if !ok {
-		etag, ok = resp.Header["ETag"]
+		etag, ok = resp.Header["ETag"] // nolint: staticcheck
 	}
 	if !ok {
 		return "", false
