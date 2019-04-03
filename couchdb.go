@@ -114,9 +114,3 @@ func (c *client) DB(_ context.Context, dbName string, options map[string]interfa
 		fullCommit: fullCommit,
 	}, nil
 }
-
-type putResponse struct {
-	ID  string `json:"id"`
-	OK  bool   `json:"ok"`
-	Rev string `json:"rev"`
-}

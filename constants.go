@@ -17,6 +17,6 @@ const (
 	OptionIfNoneMatch = "If-None-Match"
 )
 
-// optionForceCommit is an unfortunately mispelled version of "full-commit",
+// optionForceCommit is an unfortunately misspelled version of "full-commit",
 // retained for backward compatibility.
 const optionForceCommit = "force_commit"

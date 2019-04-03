@@ -237,7 +237,7 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 			External int64 `json:"external"`
 			Active   int64 `json:"active"`
 		} `json:"sizes"`
-		UpdateSeq json.RawMessage `json:"update_seq"`
+		UpdateSeq json.RawMessage `json:"update_seq"` // nolint: govet
 	}{}
 	if err := json.Unmarshal(resBody, &result); err != nil {
 		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)

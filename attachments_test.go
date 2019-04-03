@@ -166,7 +166,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 				if err := consume(req.Body); err != nil {
 					return nil, err
 				}
-				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" { // nolint: goconst
 					return nil, errors.New("X-Couch-Full-Commit not true")
 				}
 				return nil, errors.New("success")
