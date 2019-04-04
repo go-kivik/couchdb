@@ -42,8 +42,6 @@ matrix:
     include:
         - go: 1.11.x
           env: MODE=linter
-        - go: 1.11.x
-          env: MODE=coverage
 
 install:
     - ./travis/install.sh $MODE
