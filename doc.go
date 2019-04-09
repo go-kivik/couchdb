@@ -28,8 +28,11 @@ Authentication
 
 The CouchDB driver supports a number of authentication methods. For most uses,
 you don't need to worry about authentication at all--just include authentication
-credentials in your connection DSN. This will use Cookie authentication by
-default.
+credentials in your connection DSN:
+
+    client, _ := kivik.New("couch", "http://user:password@localhost:5984/")
+
+This will use Cookie authentication by default.
 
 To use one of the explicit authentication mechanisms, you'll need to use kivik's
 Authenticate method.  For example:
