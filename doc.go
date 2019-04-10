@@ -20,7 +20,7 @@ The only exceptions to the above rule are:
    and `OptionIfNoneMatch`. These options set the appropriate HTTP request
    headers rather than setting a URL parameter.
  - the `keys` key, when passed to a view query, will result in a POST query
-   being done, rather than a GET, to accomodate an arbitrary number of keys.
+   being done, rather than a GET, to accommodate an arbitrary number of keys.
 -  the 'NoMultipartPut' option is interpreted by the kivik CouchDB driver
    to disable multipart/related PUT uploads.
 
@@ -28,8 +28,11 @@ Authentication
 
 The CouchDB driver supports a number of authentication methods. For most uses,
 you don't need to worry about authentication at all--just include authentication
-credentials in your connection DSN. This will use Cookie authentication by
-default.
+credentials in your connection DSN:
+
+    client, _ := kivik.New("couch", "http://user:password@localhost:5984/")
+
+This will use Cookie authentication by default.
 
 To use one of the explicit authentication mechanisms, you'll need to use kivik's
 Authenticate method.  For example:
