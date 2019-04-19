@@ -18,7 +18,7 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 		"since":     "now",
 		"heartbeat": 6000,
 	}
-	query, err := optionsToParams(overrideOpts, opts)
+	query, err := optionsToParams(opts, overrideOpts)
 	if err != nil {
 		return nil, err
 	}
