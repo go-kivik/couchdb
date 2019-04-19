@@ -1212,6 +1212,51 @@ func TestRowsQuery(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "all docs with object keys",
+			path: "/_all_docs",
+			options: map[string]interface{}{
+				"keys": []interface{}{"_design/_auth", "foo", []string{"bar", "baz"}},
+			},
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				if r.Method != kivik.MethodPost {
+					t.Errorf("Unexpected method: %s", r.Method)
+				}
+				defer r.Body.Close() // nolint: errcheck
+				if d := diff.AsJSON(map[string][]interface{}{"keys": {"_design/_auth", "foo", []string{"bar", "baz"}}}, r.Body); d != nil {
+					t.Error(d)
+				}
+				if keys := r.URL.Query().Get("keys"); keys != "" {
+					t.Error("query key 'keys' should be absent")
+				}
+				return &http.Response{
+					StatusCode: kivik.StatusOK,
+					Header: http.Header{
+						"Transfer-Encoding":  {"chunked"},
+						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
+						"Server":             {"CouchDB/2.2.0 (Erlang OTP/19)"},
+						"Content-Type":       {typeJSON},
+						"Cache-Control":      {"must-revalidate"},
+						"X-Couch-Request-ID": {"24fdb3fd86"},
+						"X-Couch-Body-Time":  {"0"},
+					},
+					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+{"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-6e609020e0371257432797b4319c5829"}}
+]}`)),
+				}, nil
+			}),
+			expected: queryResult{
+				TotalRows: 1,
+				UpdateSeq: "",
+				Rows: []driver.Row{
+					{
+						ID:    "_design/_auth",
+						Key:   []byte(`"_design/_auth"`),
+						Value: []byte(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
