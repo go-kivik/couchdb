@@ -70,9 +70,7 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 // rowsQuery performs a query that returns a rows iterator.
 func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interface{}) (driver.Rows, error) {
 	keys := opts["keys"]
-	if keys != nil {
-		delete(opts, "keys")
-	}
+	delete(opts, "keys")
 	query, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
