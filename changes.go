@@ -13,10 +13,13 @@ import (
 
 // Changes returns the changes stream for the database.
 func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.Changes, error) {
-	overrideOpts := map[string]interface{}{
-		"feed":      "continuous",
-		"since":     "now",
-		"heartbeat": 6000,
+	var overrideOpts map[string]interface{}
+	if opts["feed"] != "normal" {
+		overrideOpts = map[string]interface{}{
+			"feed":      "continuous",
+			"since":     "now",
+			"heartbeat": 6000,
+		}
 	}
 	query, err := optionsToParams(opts, overrideOpts)
 	if err != nil {
@@ -31,6 +34,9 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 	}
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
+	}
+	if overrideOpts == nil {
+		return newChangesNormal(resp.Body), nil
 	}
 	return newChangesRows(resp.Body), nil
 }
