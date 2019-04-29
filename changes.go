@@ -69,3 +69,62 @@ func (r *changesRows) Next(row *driver.Change) error {
 	}
 	return nil
 }
+
+func (r *changesRows) LastSeq() string {
+	return ""
+}
+
+func (r *changesRows) Pending() int64 {
+	return 0
+}
+
+type changesNormal struct {
+	rows
+}
+
+func newChangesNormal(in io.ReadCloser) *changesNormal {
+	return &changesNormal{
+		rows: rows{
+			body:        in,
+			expectedKey: "results",
+		},
+	}
+}
+
+func (r *changesNormal) Next(row *driver.Change) error {
+	if r.closed {
+		return io.EOF
+	}
+	if r.dec == nil {
+		// We haven't begun yet
+		r.dec = json.NewDecoder(r.body)
+		// consume the first '{'
+		if err := consumeDelim(r.dec, json.Delim('{')); err != nil {
+			return err
+		}
+		if err := r.begin(); err != nil {
+			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		}
+	}
+
+	if err := r.nextRow(row); err != nil {
+		r.closed = true
+		if err == io.EOF {
+			return r.finish()
+		}
+	}
+	return nil
+}
+
+func (r *changesNormal) nextRow(row *driver.Change) error {
+	if !r.dec.More() {
+		if err := consumeDelim(r.dec, json.Delim(']')); err != nil {
+			return err
+		}
+		return io.EOF
+	}
+	if err := r.dec.Decode(row); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+	}
+	return nil
+}

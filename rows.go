@@ -14,7 +14,9 @@ import (
 type rows struct {
 	offset      int64
 	totalRows   int64
+	pending     int64
 	updateSeq   string
+	lastSeq     string
 	warning     string
 	bookmark    string
 	body        io.ReadCloser
@@ -74,6 +76,10 @@ func (r *rows) Offset() int64 {
 	return r.offset
 }
 
+func (r *rows) Pending() int64 {
+	return r.pending
+}
+
 func (r *rows) TotalRows() int64 {
 	return r.totalRows
 }
@@ -84,6 +90,10 @@ func (r *rows) Warning() string {
 
 func (r *rows) Bookmark() string {
 	return r.bookmark
+}
+
+func (r *rows) LastSeq() string {
+	return r.lastSeq
 }
 
 func (r *rows) UpdateSeq() string {
@@ -171,9 +181,13 @@ func (r *rows) finish() error {
 func (r *rows) parseMeta(key string) error {
 	switch key {
 	case "update_seq":
-		return r.readUpdateSeq()
+		return r.readSeq(&r.updateSeq)
+	case "last_seq":
+		return r.readSeq(&r.lastSeq)
 	case "offset":
 		return r.dec.Decode(&r.offset)
+	case "pending":
+		return r.dec.Decode(&r.pending)
 	case "total_rows":
 		return r.dec.Decode(&r.totalRows)
 	case "warning":
@@ -184,12 +198,12 @@ func (r *rows) parseMeta(key string) error {
 	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
-func (r *rows) readUpdateSeq() error {
+func (r *rows) readSeq(seq *string) error {
 	var raw json.RawMessage
 	if err := r.dec.Decode(&raw); err != nil {
 		return err
 	}
-	r.updateSeq = string(bytes.Trim(raw, `""`))
+	*seq = string(bytes.Trim(raw, `""`))
 	return nil
 }
 
