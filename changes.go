@@ -76,7 +76,7 @@ func (r *changesRows) Next(row *driver.Change) error {
 	return nil
 }
 
-func (r *changesRows) LastSeq() string {
+func (r *changesRows) LastSeq() driver.SequenceID {
 	return ""
 }
 
