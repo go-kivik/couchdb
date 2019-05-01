@@ -92,8 +92,8 @@ func (r *rows) Bookmark() string {
 	return r.bookmark
 }
 
-func (r *rows) LastSeq() string {
-	return r.lastSeq
+func (r *rows) LastSeq() driver.SequenceID {
+	return driver.SequenceID(r.lastSeq)
 }
 
 func (r *rows) UpdateSeq() string {
