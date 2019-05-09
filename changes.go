@@ -76,3 +76,13 @@ func (r *changesRows) Next(row *driver.Change) error {
 	ch.Change.Seq = string(ch.Seq)
 	return nil
 }
+
+// LastSeq returns an empty string.
+func (r *changesRows) LastSeq() string {
+	return ""
+}
+
+// Pending returns 0.
+func (r *changesRows) Pending() int64 {
+	return 0
+}
