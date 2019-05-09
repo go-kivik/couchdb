@@ -52,6 +52,11 @@ func (r *changesRows) Close() error {
 	return r.body.Close()
 }
 
+type change struct {
+	*driver.Change
+	Seq sequenceID `json:"seq"`
+}
+
 func (r *changesRows) Next(row *driver.Change) error {
 	if r.dec == nil {
 		r.dec = json.NewDecoder(r.body)
@@ -64,8 +69,10 @@ func (r *changesRows) Next(row *driver.Change) error {
 		return err
 	}
 
-	if err := r.dec.Decode(row); err != nil {
+	ch := &change{Change: row}
+	if err := r.dec.Decode(ch); err != nil {
 		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
+	ch.Change.Seq = string(ch.Seq)
 	return nil
 }
