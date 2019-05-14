@@ -32,7 +32,7 @@ func TestChanges(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/testdb/_changes?feed=continuous&heartbeat=6000&since=now: net error",
+			err:    "Get http://example.com/testdb/_changes: net error",
 		},
 		{
 			name: "error response",

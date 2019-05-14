@@ -159,5 +159,11 @@ func registerSuiteCouch17() {
 
 		"Query/RW/group/Admin/WithoutDocs/ScanDoc.status":  kivik.StatusBadAPICall,
 		"Query/RW/group/NoAuth/WithoutDocs/ScanDoc.status": kivik.StatusBadAPICall,
+
+		"Changes/Continuous.options": map[string]interface{}{
+			"feed":      "continuous",
+			"since":     "now",
+			"heartbeat": 6000,
+		},
 	})
 }

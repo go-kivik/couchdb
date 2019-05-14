@@ -232,5 +232,11 @@ func registerSuiteCouch21() {
 		"Query/RW/group/NoAuth/WithoutDocs/ScanDoc.status": kivik.StatusBadAPICall,
 
 		"ViewCleanup/RW/NoAuth.status": kivik.StatusUnauthorized,
+
+		"Changes/Continuous.options": map[string]interface{}{
+			"feed":      "continuous",
+			"since":     "now",
+			"heartbeat": 6000,
+		},
 	})
 }
