@@ -12,49 +12,58 @@ import (
 )
 
 type rows struct {
-	offset      int64
-	totalRows   int64
-	updateSeq   string
-	warning     string
-	bookmark    string
-	body        io.ReadCloser
-	dec         *json.Decoder
-	expectedKey string
-	decodeRow   func(*driver.Row) error
-	// closed is true after all rows have been processed
-	closed bool
+	*iter
+	offset    int64
+	totalRows int64
+	updateSeq string
+	warning   string
+	bookmark  string
 }
 
 var _ driver.Rows = &rows{}
 
 func newRows(in io.ReadCloser) *rows {
 	r := &rows{
-		body:        in,
-		expectedKey: "rows",
+		iter: &iter{
+			body:        in,
+			expectedKey: "rows",
+		},
 	}
-	r.decodeRow = func(row *driver.Row) error {
+	r.decodeRow = func(row interface{}) error {
 		return r.dec.Decode(row)
+	}
+	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
+		return r.parseMeta(key)
 	}
 	return r
 }
 
 func newFindRows(in io.ReadCloser) *rows {
 	r := &rows{
-		body:        in,
-		expectedKey: "docs",
+		iter: &iter{
+			body:        in,
+			expectedKey: "docs",
+		},
 	}
-	r.decodeRow = func(row *driver.Row) error {
+	r.decodeRow = func(i interface{}) error {
+		row := i.(*driver.Row)
 		return r.dec.Decode(&row.Doc)
+	}
+	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
+		return r.parseMeta(key)
 	}
 	return r
 }
 
 func newBulkGetRows(in io.ReadCloser) *rows {
 	r := &rows{
-		body:        in,
-		expectedKey: "results",
+		iter: &iter{
+			body:        in,
+			expectedKey: "results",
+		},
 	}
-	r.decodeRow = func(row *driver.Row) error {
+	r.decodeRow = func(i interface{}) error {
+		row := i.(*driver.Row)
 		var result bulkResult
 		if err := r.dec.Decode(&result); err != nil {
 			return err
@@ -66,6 +75,9 @@ func newBulkGetRows(in io.ReadCloser) *rows {
 			row.Error = err
 		}
 		return nil
+	}
+	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
+		return r.parseMeta(key)
 	}
 	return r
 }
@@ -90,81 +102,8 @@ func (r *rows) UpdateSeq() string {
 	return r.updateSeq
 }
 
-func (r *rows) Close() error {
-	return r.body.Close()
-}
-
 func (r *rows) Next(row *driver.Row) error {
-	if r.closed {
-		return io.EOF
-	}
-	if r.dec == nil {
-		// We haven't begun yet
-		r.dec = json.NewDecoder(r.body)
-		// consume the first '{'
-		if err := consumeDelim(r.dec, json.Delim('{')); err != nil {
-			return err
-		}
-		if err := r.begin(); err != nil {
-			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
-		}
-	}
-
-	err := r.nextRow(row)
-	if err != nil {
-		r.closed = true
-		if err == io.EOF {
-			return r.finish()
-		}
-	}
-	return err
-}
-
-// begin parses the top-level of the result object; until rows
-func (r *rows) begin() error {
-	for {
-		t, err := r.dec.Token()
-		if err != nil {
-			// I can't find a test case to trigger this, so it remains uncovered.
-			return err
-		}
-		key, ok := t.(string)
-		if !ok {
-			// The JSON parser should never permit this
-			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
-		}
-		if key == r.expectedKey {
-			// Consume the first '['
-			return consumeDelim(r.dec, json.Delim('['))
-		}
-		if err := r.parseMeta(key); err != nil {
-			return err
-		}
-	}
-}
-
-func (r *rows) finish() error {
-	for {
-		t, err := r.dec.Token()
-		if err != nil {
-			return err
-		}
-		switch v := t.(type) {
-		case json.Delim:
-			if v != json.Delim('}') {
-				// This should never happen, as the JSON parser should prevent it.
-				return fmt.Errorf("Unexpected JSON delimiter: %c", v)
-			}
-		case string:
-			if err := r.parseMeta(v); err != nil {
-				return err
-			}
-		default:
-			// This should never happen, as the JSON parser would never get
-			// this far.
-			return fmt.Errorf("Unexpected JSON token: (%T) '%s'", t, t)
-		}
-	}
+	return r.iter.next(row)
 }
 
 // parseMeta parses result metadata
@@ -190,32 +129,5 @@ func (r *rows) readUpdateSeq() error {
 		return err
 	}
 	r.updateSeq = string(bytes.Trim(raw, `""`))
-	return nil
-}
-
-func (r *rows) nextRow(row *driver.Row) error {
-	if !r.dec.More() {
-		if err := consumeDelim(r.dec, json.Delim(']')); err != nil {
-			return err
-		}
-		return io.EOF
-	}
-	return r.decodeRow(row)
-}
-
-// consumeDelim consumes the expected delimiter from the stream, or returns an
-// error if an unexpected token was found.
-func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
-	t, err := dec.Token()
-	if err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
-	}
-	d, ok := t.(json.Delim)
-	if !ok {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
-	}
-	if d != expectedDelim {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected JSON delimiter: %c", d)}
-	}
 	return nil
 }
