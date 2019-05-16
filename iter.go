@@ -62,6 +62,9 @@ func (i *iter) next(row interface{}) error {
 
 // begin parses the top-level of the result object; until rows
 func (i *iter) begin() error {
+	if i.expectedKey == "" {
+		return nil
+	}
 	// consume the first '{'
 	if err := consumeDelim(i.dec, json.Delim('{')); err != nil {
 		return err
@@ -88,6 +91,16 @@ func (i *iter) begin() error {
 }
 
 func (i *iter) finish() error {
+	if i.expectedKey == "" {
+		_, err := i.dec.Token()
+		if err != io.EOF {
+			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		}
+		return nil
+	}
+	if err := consumeDelim(i.dec, json.Delim(']')); err != nil {
+		return err
+	}
 	for {
 		t, err := i.dec.Token()
 		if err != nil {
@@ -113,9 +126,6 @@ func (i *iter) finish() error {
 
 func (i *iter) nextRow(row interface{}) error {
 	if !i.dec.More() {
-		if err := consumeDelim(i.dec, json.Delim(']')); err != nil {
-			return err
-		}
 		return io.EOF
 	}
 	return i.parser.decodeItem(row, i.dec)
