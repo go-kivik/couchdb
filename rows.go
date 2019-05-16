@@ -24,10 +24,7 @@ var _ driver.Rows = &rows{}
 
 func newRows(in io.ReadCloser) *rows {
 	r := &rows{
-		iter: &iter{
-			body:        in,
-			expectedKey: "rows",
-		},
+		iter: newIter("rows", in),
 	}
 	r.decodeRow = func(row interface{}) error {
 		return r.dec.Decode(row)
@@ -40,10 +37,7 @@ func newRows(in io.ReadCloser) *rows {
 
 func newFindRows(in io.ReadCloser) *rows {
 	r := &rows{
-		iter: &iter{
-			body:        in,
-			expectedKey: "docs",
-		},
+		iter: newIter("docs", in),
 	}
 	r.decodeRow = func(i interface{}) error {
 		row := i.(*driver.Row)
@@ -57,10 +51,7 @@ func newFindRows(in io.ReadCloser) *rows {
 
 func newBulkGetRows(in io.ReadCloser) *rows {
 	r := &rows{
-		iter: &iter{
-			body:        in,
-			expectedKey: "results",
-		},
+		iter: newIter("results", in),
 	}
 	r.decodeRow = func(i interface{}) error {
 		row := i.(*driver.Row)

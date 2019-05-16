@@ -21,6 +21,13 @@ type iter struct {
 	decodeRow   func(interface{}) error
 }
 
+func newIter(expectedKey string, body io.ReadCloser) *iter {
+	return &iter{
+		expectedKey: expectedKey,
+		body:        body,
+	}
+}
+
 func (i *iter) next(row interface{}) error {
 	i.mu.RLock()
 	if i.closed {
