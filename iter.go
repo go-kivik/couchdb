@@ -45,10 +45,6 @@ func (i *iter) next(row interface{}) error {
 	if i.dec == nil {
 		// We havenn't begun yet
 		i.dec = json.NewDecoder(i.body)
-		// consume the first '{'
-		if err := consumeDelim(i.dec, json.Delim('{')); err != nil {
-			return err
-		}
 		if err := i.begin(); err != nil {
 			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 		}
@@ -66,6 +62,10 @@ func (i *iter) next(row interface{}) error {
 
 // begin parses the top-level of the result object; until rows
 func (i *iter) begin() error {
+	// consume the first '{'
+	if err := consumeDelim(i.dec, json.Delim('{')); err != nil {
+		return err
+	}
 	for {
 		t, err := i.dec.Token()
 		if err != nil {
