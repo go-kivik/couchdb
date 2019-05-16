@@ -22,26 +22,36 @@ type rows struct {
 
 var _ driver.Rows = &rows{}
 
+type rowParser struct{}
+
+var _ parser = &rowParser{}
+
+func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	return dec.Decode(i)
+}
+
 func newRows(in io.ReadCloser) *rows {
 	r := &rows{
-		iter: newIter("rows", in),
-	}
-	r.decodeRow = func(row interface{}) error {
-		return r.dec.Decode(row)
+		iter: newIter("rows", in, &rowParser{}),
 	}
 	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
 		return r.parseMeta(key)
 	}
 	return r
+}
+
+type findParser struct{}
+
+var _ parser = &findParser{}
+
+func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Row)
+	return dec.Decode(&row.Doc)
 }
 
 func newFindRows(in io.ReadCloser) *rows {
 	r := &rows{
-		iter: newIter("docs", in),
-	}
-	r.decodeRow = func(i interface{}) error {
-		row := i.(*driver.Row)
-		return r.dec.Decode(&row.Doc)
+		iter: newIter("docs", in, &findParser{}),
 	}
 	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
 		return r.parseMeta(key)
@@ -49,23 +59,28 @@ func newFindRows(in io.ReadCloser) *rows {
 	return r
 }
 
+type bulkParser struct{}
+
+var _ parser = &bulkParser{}
+
+func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Row)
+	var result bulkResult
+	if err := dec.Decode(&result); err != nil {
+		return err
+	}
+	row.ID = result.ID
+	row.Doc = result.Docs[0].Doc
+	row.Error = nil
+	if err := result.Docs[0].Error; err != nil {
+		row.Error = err
+	}
+	return nil
+}
+
 func newBulkGetRows(in io.ReadCloser) *rows {
 	r := &rows{
-		iter: newIter("results", in),
-	}
-	r.decodeRow = func(i interface{}) error {
-		row := i.(*driver.Row)
-		var result bulkResult
-		if err := r.dec.Decode(&result); err != nil {
-			return err
-		}
-		row.ID = result.ID
-		row.Doc = result.Docs[0].Doc
-		row.Error = nil
-		if err := result.Docs[0].Error; err != nil {
-			row.Error = err
-		}
-		return nil
+		iter: newIter("results", in, &bulkParser{}),
 	}
 	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
 		return r.parseMeta(key)

@@ -10,21 +10,27 @@ import (
 	"github.com/go-kivik/kivik"
 )
 
+type parser interface {
+	decodeItem(interface{}, *json.Decoder) error
+}
+
 type iter struct {
 	body   io.ReadCloser
 	dec    *json.Decoder
 	mu     sync.RWMutex
 	closed bool
 
+	parser parser
+
 	expectedKey string
 	parseMeta   func(*json.Decoder, string) error
-	decodeRow   func(interface{}) error
 }
 
-func newIter(expectedKey string, body io.ReadCloser) *iter {
+func newIter(expectedKey string, body io.ReadCloser, parser parser) *iter {
 	return &iter{
 		expectedKey: expectedKey,
 		body:        body,
+		parser:      parser,
 	}
 }
 
@@ -111,7 +117,7 @@ func (i *iter) nextRow(row interface{}) error {
 		}
 		return io.EOF
 	}
-	return i.decodeRow(row)
+	return i.parser.decodeItem(row, i.dec)
 }
 
 func (i *iter) Close() error {
