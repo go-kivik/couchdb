@@ -65,25 +65,31 @@ func (c *client) DBUpdates(ctx context.Context) (updates driver.DBUpdates, err e
 }
 
 type couchUpdates struct {
-	body io.ReadCloser
-	dec  *json.Decoder
+	*iter
 }
 
 var _ driver.DBUpdates = &couchUpdates{}
 
+type updatesParser struct{}
+
+var _ parser = &updatesParser{}
+
+func (p *updatesParser) parseMeta(_ interface{}, _ *json.Decoder, _ string) error {
+	return nil
+}
+
+func (p *updatesParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	return dec.Decode(i)
+}
+
 func newUpdates(body io.ReadCloser) *couchUpdates {
 	return &couchUpdates{
-		body: body,
-		dec:  json.NewDecoder(body),
+		iter: newIter(nil, "", body, &updatesParser{}),
 	}
 }
 
 func (u *couchUpdates) Next(update *driver.DBUpdate) error {
-	return u.dec.Decode(update)
-}
-
-func (u *couchUpdates) Close() error {
-	return u.body.Close()
+	return u.iter.next(update)
 }
 
 // Ping queries the /_up endpoint, and returns true if there are no errors, or
