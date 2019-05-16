@@ -11,13 +11,17 @@ import (
 	"github.com/go-kivik/kivik/driver"
 )
 
-type rows struct {
-	*iter
+type rowsMeta struct {
 	offset    int64
 	totalRows int64
 	updateSeq string
 	warning   string
 	bookmark  string
+}
+
+type rows struct {
+	*iter
+	*rowsMeta
 }
 
 var _ driver.Rows = &rows{}
@@ -32,7 +36,8 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 
 func newRows(in io.ReadCloser) driver.Rows {
 	r := &rows{
-		iter: newIter("rows", in, &rowParser{}),
+		iter:     newIter("rows", in, &rowParser{}),
+		rowsMeta: &rowsMeta{},
 	}
 	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
 		return r.parseMeta(key)
@@ -51,7 +56,8 @@ func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
 
 func newFindRows(in io.ReadCloser) driver.Rows {
 	r := &rows{
-		iter: newIter("docs", in, &findParser{}),
+		iter:     newIter("docs", in, &findParser{}),
+		rowsMeta: &rowsMeta{},
 	}
 	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
 		return r.parseMeta(key)
@@ -80,7 +86,8 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 
 func newBulkGetRows(in io.ReadCloser) driver.Rows {
 	r := &rows{
-		iter: newIter("results", in, &bulkParser{}),
+		iter:     newIter("results", in, &bulkParser{}),
+		rowsMeta: &rowsMeta{},
 	}
 	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
 		return r.parseMeta(key)
