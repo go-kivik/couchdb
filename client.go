@@ -74,10 +74,6 @@ type updatesParser struct{}
 
 var _ parser = &updatesParser{}
 
-func (p *updatesParser) parseMeta(_ interface{}, _ *json.Decoder, _ string) error {
-	return nil
-}
-
 func (p *updatesParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return dec.Decode(i)
 }

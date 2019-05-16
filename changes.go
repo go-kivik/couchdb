@@ -37,10 +37,6 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 
 type continuousChangesParser struct{}
 
-func (p *continuousChangesParser) parseMeta(_ interface{}, _ *json.Decoder, _ string) error {
-	return nil
-}
-
 func (p *continuousChangesParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	row := i.(*driver.Change)
 	ch := &change{Change: row}
