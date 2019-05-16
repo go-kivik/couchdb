@@ -84,10 +84,14 @@ func (i *iter) begin() error {
 			// Consume the first '['
 			return consumeDelim(i.dec, json.Delim('['))
 		}
-		if err := i.parser.parseMeta(i.meta, i.dec, key); err != nil {
+		if err := i.parseMeta(key); err != nil {
 			return err
 		}
 	}
+}
+
+func (i *iter) parseMeta(key string) error {
+	return i.parser.parseMeta(i.meta, i.dec, key)
 }
 
 func (i *iter) finish() error {
@@ -113,7 +117,7 @@ func (i *iter) finish() error {
 				return fmt.Errorf("Unexpected JSON delimiter: %c", v)
 			}
 		case string:
-			if err := i.parser.parseMeta(i.meta, i.dec, v); err != nil {
+			if err := i.parseMeta(v); err != nil {
 				return err
 			}
 		default:
