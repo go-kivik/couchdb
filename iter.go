@@ -55,7 +55,6 @@ func (i *iter) next(row interface{}) error {
 
 	err := i.nextRow(row)
 	if err != nil {
-		_ = i.Close()
 		if err == io.EOF {
 			return i.finish()
 		}
@@ -100,7 +99,13 @@ func (i *iter) parseMeta(key string) error {
 	return nil
 }
 
-func (i *iter) finish() error {
+func (i *iter) finish() (err error) {
+	defer func() {
+		e2 := i.Close()
+		if err == nil {
+			err = e2
+		}
+	}()
 	if i.expectedKey == "" {
 		_, err := i.dec.Token()
 		if err != io.EOF {
