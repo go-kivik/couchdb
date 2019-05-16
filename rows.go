@@ -30,7 +30,7 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return dec.Decode(i)
 }
 
-func newRows(in io.ReadCloser) *rows {
+func newRows(in io.ReadCloser) driver.Rows {
 	r := &rows{
 		iter: newIter("rows", in, &rowParser{}),
 	}
@@ -49,7 +49,7 @@ func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return dec.Decode(&row.Doc)
 }
 
-func newFindRows(in io.ReadCloser) *rows {
+func newFindRows(in io.ReadCloser) driver.Rows {
 	r := &rows{
 		iter: newIter("docs", in, &findParser{}),
 	}
@@ -78,7 +78,7 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return nil
 }
 
-func newBulkGetRows(in io.ReadCloser) *rows {
+func newBulkGetRows(in io.ReadCloser) driver.Rows {
 	r := &rows{
 		iter: newIter("results", in, &bulkParser{}),
 	}

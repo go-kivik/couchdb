@@ -143,8 +143,14 @@ var findInput = `
 }
 `
 
+type fullRows interface {
+	driver.Rows
+	driver.RowsWarner
+	driver.Bookmarker
+}
+
 func TestFindRowsIterator(t *testing.T) {
-	rows := newFindRows(ioutil.NopCloser(strings.NewReader(findInput)))
+	rows := newFindRows(ioutil.NopCloser(strings.NewReader(findInput))).(fullRows)
 	var count int
 	for {
 		row := &driver.Row{}
