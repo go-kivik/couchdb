@@ -35,12 +35,14 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 }
 
 func newRows(in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
 	r := &rows{
-		iter:     newIter("rows", in, &rowParser{}),
-		rowsMeta: &rowsMeta{},
+		iter:     newIter(meta, "rows", in, &rowParser{}),
+		rowsMeta: meta,
 	}
-	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
-		return r.parseMeta(key)
+	r.iter.parseMeta = func(i interface{}, dec *json.Decoder, key string) error {
+		meta := i.(*rowsMeta)
+		return meta.parseMeta(key, dec)
 	}
 	return r
 }
@@ -55,12 +57,14 @@ func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
 }
 
 func newFindRows(in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
 	r := &rows{
-		iter:     newIter("docs", in, &findParser{}),
-		rowsMeta: &rowsMeta{},
+		iter:     newIter(meta, "docs", in, &findParser{}),
+		rowsMeta: meta,
 	}
-	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
-		return r.parseMeta(key)
+	r.iter.parseMeta = func(i interface{}, dec *json.Decoder, key string) error {
+		meta := i.(*rowsMeta)
+		return meta.parseMeta(key, dec)
 	}
 	return r
 }
@@ -85,12 +89,14 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 }
 
 func newBulkGetRows(in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
 	r := &rows{
-		iter:     newIter("results", in, &bulkParser{}),
-		rowsMeta: &rowsMeta{},
+		iter:     newIter(meta, "results", in, &bulkParser{}),
+		rowsMeta: meta,
 	}
-	r.iter.parseMeta = func(_ *json.Decoder, key string) error {
-		return r.parseMeta(key)
+	r.iter.parseMeta = func(i interface{}, dec *json.Decoder, key string) error {
+		meta := i.(*rowsMeta)
+		return meta.parseMeta(key, dec)
 	}
 	return r
 }
@@ -120,25 +126,25 @@ func (r *rows) Next(row *driver.Row) error {
 }
 
 // parseMeta parses result metadata
-func (r *rows) parseMeta(key string) error {
+func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 	switch key {
 	case "update_seq":
-		return r.readUpdateSeq()
+		return r.readUpdateSeq(dec)
 	case "offset":
-		return r.dec.Decode(&r.offset)
+		return dec.Decode(&r.offset)
 	case "total_rows":
-		return r.dec.Decode(&r.totalRows)
+		return dec.Decode(&r.totalRows)
 	case "warning":
-		return r.dec.Decode(&r.warning)
+		return dec.Decode(&r.warning)
 	case "bookmark":
-		return r.dec.Decode(&r.bookmark)
+		return dec.Decode(&r.bookmark)
 	}
 	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
-func (r *rows) readUpdateSeq() error {
+func (r *rowsMeta) readUpdateSeq(dec *json.Decoder) error {
 	var raw json.RawMessage
-	if err := r.dec.Decode(&raw); err != nil {
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
 	r.updateSeq = string(bytes.Trim(raw, `""`))

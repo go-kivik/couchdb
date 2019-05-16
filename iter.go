@@ -15,19 +15,21 @@ type parser interface {
 }
 
 type iter struct {
-	body   io.ReadCloser
+	meta        interface{}
+	expectedKey string
+	body        io.ReadCloser
+	parser      parser
+
 	dec    *json.Decoder
 	mu     sync.RWMutex
 	closed bool
 
-	parser parser
-
-	expectedKey string
-	parseMeta   func(*json.Decoder, string) error
+	parseMeta func(interface{}, *json.Decoder, string) error
 }
 
-func newIter(expectedKey string, body io.ReadCloser, parser parser) *iter {
+func newIter(meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
 	return &iter{
+		meta:        meta,
 		expectedKey: expectedKey,
 		body:        body,
 		parser:      parser,
@@ -80,7 +82,7 @@ func (i *iter) begin() error {
 			// Consume the first '['
 			return consumeDelim(i.dec, json.Delim('['))
 		}
-		if err := i.parseMeta(i.dec, key); err != nil {
+		if err := i.parseMeta(i.meta, i.dec, key); err != nil {
 			return err
 		}
 	}
@@ -99,7 +101,7 @@ func (i *iter) finish() error {
 				return fmt.Errorf("Unexpected JSON delimiter: %c", v)
 			}
 		case string:
-			if err := i.parseMeta(i.dec, v); err != nil {
+			if err := i.parseMeta(i.meta, i.dec, v); err != nil {
 				return err
 			}
 		default:
