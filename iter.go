@@ -12,6 +12,7 @@ import (
 
 type parser interface {
 	decodeItem(interface{}, *json.Decoder) error
+	parseMeta(interface{}, *json.Decoder, string) error
 }
 
 type iter struct {
@@ -23,8 +24,6 @@ type iter struct {
 	dec    *json.Decoder
 	mu     sync.RWMutex
 	closed bool
-
-	parseMeta func(interface{}, *json.Decoder, string) error
 }
 
 func newIter(meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
@@ -82,7 +81,7 @@ func (i *iter) begin() error {
 			// Consume the first '['
 			return consumeDelim(i.dec, json.Delim('['))
 		}
-		if err := i.parseMeta(i.meta, i.dec, key); err != nil {
+		if err := i.parser.parseMeta(i.meta, i.dec, key); err != nil {
 			return err
 		}
 	}
@@ -101,7 +100,7 @@ func (i *iter) finish() error {
 				return fmt.Errorf("Unexpected JSON delimiter: %c", v)
 			}
 		case string:
-			if err := i.parseMeta(i.meta, i.dec, v); err != nil {
+			if err := i.parser.parseMeta(i.meta, i.dec, v); err != nil {
 				return err
 			}
 		default:

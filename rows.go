@@ -26,7 +26,16 @@ type rows struct {
 
 var _ driver.Rows = &rows{}
 
-type rowParser struct{}
+type metaParser struct{}
+
+func (p *metaParser) parseMeta(i interface{}, dec *json.Decoder, key string) error {
+	meta := i.(*rowsMeta)
+	return meta.parseMeta(key, dec)
+}
+
+type rowParser struct {
+	metaParser
+}
 
 var _ parser = &rowParser{}
 
@@ -36,18 +45,15 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 
 func newRows(in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
-	r := &rows{
+	return &rows{
 		iter:     newIter(meta, "rows", in, &rowParser{}),
 		rowsMeta: meta,
 	}
-	r.iter.parseMeta = func(i interface{}, dec *json.Decoder, key string) error {
-		meta := i.(*rowsMeta)
-		return meta.parseMeta(key, dec)
-	}
-	return r
 }
 
-type findParser struct{}
+type findParser struct {
+	metaParser
+}
 
 var _ parser = &findParser{}
 
@@ -58,18 +64,15 @@ func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
 
 func newFindRows(in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
-	r := &rows{
+	return &rows{
 		iter:     newIter(meta, "docs", in, &findParser{}),
 		rowsMeta: meta,
 	}
-	r.iter.parseMeta = func(i interface{}, dec *json.Decoder, key string) error {
-		meta := i.(*rowsMeta)
-		return meta.parseMeta(key, dec)
-	}
-	return r
 }
 
-type bulkParser struct{}
+type bulkParser struct {
+	metaParser
+}
 
 var _ parser = &bulkParser{}
 
@@ -90,15 +93,10 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 
 func newBulkGetRows(in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
-	r := &rows{
+	return &rows{
 		iter:     newIter(meta, "results", in, &bulkParser{}),
 		rowsMeta: meta,
 	}
-	r.iter.parseMeta = func(i interface{}, dec *json.Decoder, key string) error {
-		meta := i.(*rowsMeta)
-		return meta.parseMeta(key, dec)
-	}
-	return r
 }
 
 func (r *rows) Offset() int64 {
