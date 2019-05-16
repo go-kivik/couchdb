@@ -12,6 +12,9 @@ import (
 
 type parser interface {
 	decodeItem(interface{}, *json.Decoder) error
+}
+
+type metaParser interface {
 	parseMeta(interface{}, *json.Decoder, string) error
 }
 
@@ -91,7 +94,10 @@ func (i *iter) begin() error {
 }
 
 func (i *iter) parseMeta(key string) error {
-	return i.parser.parseMeta(i.meta, i.dec, key)
+	if mp, ok := i.parser.(metaParser); ok {
+		return mp.parseMeta(i.meta, i.dec, key)
+	}
+	return nil
 }
 
 func (i *iter) finish() error {

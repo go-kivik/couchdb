@@ -26,15 +26,15 @@ type rows struct {
 
 var _ driver.Rows = &rows{}
 
-type metaParser struct{}
+type rowsMetaParser struct{}
 
-func (p *metaParser) parseMeta(i interface{}, dec *json.Decoder, key string) error {
+func (p *rowsMetaParser) parseMeta(i interface{}, dec *json.Decoder, key string) error {
 	meta := i.(*rowsMeta)
 	return meta.parseMeta(key, dec)
 }
 
 type rowParser struct {
-	metaParser
+	rowsMetaParser
 }
 
 var _ parser = &rowParser{}
@@ -52,7 +52,7 @@ func newRows(in io.ReadCloser) driver.Rows {
 }
 
 type findParser struct {
-	metaParser
+	rowsMetaParser
 }
 
 var _ parser = &findParser{}
@@ -71,7 +71,7 @@ func newFindRows(in io.ReadCloser) driver.Rows {
 }
 
 type bulkParser struct {
-	metaParser
+	rowsMetaParser
 }
 
 var _ parser = &bulkParser{}
