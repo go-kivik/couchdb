@@ -35,22 +35,29 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 	return newChangesRows(resp.Body), nil
 }
 
+type continuousChangesParser struct{}
+
+func (p *continuousChangesParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Change)
+	ch := &change{Change: row}
+	if err := dec.Decode(ch); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+	}
+	ch.Change.Seq = string(ch.Seq)
+	return nil
+}
+
 type changesRows struct {
-	body io.ReadCloser
-	dec  *json.Decoder
+	*iter
 }
 
 func newChangesRows(r io.ReadCloser) *changesRows {
 	return &changesRows{
-		body: r,
+		iter: newIter(nil, "", r, &continuousChangesParser{}),
 	}
 }
 
 var _ driver.Changes = &changesRows{}
-
-func (r *changesRows) Close() error {
-	return r.body.Close()
-}
 
 type change struct {
 	*driver.Change
@@ -58,23 +65,7 @@ type change struct {
 }
 
 func (r *changesRows) Next(row *driver.Change) error {
-	if r.dec == nil {
-		r.dec = json.NewDecoder(r.body)
-	}
-	if !r.dec.More() {
-		_, err := r.dec.Token()
-		if err != io.EOF {
-			err = &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
-		}
-		return err
-	}
-
-	ch := &change{Change: row}
-	if err := r.dec.Decode(ch); err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
-	}
-	ch.Change.Seq = string(ch.Seq)
-	return nil
+	return r.iter.next(row)
 }
 
 // LastSeq returns an empty string.

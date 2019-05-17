@@ -11,63 +11,92 @@ import (
 	"github.com/go-kivik/kivik/driver"
 )
 
+type rowsMeta struct {
+	offset    int64
+	totalRows int64
+	updateSeq string
+	warning   string
+	bookmark  string
+}
+
 type rows struct {
-	offset      int64
-	totalRows   int64
-	updateSeq   string
-	warning     string
-	bookmark    string
-	body        io.ReadCloser
-	dec         *json.Decoder
-	expectedKey string
-	decodeRow   func(*driver.Row) error
-	// closed is true after all rows have been processed
-	closed bool
+	*iter
+	*rowsMeta
 }
 
 var _ driver.Rows = &rows{}
 
-func newRows(in io.ReadCloser) *rows {
-	r := &rows{
-		body:        in,
-		expectedKey: "rows",
-	}
-	r.decodeRow = func(row *driver.Row) error {
-		return r.dec.Decode(row)
-	}
-	return r
+type rowsMetaParser struct{}
+
+func (p *rowsMetaParser) parseMeta(i interface{}, dec *json.Decoder, key string) error {
+	meta := i.(*rowsMeta)
+	return meta.parseMeta(key, dec)
 }
 
-func newFindRows(in io.ReadCloser) *rows {
-	r := &rows{
-		body:        in,
-		expectedKey: "docs",
-	}
-	r.decodeRow = func(row *driver.Row) error {
-		return r.dec.Decode(&row.Doc)
-	}
-	return r
+type rowParser struct {
+	rowsMetaParser
 }
 
-func newBulkGetRows(in io.ReadCloser) *rows {
-	r := &rows{
-		body:        in,
-		expectedKey: "results",
+var _ parser = &rowParser{}
+
+func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	return dec.Decode(i)
+}
+
+func newRows(in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
+	return &rows{
+		iter:     newIter(meta, "rows", in, &rowParser{}),
+		rowsMeta: meta,
 	}
-	r.decodeRow = func(row *driver.Row) error {
-		var result bulkResult
-		if err := r.dec.Decode(&result); err != nil {
-			return err
-		}
-		row.ID = result.ID
-		row.Doc = result.Docs[0].Doc
-		row.Error = nil
-		if err := result.Docs[0].Error; err != nil {
-			row.Error = err
-		}
-		return nil
+}
+
+type findParser struct {
+	rowsMetaParser
+}
+
+var _ parser = &findParser{}
+
+func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Row)
+	return dec.Decode(&row.Doc)
+}
+
+func newFindRows(in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
+	return &rows{
+		iter:     newIter(meta, "docs", in, &findParser{}),
+		rowsMeta: meta,
 	}
-	return r
+}
+
+type bulkParser struct {
+	rowsMetaParser
+}
+
+var _ parser = &bulkParser{}
+
+func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Row)
+	var result bulkResult
+	if err := dec.Decode(&result); err != nil {
+		return err
+	}
+	row.ID = result.ID
+	row.Doc = result.Docs[0].Doc
+	row.Error = nil
+	if err := result.Docs[0].Error; err != nil {
+		row.Error = err
+	}
+	return nil
+}
+
+func newBulkGetRows(in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
+	return &rows{
+		iter:     newIter(meta, "results", in, &bulkParser{}),
+		rowsMeta: meta,
+	}
 }
 
 func (r *rows) Offset() int64 {
@@ -90,132 +119,32 @@ func (r *rows) UpdateSeq() string {
 	return r.updateSeq
 }
 
-func (r *rows) Close() error {
-	return r.body.Close()
-}
-
 func (r *rows) Next(row *driver.Row) error {
-	if r.closed {
-		return io.EOF
-	}
-	if r.dec == nil {
-		// We haven't begun yet
-		r.dec = json.NewDecoder(r.body)
-		// consume the first '{'
-		if err := consumeDelim(r.dec, json.Delim('{')); err != nil {
-			return err
-		}
-		if err := r.begin(); err != nil {
-			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
-		}
-	}
-
-	err := r.nextRow(row)
-	if err != nil {
-		r.closed = true
-		if err == io.EOF {
-			return r.finish()
-		}
-	}
-	return err
-}
-
-// begin parses the top-level of the result object; until rows
-func (r *rows) begin() error {
-	for {
-		t, err := r.dec.Token()
-		if err != nil {
-			// I can't find a test case to trigger this, so it remains uncovered.
-			return err
-		}
-		key, ok := t.(string)
-		if !ok {
-			// The JSON parser should never permit this
-			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
-		}
-		if key == r.expectedKey {
-			// Consume the first '['
-			return consumeDelim(r.dec, json.Delim('['))
-		}
-		if err := r.parseMeta(key); err != nil {
-			return err
-		}
-	}
-}
-
-func (r *rows) finish() error {
-	for {
-		t, err := r.dec.Token()
-		if err != nil {
-			return err
-		}
-		switch v := t.(type) {
-		case json.Delim:
-			if v != json.Delim('}') {
-				// This should never happen, as the JSON parser should prevent it.
-				return fmt.Errorf("Unexpected JSON delimiter: %c", v)
-			}
-		case string:
-			if err := r.parseMeta(v); err != nil {
-				return err
-			}
-		default:
-			// This should never happen, as the JSON parser would never get
-			// this far.
-			return fmt.Errorf("Unexpected JSON token: (%T) '%s'", t, t)
-		}
-	}
+	return r.iter.next(row)
 }
 
 // parseMeta parses result metadata
-func (r *rows) parseMeta(key string) error {
+func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 	switch key {
 	case "update_seq":
-		return r.readUpdateSeq()
+		return r.readUpdateSeq(dec)
 	case "offset":
-		return r.dec.Decode(&r.offset)
+		return dec.Decode(&r.offset)
 	case "total_rows":
-		return r.dec.Decode(&r.totalRows)
+		return dec.Decode(&r.totalRows)
 	case "warning":
-		return r.dec.Decode(&r.warning)
+		return dec.Decode(&r.warning)
 	case "bookmark":
-		return r.dec.Decode(&r.bookmark)
+		return dec.Decode(&r.bookmark)
 	}
 	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
-func (r *rows) readUpdateSeq() error {
+func (r *rowsMeta) readUpdateSeq(dec *json.Decoder) error {
 	var raw json.RawMessage
-	if err := r.dec.Decode(&raw); err != nil {
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
 	r.updateSeq = string(bytes.Trim(raw, `""`))
-	return nil
-}
-
-func (r *rows) nextRow(row *driver.Row) error {
-	if !r.dec.More() {
-		if err := consumeDelim(r.dec, json.Delim(']')); err != nil {
-			return err
-		}
-		return io.EOF
-	}
-	return r.decodeRow(row)
-}
-
-// consumeDelim consumes the expected delimiter from the stream, or returns an
-// error if an unexpected token was found.
-func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
-	t, err := dec.Token()
-	if err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
-	}
-	d, ok := t.(json.Delim)
-	if !ok {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
-	}
-	if d != expectedDelim {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected JSON delimiter: %c", d)}
-	}
 	return nil
 }

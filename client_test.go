@@ -284,10 +284,9 @@ func TestUpdatesNext(t *testing.T) {
 		expected *driver.DBUpdate
 	}{
 		{
-			name:    "consumed feed",
-			updates: newUpdates(Body("")),
-			status:  500,
-			err:     "EOF",
+			name:     "consumed feed",
+			updates:  newUpdates(Body("")),
+			expected: &driver.DBUpdate{},
 		},
 		{
 			name:    "read feed",
