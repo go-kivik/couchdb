@@ -1,7 +1,6 @@
 package couchdb
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,7 +13,7 @@ import (
 type rowsMeta struct {
 	offset    int64
 	totalRows int64
-	updateSeq string
+	updateSeq sequenceID
 	warning   string
 	bookmark  string
 }
@@ -116,7 +115,7 @@ func (r *rows) Bookmark() string {
 }
 
 func (r *rows) UpdateSeq() string {
-	return r.updateSeq
+	return string(r.updateSeq)
 }
 
 func (r *rows) Next(row *driver.Row) error {
@@ -127,7 +126,7 @@ func (r *rows) Next(row *driver.Row) error {
 func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 	switch key {
 	case "update_seq":
-		return r.readUpdateSeq(dec)
+		return dec.Decode(&r.updateSeq)
 	case "offset":
 		return dec.Decode(&r.offset)
 	case "total_rows":
@@ -138,13 +137,4 @@ func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 		return dec.Decode(&r.bookmark)
 	}
 	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
-}
-
-func (r *rowsMeta) readUpdateSeq(dec *json.Decoder) error {
-	var raw json.RawMessage
-	if err := dec.Decode(&raw); err != nil {
-		return err
-	}
-	r.updateSeq = string(bytes.Trim(raw, `""`))
-	return nil
 }
