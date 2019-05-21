@@ -74,7 +74,11 @@ func (r *cancelableReadCloser) close(err error) error {
 }
 
 func (r *cancelableReadCloser) Close() error {
-	return r.close(nil)
+	err := r.close(nil)
+	if err == io.EOF {
+		return nil
+	}
+	return err
 }
 
 type iter struct {
