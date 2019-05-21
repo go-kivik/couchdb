@@ -1,6 +1,7 @@
 package couchdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,10 +43,10 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return dec.Decode(i)
 }
 
-func newRows(in io.ReadCloser) driver.Rows {
+func newRows(ctx context.Context, in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
 	return &rows{
-		iter:     newIter(meta, "rows", in, &rowParser{}),
+		iter:     newIter(ctx, meta, "rows", in, &rowParser{}),
 		rowsMeta: meta,
 	}
 }
@@ -61,10 +62,10 @@ func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return dec.Decode(&row.Doc)
 }
 
-func newFindRows(in io.ReadCloser) driver.Rows {
+func newFindRows(ctx context.Context, in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
 	return &rows{
-		iter:     newIter(meta, "docs", in, &findParser{}),
+		iter:     newIter(ctx, meta, "docs", in, &findParser{}),
 		rowsMeta: meta,
 	}
 }
@@ -90,10 +91,10 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return nil
 }
 
-func newBulkGetRows(in io.ReadCloser) driver.Rows {
+func newBulkGetRows(ctx context.Context, in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
 	return &rows{
-		iter:     newIter(meta, "results", in, &bulkParser{}),
+		iter:     newIter(ctx, meta, "results", in, &bulkParser{}),
 		rowsMeta: meta,
 	}
 }

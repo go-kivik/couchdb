@@ -61,7 +61,7 @@ func (c *client) DBUpdates(ctx context.Context) (updates driver.DBUpdates, err e
 	if err := chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newUpdates(resp.Body), nil
+	return newUpdates(ctx, resp.Body), nil
 }
 
 type couchUpdates struct {
@@ -78,9 +78,9 @@ func (p *updatesParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	return dec.Decode(i)
 }
 
-func newUpdates(body io.ReadCloser) *couchUpdates {
+func newUpdates(ctx context.Context, body io.ReadCloser) *couchUpdates {
 	return &couchUpdates{
-		iter: newIter(nil, "", body, &updatesParser{}),
+		iter: newIter(ctx, nil, "", body, &updatesParser{}),
 	}
 }
 

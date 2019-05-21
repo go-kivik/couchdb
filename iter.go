@@ -1,6 +1,7 @@
 package couchdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +20,8 @@ type metaParser interface {
 }
 
 type iter struct {
+	ctx         context.Context
+	err         error
 	meta        interface{}
 	expectedKey string
 	body        io.ReadCloser
@@ -29,8 +32,19 @@ type iter struct {
 	closed bool
 }
 
-func newIter(meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
+func (i *iter) checkCtx() error {
+	select {
+	case <-i.ctx.Done():
+		i.err = i.ctx.Err()
+		return i.err
+	default:
+		return nil
+	}
+}
+
+func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
 	return &iter{
+		ctx:         ctx,
 		meta:        meta,
 		expectedKey: expectedKey,
 		body:        body,
@@ -46,7 +60,7 @@ func (i *iter) next(row interface{}) error {
 	}
 	i.mu.RUnlock()
 	if i.dec == nil {
-		// We havenn't begun yet
+		// We haven't begun yet
 		i.dec = json.NewDecoder(i.body)
 		if err := i.begin(); err != nil {
 			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}

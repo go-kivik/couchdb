@@ -285,12 +285,12 @@ func TestUpdatesNext(t *testing.T) {
 	}{
 		{
 			name:     "consumed feed",
-			updates:  newUpdates(Body("")),
+			updates:  newUpdates(context.TODO(), Body("")),
 			expected: &driver.DBUpdate{},
 		},
 		{
 			name:    "read feed",
-			updates: newUpdates(Body(`{"db_name":"mailbox","type":"created","seq":"1-g1AAAAFReJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuDOZExFyjAnmJhkWaeaIquGIf2JAUgmWQPMiGRAZcaB5CaePxqEkBq6vGqyWMBkgwNQAqobD4h"},`)),
+			updates: newUpdates(context.TODO(), Body(`{"db_name":"mailbox","type":"created","seq":"1-g1AAAAFReJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuDOZExFyjAnmJhkWaeaIquGIf2JAUgmWQPMiGRAZcaB5CaePxqEkBq6vGqyWMBkgwNQAqobD4h"},`)),
 			expected: &driver.DBUpdate{
 				DBName: "mailbox",
 				Type:   "created",
@@ -312,7 +312,7 @@ func TestUpdatesNext(t *testing.T) {
 
 func TestUpdatesClose(t *testing.T) {
 	body := &closeTracker{ReadCloser: Body("")}
-	u := newUpdates(body)
+	u := newUpdates(context.TODO(), body)
 	if err := u.Close(); err != nil {
 		t.Fatal(err)
 	}

@@ -26,7 +26,7 @@ func (d *db) BulkGet(ctx context.Context, docs []driver.BulkGetReference, opts m
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newBulkGetRows(resp.Body), nil
+	return newBulkGetRows(ctx, resp.Body), nil
 }
 
 // BulkGetError represents an error for a single document returned by a
