@@ -19,9 +19,57 @@ type metaParser interface {
 	parseMeta(interface{}, *json.Decoder, string) error
 }
 
+type cancelableReadCloser struct {
+	ctx    context.Context
+	err    error
+	rc     io.ReadCloser
+	closed bool
+	mu     sync.RWMutex
+}
+
+var _ io.ReadCloser = &cancelableReadCloser{}
+
+func newCancelableReadCloser(ctx context.Context, rc io.ReadCloser) io.ReadCloser {
+	return &cancelableReadCloser{ctx: ctx, rc: rc}
+}
+
+func (r *cancelableReadCloser) Read(p []byte) (int, error) {
+	r.mu.RLock()
+	if r.closed {
+		r.mu.RUnlock()
+		return 0, r.close(nil)
+	}
+	select {
+	case <-r.ctx.Done():
+		return 0, r.close(r.ctx.Err())
+	default:
+		c, err := r.rc.Read(p)
+		if err != nil {
+			return c, r.close(err)
+		}
+		return c, nil
+	}
+}
+
+func (r *cancelableReadCloser) close(err error) error {
+	r.mu.Lock()
+	defer r.mu.Lock()
+	if !r.closed {
+		r.closed = true
+		e := r.rc.Close()
+		if err == nil {
+			err = e
+		}
+		r.err = err
+	}
+	return r.err
+}
+
+func (r *cancelableReadCloser) Close() error {
+	return r.close(nil)
+}
+
 type iter struct {
-	ctx         context.Context
-	err         error
 	meta        interface{}
 	expectedKey string
 	body        io.ReadCloser
@@ -32,22 +80,11 @@ type iter struct {
 	closed bool
 }
 
-func (i *iter) checkCtx() error {
-	select {
-	case <-i.ctx.Done():
-		i.err = i.ctx.Err()
-		return i.err
-	default:
-		return nil
-	}
-}
-
 func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
 	return &iter{
-		ctx:         ctx,
 		meta:        meta,
 		expectedKey: expectedKey,
-		body:        body,
+		body:        newCancelableReadCloser(ctx, body),
 		parser:      parser,
 	}
 }
