@@ -501,6 +501,11 @@ func TestOptionsToParams(t *testing.T) {
 	}
 	tests := []otpTest{
 		{
+			Name:  "Unmarshalable key",
+			Input: map[string]interface{}{"key": make(chan int)},
+			Error: "json: unsupported type: chan int",
+		},
+		{
 			Name:     "String",
 			Input:    map[string]interface{}{"foo": "bar"},
 			Expected: map[string][]string{"foo": {"bar"}},

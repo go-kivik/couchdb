@@ -45,6 +45,9 @@ func (d *db) path(path string) string {
 func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 	params := url.Values{}
 	for _, optsSet := range opts {
+		if err := encodeKeys(optsSet); err != nil {
+			return nil, err
+		}
 		for key, i := range optsSet {
 			var values []string
 			switch v := i.(type) {
