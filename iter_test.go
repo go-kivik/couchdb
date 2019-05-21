@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -53,6 +54,18 @@ func TestCancelableReadCloser(t *testing.T) {
 		)
 		result, err := ioutil.ReadAll(rc)
 		testy.Error(t, "context deadline exceeded", err)
+		if string(result) != "" {
+			t.Errorf("Unexpected result: %s", string(result))
+		}
+	})
+	t.Run("read error, not canceled", func(t *testing.T) {
+		t.Parallel()
+		rc := newCancelableReadCloser(
+			context.Background(),
+			ioutil.NopCloser(testy.ErrorReader("foo", errors.New("read err"))),
+		)
+		result, err := ioutil.ReadAll(rc)
+		testy.Error(t, "read err", err)
 		if string(result) != "" {
 			t.Errorf("Unexpected result: %s", string(result))
 		}
