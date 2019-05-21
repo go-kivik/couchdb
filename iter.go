@@ -39,13 +39,21 @@ func (r *cancelableReadCloser) Read(p []byte) (int, error) {
 		r.mu.RUnlock()
 		return 0, r.close(nil)
 	}
+	r.mu.RUnlock()
+	var c int
+	var err error
+	done := make(chan struct{})
+	go func() {
+		c, err = r.rc.Read(p)
+		close(done)
+	}()
 	select {
 	case <-r.ctx.Done():
 		return 0, r.close(r.ctx.Err())
-	default:
-		c, err := r.rc.Read(p)
+	case <-done:
 		if err != nil {
-			return c, r.close(err)
+			e := r.close(err)
+			return c, e
 		}
 		return c, nil
 	}
@@ -53,7 +61,7 @@ func (r *cancelableReadCloser) Read(p []byte) (int, error) {
 
 func (r *cancelableReadCloser) close(err error) error {
 	r.mu.Lock()
-	defer r.mu.Lock()
+	defer r.mu.Unlock()
 	if !r.closed {
 		r.closed = true
 		e := r.rc.Close()
