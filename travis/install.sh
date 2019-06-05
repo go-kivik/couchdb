@@ -61,11 +61,24 @@ function setup_couch22 {
     curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6004/_node/nonode@nohost/_config/replicator/interval -d '"1000"'
 }
 
+function setup_couch23 {
+    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+        return
+    fi
+    docker pull apache/couchdb:2.3.0
+    docker run -d -p 6005:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=abc123 --name couchdb23 apache/couchdb:2.3.0
+    wait_for_server http://localhost:6005/
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6005/_users
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6005/_replicator
+    curl --silent --fail -o /dev/null -X PUT http://admin:abc123@localhost:6005/_global_changes
+}
+
 case "$1" in
     "standard")
         setup_couch17
         setup_couch21
         setup_couch22
+        setup_couch23
         generate
     ;;
     "linter")

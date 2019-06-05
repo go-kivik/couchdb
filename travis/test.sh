@@ -7,6 +7,7 @@ if [ "${TRAVIS_OS_NAME:-}" == "osx" ]; then
     unset KIVIK_TEST_DSN_COUCH20
     unset KIVIK_TEST_DSN_COUCH21
     unset KIVIK_TEST_DSN_COUCH22
+    unset KIVIK_TEST_DSN_COUCH23
 fi
 
 function join_list {
