@@ -90,7 +90,7 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newRows(resp.Body), nil
+	return newRows(ctx, resp.Body), nil
 }
 
 // AllDocs returns all of the documents in the database.

@@ -90,13 +90,13 @@ func TestChangesNext(t *testing.T) {
 	}{
 		{
 			name:    "invalid json",
-			changes: newChangesRows("", Body("invalid json")),
+			changes: newChangesRows(context.TODO(), "", Body("invalid json")),
 			status:  kivik.StatusBadResponse,
 			err:     "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "success",
-			changes: newChangesRows("", Body(`{"seq":3,"id":"43734cf3ce6d5a37050c050bb600006b","changes":[{"rev":"2-185ccf92154a9f24a4f4fd12233bf463"}],"deleted":true}
+			changes: newChangesRows(context.TODO(), "", Body(`{"seq":3,"id":"43734cf3ce6d5a37050c050bb600006b","changes":[{"rev":"2-185ccf92154a9f24a4f4fd12233bf463"}],"deleted":true}
                 `)),
 			expected: &driver.Change{
 				ID:      "43734cf3ce6d5a37050c050bb600006b",
@@ -107,13 +107,13 @@ func TestChangesNext(t *testing.T) {
 		},
 		{
 			name:    "read error",
-			changes: newChangesRows("", ioutil.NopCloser(testy.ErrorReader("", errors.New("read error")))),
+			changes: newChangesRows(context.TODO(), "", ioutil.NopCloser(testy.ErrorReader("", errors.New("read error")))),
 			status:  http.StatusBadGateway,
 			err:     "read error",
 		},
 		{
 			name:     "end of input",
-			changes:  newChangesRows("", Body(``)),
+			changes:  newChangesRows(context.TODO(), "", Body(``)),
 			expected: &driver.Change{},
 		},
 	}
@@ -131,7 +131,7 @@ func TestChangesNext(t *testing.T) {
 
 func TestChangesClose(t *testing.T) {
 	body := &closeTracker{ReadCloser: Body("foo")}
-	feed := newChangesRows("", body)
+	feed := newChangesRows(context.TODO(), "", body)
 	_ = feed.Close()
 	if !body.closed {
 		t.Errorf("Failed to close")

@@ -242,7 +242,7 @@ func TestGetBulkRowsIterator(t *testing.T) {
 		{ID: "baz", Err: "not_found: missing"},
 	}
 	results := []result{}
-	rows := newBulkGetRows(ioutil.NopCloser(strings.NewReader(bulkGetInput)))
+	rows := newBulkGetRows(context.TODO(), ioutil.NopCloser(strings.NewReader(bulkGetInput)))
 	var count int
 	for {
 		row := &driver.Row{}

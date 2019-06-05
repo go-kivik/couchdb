@@ -1,6 +1,7 @@
 package couchdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,68 @@ type metaParser interface {
 	parseMeta(interface{}, *json.Decoder, string) error
 }
 
+type cancelableReadCloser struct {
+	ctx    context.Context
+	err    error
+	rc     io.ReadCloser
+	closed bool
+	mu     sync.RWMutex
+}
+
+var _ io.ReadCloser = &cancelableReadCloser{}
+
+func newCancelableReadCloser(ctx context.Context, rc io.ReadCloser) io.ReadCloser {
+	return &cancelableReadCloser{ctx: ctx, rc: rc}
+}
+
+func (r *cancelableReadCloser) Read(p []byte) (int, error) {
+	r.mu.RLock()
+	if r.closed {
+		r.mu.RUnlock()
+		return 0, r.close(nil)
+	}
+	r.mu.RUnlock()
+	var c int
+	var err error
+	done := make(chan struct{})
+	go func() {
+		c, err = r.rc.Read(p)
+		close(done)
+	}()
+	select {
+	case <-r.ctx.Done():
+		return 0, r.close(r.ctx.Err())
+	case <-done:
+		if err != nil {
+			e := r.close(err)
+			return c, e
+		}
+		return c, nil
+	}
+}
+
+func (r *cancelableReadCloser) close(err error) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.closed {
+		r.closed = true
+		e := r.rc.Close()
+		if err == nil {
+			err = e
+		}
+		r.err = err
+	}
+	return r.err
+}
+
+func (r *cancelableReadCloser) Close() error {
+	err := r.close(nil)
+	if err == io.EOF {
+		return nil
+	}
+	return err
+}
+
 type iter struct {
 	meta        interface{}
 	expectedKey string
@@ -29,11 +92,11 @@ type iter struct {
 	closed bool
 }
 
-func newIter(meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
+func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
 	return &iter{
 		meta:        meta,
 		expectedKey: expectedKey,
-		body:        body,
+		body:        newCancelableReadCloser(ctx, body),
 		parser:      parser,
 	}
 }
@@ -46,7 +109,7 @@ func (i *iter) next(row interface{}) error {
 	}
 	i.mu.RUnlock()
 	if i.dec == nil {
-		// We havenn't begun yet
+		// We haven't begun yet
 		i.dec = json.NewDecoder(i.body)
 		if err := i.begin(); err != nil {
 			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}

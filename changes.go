@@ -38,7 +38,7 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newChangesRows(key, resp.Body), nil
+	return newChangesRows(ctx, key, resp.Body), nil
 }
 
 type continuousChangesParser struct{}
@@ -79,13 +79,13 @@ type changesRows struct {
 	*changesMeta
 }
 
-func newChangesRows(key string, r io.ReadCloser) *changesRows {
+func newChangesRows(ctx context.Context, key string, r io.ReadCloser) *changesRows {
 	var meta *changesMeta
 	if key != "" {
 		meta = &changesMeta{}
 	}
 	return &changesRows{
-		iter: newIter(meta, key, r, &continuousChangesParser{}),
+		iter: newIter(ctx, meta, key, r, &continuousChangesParser{}),
 	}
 }
 
