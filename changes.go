@@ -38,7 +38,8 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newChangesRows(ctx, key, resp.Body), nil
+	etag, _ := chttp.ETag(resp)
+	return newChangesRows(ctx, key, resp.Body, etag), nil
 }
 
 type continuousChangesParser struct{}
@@ -77,15 +78,17 @@ func (m *changesMeta) parseMeta(key string, dec *json.Decoder) error {
 type changesRows struct {
 	*iter
 	*changesMeta
+	etag string
 }
 
-func newChangesRows(ctx context.Context, key string, r io.ReadCloser) *changesRows {
+func newChangesRows(ctx context.Context, key string, r io.ReadCloser, etag string) *changesRows {
 	var meta *changesMeta
 	if key != "" {
 		meta = &changesMeta{}
 	}
 	return &changesRows{
 		iter: newIter(ctx, meta, key, r, &continuousChangesParser{}),
+		etag: etag,
 	}
 }
 
@@ -100,12 +103,17 @@ func (r *changesRows) Next(row *driver.Change) error {
 	return r.iter.next(row)
 }
 
-// LastSeq returns an empty string.
+// LastSeq returns the last sequence ID.
 func (r *changesRows) LastSeq() string {
 	return string(r.lastSeq)
 }
 
-// Pending returns 0.
+// Pending returns the pending count.
 func (r *changesRows) Pending() int64 {
 	return r.pending
+}
+
+// ETag returns the unquoted ETag header for the CouchDB response, if any.
+func (r *changesRows) ETag() string {
+	return r.etag
 }
