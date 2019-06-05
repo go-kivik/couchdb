@@ -233,7 +233,7 @@ func registerSuiteCouch21() {
 
 		"ViewCleanup/RW/NoAuth.status": kivik.StatusUnauthorized,
 
-		"Changes.options": map[string]interface{}{
+		"Changes/Continuous.options": map[string]interface{}{
 			"feed":      "continuous",
 			"since":     "now",
 			"heartbeat": 6000,
