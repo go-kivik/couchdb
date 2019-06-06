@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
 	"github.com/go-kivik/kivik"
 )
 
@@ -17,23 +18,23 @@ func TestHTTPErrorError(t *testing.T) {
 		{
 			name: "No reason",
 			input: &HTTPError{
-				Code: 400,
+				Response: &http.Response{StatusCode: 400},
 			},
 			expected: "Bad Request",
 		},
 		{
 			name: "Reason, HTTP code",
 			input: &HTTPError{
-				Code:   400,
-				Reason: "Bad stuff",
+				Response: &http.Response{StatusCode: 400},
+				Reason:   "Bad stuff",
 			},
 			expected: "Bad Request: Bad stuff",
 		},
 		{
 			name: "Non-HTTP code",
 			input: &HTTPError{
-				Code:   604,
-				Reason: "Bad stuff",
+				Response: &http.Response{StatusCode: 604},
+				Reason:   "Bad stuff",
 			},
 			expected: "Bad stuff",
 		},
@@ -52,6 +53,8 @@ func TestResponseError(t *testing.T) {
 	tests := []struct {
 		name     string
 		resp     *http.Response
+		status   int
+		err      string
 		expected interface{}
 	}{
 		{
@@ -66,10 +69,17 @@ func TestResponseError(t *testing.T) {
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			},
+			status: http.StatusNotFound,
+			err:    "Not Found",
 			expected: &kivik.Error{
 				HTTPStatus: http.StatusNotFound,
 				FromServer: true,
-				Err:        &HTTPError{Code: http.StatusNotFound, exitStatus: ExitNotRetrieved},
+				Err: &HTTPError{
+					Response: &http.Response{
+						StatusCode: http.StatusBadRequest,
+					},
+					exitStatus: ExitNotRetrieved,
+				},
 			},
 		},
 		{
@@ -89,11 +99,15 @@ func TestResponseError(t *testing.T) {
 				Body:          Body(`{"error":"illegal_database_name","reason":"Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter."}`),
 				Request:       &http.Request{Method: "PUT"},
 			},
+			status: http.StatusBadRequest,
+			err:    "Bad Request: Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
 			expected: &kivik.Error{
 				HTTPStatus: http.StatusBadRequest,
 				FromServer: true,
 				Err: &HTTPError{
-					Code:       http.StatusBadRequest,
+					Response: &http.Response{
+						StatusCode: http.StatusBadRequest,
+					},
 					exitStatus: ExitNotRetrieved,
 					Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
 				},
@@ -114,16 +128,28 @@ func TestResponseError(t *testing.T) {
 				Body:          Body("invalid json"),
 				Request:       &http.Request{Method: "PUT"},
 			},
+			status: http.StatusBadRequest,
+			err:    "Bad Request",
 			expected: &kivik.Error{
 				HTTPStatus: http.StatusBadRequest,
 				FromServer: true,
-				Err:        &HTTPError{Code: http.StatusBadRequest, exitStatus: ExitNotRetrieved},
+				Err: &HTTPError{
+					Response: &http.Response{
+						StatusCode: http.StatusBadRequest,
+					},
+					exitStatus: ExitNotRetrieved,
+				},
 			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ResponseError(test.resp)
+			testy.StatusError(t, test.err, test.status, err)
+			if he, ok := err.(*HTTPError); ok {
+				he.Response = nil
+				err = he
+			}
 			if d := diff.Interface(test.expected, err); d != nil {
 				t.Error(d)
 			}

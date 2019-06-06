@@ -82,7 +82,11 @@ func NewWithClient(client *http.Client, dsn string) (*Client, error) {
 
 func parseDSN(dsn string) (*url.URL, error) {
 	if dsn == "" {
-		return nil, &HTTPError{Code: kivik.StatusBadAPICall, Reason: "no URL specified", exitStatus: ExitFailedToInitialize}
+		return nil, &curlError{
+			httpStatus: kivik.StatusBadAPICall,
+			curlStatus: ExitFailedToInitialize,
+			error:      errors.New("no URL specified"),
+		}
 	}
 	if !strings.HasPrefix(dsn, "http://") && !strings.HasPrefix(dsn, "https://") {
 		dsn = "http://" + dsn

@@ -11,16 +11,23 @@ import (
 
 // HTTPError is an error that represents an HTTP transport error.
 type HTTPError struct {
-	Code       int
-	Reason     string `json:"reason"`
+	// Response is the HTTP response received by the client.  Typically the
+	// response body has already been consumed, but the response and request
+	// headers and other metadata will typically be in tact for debugging
+	// purposes.
+	Response *http.Response `json:"-"`
+
+	// Reason is the server-supplied error reason.
+	Reason string `json:"reason"`
+
 	exitStatus int
 }
 
 func (e *HTTPError) Error() string {
 	if e.Reason == "" {
-		return http.StatusText(e.Code)
+		return http.StatusText(e.StatusCode())
 	}
-	if statusText := http.StatusText(e.Code); statusText != "" {
+	if statusText := http.StatusText(e.StatusCode()); statusText != "" {
 		return fmt.Sprintf("%s: %s", statusText, e.Reason)
 	}
 	return e.Reason
@@ -28,7 +35,7 @@ func (e *HTTPError) Error() string {
 
 // StatusCode returns the embedded status code.
 func (e *HTTPError) StatusCode() int {
-	return e.Code
+	return e.Response.StatusCode
 }
 
 // ExitStatus returns the embedded exit status.
@@ -45,6 +52,7 @@ func ResponseError(resp *http.Response) error {
 		defer resp.Body.Close() // nolint: errcheck
 	}
 	httpErr := &HTTPError{
+		Response:   resp,
 		exitStatus: ExitNotRetrieved,
 	}
 	if resp.Request.Method != "HEAD" && resp.ContentLength != 0 {
@@ -52,8 +60,7 @@ func ResponseError(resp *http.Response) error {
 			_ = json.NewDecoder(resp.Body).Decode(httpErr)
 		}
 	}
-	httpErr.Code = resp.StatusCode
-	return &kivik.Error{HTTPStatus: httpErr.Code, FromServer: true, Err: httpErr}
+	return &kivik.Error{HTTPStatus: resp.StatusCode, FromServer: true, Err: httpErr}
 }
 
 type curlError struct {
@@ -76,4 +83,12 @@ func fullError(httpStatus, curlStatus int, err error) error {
 		httpStatus: httpStatus,
 		error:      err,
 	}
+}
+
+func (e *curlError) Cause() error {
+	return e.error
+}
+
+func (e *curlError) Unwrap() error {
+	return e.error
 }
