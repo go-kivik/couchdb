@@ -179,21 +179,15 @@ func isBug1000(err error) bool {
 	if err == nil {
 		return false
 	}
-	kerr, ok := err.(*kivik.Error)
+	cerr, ok := err.(*chttp.HTTPError)
 	if !ok {
 		// should never happen
 		return false
 	}
-	if kerr.HTTPStatus != http.StatusInternalServerError {
+	if cerr.Response.StatusCode != http.StatusInternalServerError {
 		return false
 	}
-	if !kerr.FromServer {
-		return false
-	}
-	if cerr, ok := kerr.Err.(*chttp.HTTPError); ok {
-		return cerr.Reason == "function_clause"
-	}
-	return false
+	return cerr.Reason == "function_clause"
 }
 
 func (r *schedulerReplication) update(ctx context.Context) error {
