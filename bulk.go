@@ -89,8 +89,8 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		// Nothing to do
 	case kivik.StatusExpectationFailed:
 		err = &chttp.HTTPError{
-			Code:   kivik.StatusExpectationFailed,
-			Reason: "one or more document was rejected",
+			Response: resp,
+			Reason:   "one or more document was rejected",
 		}
 	default:
 		// All other errors can consume the response body and return immediately
