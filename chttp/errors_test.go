@@ -1,7 +1,10 @@
 package chttp
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/flimzy/diff"
@@ -155,4 +158,50 @@ func TestResponseError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFormatError(t *testing.T) {
+	type tst struct {
+		err  error
+		str  string
+		std  string
+		full string
+	}
+	tests := testy.NewTable()
+	tests.Add("standard error", tst{
+		err:  errors.New("foo"),
+		str:  "foo",
+		std:  "foo",
+		full: "foo",
+	})
+	tests.Add("HTTPError", tst{
+		err: &HTTPError{
+			Response: &http.Response{
+				StatusCode:    http.StatusNotFound,
+				ContentLength: 321,
+				Request: &http.Request{
+					Method:        http.MethodPost,
+					URL:           &url.URL{Scheme: "http", Host: "localhost:5984"},
+					ContentLength: 123,
+				},
+			},
+		},
+		str: "Not Found",
+		std: "Not Found",
+		full: `Not Found:
+    REQUEST: POST http://localhost:5984 (123 bytes)
+    RESPONSE: 404 / Not Found (321 bytes)`,
+	})
+
+	tests.Run(t, func(t *testing.T, test tst) {
+		if d := diff.Text(test.str, test.err.Error()); d != nil {
+			t.Errorf("Error():\n%s", d)
+		}
+		if d := diff.Text(test.std, fmt.Sprintf("%v", test.err)); d != nil {
+			t.Errorf("Standard:\n%s", d)
+		}
+		if d := diff.Text(test.full, fmt.Sprintf("%+v", test.err)); d != nil {
+			t.Errorf("Full:\n%s", d)
+		}
+	})
 }
