@@ -144,6 +144,24 @@ func TestAuthentication(t *testing.T) {
 		},
 		auther: CookieAuth("bob", "abc123"),
 	})
+	tests.Add("ProxyAuth", tst{
+		handler: func(t *testing.T) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if h := r.Header.Get("X-Auth-CouchDB-UserName"); h != "bob" {
+					t.Errorf("Unexpected X-Auth-CouchDB-UserName header: %s\n", h)
+				}
+				if h := r.Header.Get("X-Auth-CouchDB-Roles"); h != "users,admins" {
+					t.Errorf("Unexpected X-Auth-CouchDB-Roles header: %s\n", h)
+				}
+				if h := r.Header.Get("X-Auth-CouchDB-Token"); h != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
+					t.Errorf("Unexpected X-Auth-CouchDB-Token header: %s\n", h)
+				}
+				w.WriteHeader(200)
+				_, _ = w.Write([]byte(`{}`))
+			})
+		},
+		auther: ProxyAuth("bob", "abc123", []string{"users", "admins"}),
+	})
 	tests.Add("SetCookie", tst{
 		handler: func(t *testing.T) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
