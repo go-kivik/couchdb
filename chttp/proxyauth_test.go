@@ -8,6 +8,12 @@ import (
 	"github.com/flimzy/diff"
 )
 
+const (
+	rolesTest    = "users,admins"
+	tokenTest    = "adedb8d002eb53a52faba80e82cb1fc6d57bca74"
+	usernameTest = "bob"
+)
+
 func TestProxyAuthRoundTrip(t *testing.T) {
 	type rtTest struct {
 		name     string
@@ -21,23 +27,23 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 			name: "Provided transport",
 			req:  httptest.NewRequest("GET", "/", nil),
 			auth: &ProxyAuth{
-				Username: "bob",
+				Username: usernameTest,
 				Secret:   "abc123",
 				Roles:    []string{"users", "admins"},
 				Headers:  map[string]string{},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
 					username := req.Header.Get("X-Auth-CouchDB-UserName")
-					if username != "bob" {
+					if username != usernameTest {
 						t.Errorf("Unexpected X-Auth-CouchDB-UserName value: %s", username)
 					}
 
 					roles := req.Header.Get("X-Auth-CouchDB-Roles")
-					if roles != "users,admins" {
+					if roles != rolesTest {
 						t.Errorf("Unexpected X-Auth-CouchDB-Roles value: %s", roles)
 					}
 
 					token := req.Header.Get("X-Auth-CouchDB-Token")
-					if token != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
+					if token != tokenTest {
 						t.Errorf("Unexpected X-Auth-CouchDB-Token value: %s", token)
 					}
 
@@ -50,7 +56,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 			name: "Secret is an empty string",
 			req:  httptest.NewRequest("GET", "/", nil),
 			auth: &ProxyAuth{
-				Username: "bob",
+				Username: usernameTest,
 				Secret:   "",
 				Roles:    []string{"users", "admins"},
 				Headers:  map[string]string{},
@@ -69,23 +75,23 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 			name: "Overridden header names",
 			req:  httptest.NewRequest("GET", "/", nil),
 			auth: &ProxyAuth{
-				Username: "bob",
+				Username: usernameTest,
 				Secret:   "abc123",
 				Roles:    []string{"users", "admins"},
 				Headers:  map[string]string{"token": "moo", "username": "cow", "roles": "bovine"},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
 					username := req.Header.Get("cow")
-					if username != "bob" {
+					if username != usernameTest {
 						t.Error("Username header override failed")
 					}
 
 					roles := req.Header.Get("bovine")
-					if roles != "users,admins" {
+					if roles != rolesTest {
 						t.Error("Roles header override failed")
 					}
 
 					token := req.Header.Get("moo")
-					if token != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
+					if token != tokenTest {
 						t.Error("Token header override failed")
 					}
 
@@ -97,17 +103,17 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 		func() rtTest {
 			h := func(w http.ResponseWriter, r *http.Request) {
 				username := r.Header.Get("X-Auth-CouchDB-UserName")
-				if username != "bob" {
+				if username != usernameTest {
 					t.Errorf("Unexpected X-Auth-CouchDB-UserName value: %s", username)
 				}
 
 				roles := r.Header.Get("X-Auth-CouchDB-Roles")
-				if roles != "users,admins" {
+				if roles != rolesTest {
 					t.Errorf("Unexpected X-Auth-CouchDB-Roles value: %s", roles)
 				}
 
 				token := r.Header.Get("X-Auth-CouchDB-Token")
-				if token != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
+				if token != tokenTest {
 					t.Errorf("Unexpected X-Auth-CouchDB-Token value: %s", token)
 				}
 
@@ -118,7 +124,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 			return rtTest{
 				name: "default transport",
 				auth: &ProxyAuth{
-					Username:  "bob",
+					Username:  usernameTest,
 					Secret:    "abc123",
 					Roles:     []string{"users", "admins"},
 					Headers:   map[string]string{},
