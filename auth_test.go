@@ -153,14 +153,14 @@ func TestAuthentication(t *testing.T) {
 				if h := r.Header.Get("X-Auth-CouchDB-Roles"); h != "users,admins" {
 					t.Errorf("Unexpected X-Auth-CouchDB-Roles header: %s\n", h)
 				}
-				if h := r.Header.Get("X-Auth-CouchDB-Token"); h != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
-					t.Errorf("Unexpected X-Auth-CouchDB-Token header: %s\n", h)
+				if h := r.Header.Get("moo"); h != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
+					t.Errorf("Token header override failed: %s instead of 'moo'\n", h)
 				}
 				w.WriteHeader(200)
 				_, _ = w.Write([]byte(`{}`))
 			})
 		},
-		auther: ProxyAuth("bob", "abc123", []string{"users", "admins"}),
+		auther: ProxyAuth("bob", "abc123", []string{"users", "admins"}, map[string]string{"token": "moo"}),
 	})
 	tests.Add("SetCookie", tst{
 		handler: func(t *testing.T) http.Handler {

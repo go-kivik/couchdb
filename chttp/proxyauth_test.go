@@ -24,6 +24,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 				Username: "bob",
 				Secret:   "abc123",
 				Roles:    []string{"users", "admins"},
+				Headers:  map[string]string{},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
 					username := req.Header.Get("X-Auth-CouchDB-UserName")
 					if username != "bob" {
@@ -38,6 +39,54 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 					token := req.Header.Get("X-Auth-CouchDB-Token")
 					if token != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
 						t.Errorf("Unexpected X-Auth-CouchDB-Token value: %s", token)
+					}
+
+					return &http.Response{StatusCode: 200}, nil
+				}),
+			},
+			expected: &http.Response{StatusCode: 200},
+		},
+		{
+			name: "Secret is an empty string",
+			req:  httptest.NewRequest("GET", "/", nil),
+			auth: &ProxyAuth{
+				Username: "bob",
+				Secret:   "",
+				Roles:    []string{"users", "admins"},
+				Headers:  map[string]string{},
+				transport: customTransport(func(req *http.Request) (*http.Response, error) {
+					token := req.Header.Get("X-Auth-CouchDB-Token")
+					if token != "" {
+						t.Error("Setting secret to an empty string did not unset the X-Auth-CouchDB-Token header")
+					}
+
+					return &http.Response{StatusCode: 200}, nil
+				}),
+			},
+			expected: &http.Response{StatusCode: 200},
+		},
+		{
+			name: "Overridden header names",
+			req:  httptest.NewRequest("GET", "/", nil),
+			auth: &ProxyAuth{
+				Username: "bob",
+				Secret:   "abc123",
+				Roles:    []string{"users", "admins"},
+				Headers:  map[string]string{"token": "moo", "username": "cow", "roles": "bovine"},
+				transport: customTransport(func(req *http.Request) (*http.Response, error) {
+					username := req.Header.Get("cow")
+					if username != "bob" {
+						t.Error("Username header override failed")
+					}
+
+					roles := req.Header.Get("bovine")
+					if roles != "users,admins" {
+						t.Error("Roles header override failed")
+					}
+
+					token := req.Header.Get("moo")
+					if token != "adedb8d002eb53a52faba80e82cb1fc6d57bca74" {
+						t.Error("Token header override failed")
 					}
 
 					return &http.Response{StatusCode: 200}, nil
@@ -72,6 +121,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 					Username:  "bob",
 					Secret:    "abc123",
 					Roles:     []string{"users", "admins"},
+					Headers:   map[string]string{},
 					transport: http.DefaultTransport,
 				},
 				req: httptest.NewRequest("GET", s.URL, nil),
