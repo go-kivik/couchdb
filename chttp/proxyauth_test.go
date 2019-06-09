@@ -10,6 +10,7 @@ import (
 
 const (
 	rolesTest    = "users,admins"
+	secretTest   = "abc123"
 	tokenTest    = "adedb8d002eb53a52faba80e82cb1fc6d57bca74"
 	usernameTest = "bob"
 )
@@ -28,7 +29,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 			req:  httptest.NewRequest("GET", "/", nil),
 			auth: &ProxyAuth{
 				Username: usernameTest,
-				Secret:   "abc123",
+				Secret:   secretTest,
 				Roles:    []string{"users", "admins"},
 				Headers:  map[string]string{},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
@@ -76,7 +77,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 			req:  httptest.NewRequest("GET", "/", nil),
 			auth: &ProxyAuth{
 				Username: usernameTest,
-				Secret:   "abc123",
+				Secret:   secretTest,
 				Roles:    []string{"users", "admins"},
 				Headers:  map[string]string{"token": "moo", "username": "cow", "roles": "bovine"},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
@@ -125,7 +126,7 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 				name: "default transport",
 				auth: &ProxyAuth{
 					Username:  usernameTest,
-					Secret:    "abc123",
+					Secret:    secretTest,
 					Roles:     []string{"users", "admins"},
 					Headers:   map[string]string{},
 					transport: http.DefaultTransport,
