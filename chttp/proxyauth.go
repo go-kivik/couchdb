@@ -35,10 +35,7 @@ func (a *ProxyAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 		// Generate auth token
 		// https://docs.couchdb.org/en/stable/config/auth.html#couch_httpd_auth/x_auth_token
 		h := hmac.New(sha1.New, []byte(a.Secret))
-		_, err := h.Write([]byte(a.Username))
-		if err != nil {
-			return nil, err
-		}
+		_, _ = h.Write([]byte(a.Username))
 		token := hex.EncodeToString(h.Sum(nil))
 		req.Header.Set(a.header("X-Auth-CouchDB-Token"), token)
 	}
