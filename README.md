@@ -2,7 +2,7 @@
 
 # Kivik CouchDB
 
-CouchDB driver for [Kivik](https://github.com/go-kivik/couchdb).
+CouchDB driver for [Kivik](https://github.com/go-kivik/kivik).
 
 ## Usage
 
