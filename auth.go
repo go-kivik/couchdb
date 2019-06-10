@@ -79,6 +79,14 @@ func CookieAuth(user, password string) Authenticator {
 	})
 }
 
+// ProxyAuth provides support for Proxy authentication.
+func ProxyAuth(user, secret string, roles []string, headers map[string]string) Authenticator {
+	auth := chttp.ProxyAuth{Username: user, Secret: secret, Roles: roles, Headers: headers}
+	return authFunc(func(ctx context.Context, c *client) error {
+		return auth.Authenticate(c.Client)
+	})
+}
+
 type rawCookie struct {
 	cookie *http.Cookie
 	next   http.RoundTripper
