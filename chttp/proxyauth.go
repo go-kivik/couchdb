@@ -43,15 +43,12 @@ func (a *ProxyAuth) genToken() string {
 }
 
 func (a *ProxyAuth) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Convert roles slice to comma separated values
-	rolesCsv := strings.Join(a.Roles[:], ",")
-
 	if token := a.genToken(); token != "" {
 		req.Header.Set(a.header("X-Auth-CouchDB-Token"), token)
 	}
 
 	req.Header.Set(a.header("X-Auth-CouchDB-UserName"), a.Username)
-	req.Header.Set(a.header("X-Auth-CouchDB-Roles"), rolesCsv)
+	req.Header.Set(a.header("X-Auth-CouchDB-Roles"), strings.Join(a.Roles, ","))
 
 	return a.transport.RoundTrip(req)
 }
