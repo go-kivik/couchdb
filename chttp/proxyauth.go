@@ -12,34 +12,21 @@ type ProxyAuth struct {
 	Username string
 	Secret   string
 	Roles    []string
-	Headers  map[string]string
+	Headers  http.Header
 
 	transport http.RoundTripper
 }
 
 var _ Authenticator = &ProxyAuth{}
 
+func (a *ProxyAuth) header(header string) string {
+	if h := a.Headers.Get(header); h != "" {
+		return http.CanonicalHeaderKey(h)
+	}
+	return header
+}
+
 func (a *ProxyAuth) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Default header names
-	tokenHeaderName := "X-Auth-CouchDB-Token"
-	usernameHeaderName := "X-Auth-CouchDB-UserName"
-	rolesHeaderName := "X-Auth-CouchDB-Roles"
-
-	// Override the token header if specified
-	if val, ok := a.Headers["token"]; ok {
-		tokenHeaderName = val
-	}
-
-	// Override the username header if specified
-	if val, ok := a.Headers["username"]; ok {
-		usernameHeaderName = val
-	}
-
-	// Override the roles header if specified
-	if val, ok := a.Headers["roles"]; ok {
-		rolesHeaderName = val
-	}
-
 	// Convert roles slice to comma separated values
 	rolesCsv := strings.Join(a.Roles[:], ",")
 
@@ -53,12 +40,12 @@ func (a *ProxyAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 		token := hex.EncodeToString(h.Sum(nil))
-		req.Header.Set(tokenHeaderName, token)
+		req.Header.Set(a.header("X-Auth-CouchDB-Token"), token)
 	}
 
 	// Add headers to request
-	req.Header.Set(usernameHeaderName, a.Username)
-	req.Header.Set(rolesHeaderName, rolesCsv)
+	req.Header.Set(a.header("X-Auth-CouchDB-UserName"), a.Username)
+	req.Header.Set(a.header("X-Auth-CouchDB-Roles"), rolesCsv)
 
 	return a.transport.RoundTrip(req)
 }
