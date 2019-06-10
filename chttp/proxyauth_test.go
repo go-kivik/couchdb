@@ -31,7 +31,6 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 				Username: usernameTest,
 				Secret:   secretTest,
 				Roles:    []string{"users", "admins"},
-				Headers:  map[string]string{},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
 					username := req.Header.Get("X-Auth-CouchDB-UserName")
 					if username != usernameTest {
@@ -60,7 +59,6 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 				Username: usernameTest,
 				Secret:   "",
 				Roles:    []string{"users", "admins"},
-				Headers:  map[string]string{},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
 					token := req.Header.Get("X-Auth-CouchDB-Token")
 					if token != "" {
@@ -79,19 +77,23 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 				Username: usernameTest,
 				Secret:   secretTest,
 				Roles:    []string{"users", "admins"},
-				Headers:  map[string]string{"token": "moo", "username": "cow", "roles": "bovine"},
+				Headers: http.Header{
+					"X-Auth-Couchdb-Token":    []string{"moo"},
+					"X-Auth-Couchdb-Username": []string{"cow"},
+					"X-Auth-Couchdb-Roles":    []string{"bovine"},
+				},
 				transport: customTransport(func(req *http.Request) (*http.Response, error) {
-					username := req.Header.Get("cow")
+					username := req.Header.Get("Cow")
 					if username != usernameTest {
 						t.Error("Username header override failed")
 					}
 
-					roles := req.Header.Get("bovine")
+					roles := req.Header.Get("Bovine")
 					if roles != rolesTest {
 						t.Error("Roles header override failed")
 					}
 
-					token := req.Header.Get("moo")
+					token := req.Header.Get("Moo")
 					if token != tokenTest {
 						t.Error("Token header override failed")
 					}
@@ -128,7 +130,6 @@ func TestProxyAuthRoundTrip(t *testing.T) {
 					Username:  usernameTest,
 					Secret:    secretTest,
 					Roles:     []string{"users", "admins"},
-					Headers:   map[string]string{},
 					transport: http.DefaultTransport,
 				},
 				req: httptest.NewRequest("GET", s.URL, nil),

@@ -80,8 +80,27 @@ func CookieAuth(user, password string) Authenticator {
 }
 
 // ProxyAuth provides support for Proxy authentication.
-func ProxyAuth(user, secret string, roles []string, headers map[string]string) Authenticator {
-	auth := chttp.ProxyAuth{Username: user, Secret: secret, Roles: roles, Headers: headers}
+//
+// The `secret` argument represents the `couch_httpd_auth/secret` value
+// configured on the CouchDB server. See https://docs.couchdb.org/en/stable/config/auth.html#couch_httpd_auth/secret
+// If `secret` is the empty string, the X-Auth-CouchDB-Token header will not be
+// set, to support disabling the `proxy_use_secret` server setting. See https://docs.couchdb.org/en/stable/config/auth.html#couch_httpd_auth/proxy_use_secret
+//
+// The optional `headers` map may be passed to use non-standard header names.
+// For instance, to use `X-User` in place of the `X-Auth-CouchDB-Username`
+// header, pass a value of {"X-Auth-CouchDB-UserName": "X-User"}.
+// The relevant headers are X-Auth-CouchDB-UserName, X-Auth-CouchDB-Roles, and
+// X-Auth-CouchDB-Token.
+//
+// See https://docs.couchdb.org/en/stable/api/server/authn.html?highlight=proxy%20auth#proxy-authentication
+func ProxyAuth(user, secret string, roles []string, headers ...map[string]string) Authenticator {
+	headerOverrides := http.Header{}
+	for _, h := range headers {
+		for k, v := range h {
+			headerOverrides.Set(k, v)
+		}
+	}
+	auth := chttp.ProxyAuth{Username: user, Secret: secret, Roles: roles, Headers: headerOverrides}
 	return authFunc(func(ctx context.Context, c *client) error {
 		return auth.Authenticate(c.Client)
 	})
