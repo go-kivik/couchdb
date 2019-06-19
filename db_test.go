@@ -223,6 +223,33 @@ func TestGet(t *testing.T) {
 			err:     "malformed MIME header (initial )?line:.*bogus data",
 		},
 		{
+			name: "multipart accept header",
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				expected := "multipart/related,application/json"
+				if accept := r.Header.Get("Accept"); accept != expected {
+					return nil, fmt.Errorf("Unexpected Accept header: %s", accept)
+				}
+				return nil, errors.New("not an error")
+			}),
+			id:     "foo",
+			status: http.StatusBadGateway,
+			err:    "not an error",
+		},
+		{
+			name: "disable multipart accept header",
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				expected := "application/json"
+				if accept := r.Header.Get("Accept"); accept != expected {
+					return nil, fmt.Errorf("Unexpected Accept header: %s", accept)
+				}
+				return nil, errors.New("not an error")
+			}),
+			options: map[string]interface{}{NoMultipartGet: true},
+			id:      "foo",
+			status:  http.StatusBadGateway,
+			err:     "not an error",
+		},
+		{
 			name: "multipart attachments",
 			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
 			db: newTestDB(&http.Response{

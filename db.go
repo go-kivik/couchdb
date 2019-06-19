@@ -268,9 +268,12 @@ func (d *db) get(ctx context.Context, method string, docID string, options map[s
 		return nil, "", err
 	}
 	opts := &chttp.Options{
-		Accept:      typeJSON,
+		Accept:      typeMPRelated + "," + typeJSON,
 		IfNoneMatch: inm,
 		Query:       params,
+	}
+	if _, ok := options[NoMultipartGet]; ok {
+		opts.Accept = typeJSON
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)), opts)
 	if err != nil {

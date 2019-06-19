@@ -24,6 +24,11 @@ const (
 	// multipart/related upload capabilities. This only affects PUT requests that
 	// also include attachments.
 	NoMultipartPut = "kivik:no-multipart-put"
+
+	// NoMultipartGet instructs the Get() method not to use CouchDB's ability to
+	// download attachments with the multipart/related media type. This only
+	// affects GET requests that request attachments.
+	NoMultipartGet = "kivik:no-multipart-get"
 )
 
 const (
