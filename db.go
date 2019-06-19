@@ -268,7 +268,7 @@ func (d *db) get(ctx context.Context, method string, docID string, options map[s
 		return nil, "", err
 	}
 	opts := &chttp.Options{
-		Accept:      typeJSON,
+		Accept:      typeMPRelated + "," + typeJSON,
 		IfNoneMatch: inm,
 		Query:       params,
 	}
