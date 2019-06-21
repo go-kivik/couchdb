@@ -2297,3 +2297,75 @@ func TestCopyWithAttachmentStubs(t *testing.T) {
 		}
 	})
 }
+
+func TestRevsDiff(t *testing.T) {
+	type tt struct {
+		db       *db
+		revMap   map[string][]string
+		expected map[string]driver.RevDiff
+		status   int
+		err      string
+	}
+	tests := testy.NewTable()
+	tests.Add("net error", tt{
+		db:     newTestDB(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    "Post http://example.com/testdb/_revs_diff: net error",
+	})
+	tests.Add("success", tt{
+		db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+			expectedBody := json.RawMessage(`{
+				"190f721ca3411be7aa9477db5f948bbb": [
+					"3-bb72a7682290f94a985f7afac8b27137",
+					"4-10265e5a26d807a3cfa459cf1a82ef2e",
+					"5-067a00dff5e02add41819138abb3284d"
+				]
+			}`)
+			defer r.Body.Close() // nolint: errcheck
+			if d := diff.AsJSON(expectedBody, r.Body); d != nil {
+				return nil, fmt.Errorf("Unexpected payload: %s", d)
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: ioutil.NopCloser(strings.NewReader(`{
+					"190f721ca3411be7aa9477db5f948bbb": {
+						"missing": [
+							"3-bb72a7682290f94a985f7afac8b27137",
+							"5-067a00dff5e02add41819138abb3284d"
+						],
+						"possible_ancestors": [
+							"4-10265e5a26d807a3cfa459cf1a82ef2e"
+						]
+					}
+				}`)),
+			}, nil
+		}),
+		revMap: map[string][]string{
+			"190f721ca3411be7aa9477db5f948bbb": {
+				"3-bb72a7682290f94a985f7afac8b27137",
+				"4-10265e5a26d807a3cfa459cf1a82ef2e",
+				"5-067a00dff5e02add41819138abb3284d",
+			},
+		},
+		expected: map[string]driver.RevDiff{
+			"190f721ca3411be7aa9477db5f948bbb": {
+				Missing: []string{
+					"3-bb72a7682290f94a985f7afac8b27137",
+					"5-067a00dff5e02add41819138abb3284d",
+				},
+				PossibleAncestors: []string{
+					"4-10265e5a26d807a3cfa459cf1a82ef2e",
+				},
+			},
+		},
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		result, err := tt.db.RevsDiff(context.TODO(), tt.revMap)
+		testy.StatusError(t, tt.err, tt.status, err)
+		if d := diff.Interface(tt.expected, result); d != nil {
+			t.Error(d)
+		}
+	})
+}
