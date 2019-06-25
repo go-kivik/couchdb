@@ -812,3 +812,14 @@ func (d *db) Purge(ctx context.Context, docMap map[string][]string) (*driver.Pur
 	_, err := d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_purge"), options, &result)
 	return result, err
 }
+
+var _ driver.RevsDiffer = &db{}
+
+func (d *db) RevsDiff(ctx context.Context, revMap interface{}) (map[string]driver.RevDiff, error) {
+	result := make(map[string]driver.RevDiff)
+	options := &chttp.Options{
+		Body: chttp.EncodeBody(revMap),
+	}
+	_, err := d.Client.DoJSON(ctx, http.MethodPost, d.path("_revs_diff"), options, &result)
+	return result, err
+}
