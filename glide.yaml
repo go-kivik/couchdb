@@ -13,7 +13,7 @@ import:
   subpackages:
   - publicsuffix
 - package: github.com/flimzy/diff
-  version: ^0.1.2
+  version: ^0.1.6
 - package: github.com/go-kivik/kiviktest
   version: master
   subpackages:
