@@ -2300,11 +2300,10 @@ func TestCopyWithAttachmentStubs(t *testing.T) {
 
 func TestRevsDiff(t *testing.T) {
 	type tt struct {
-		db       *db
-		revMap   map[string][]string
-		expected map[string]driver.RevDiff
-		status   int
-		err      string
+		db     *db
+		revMap map[string][]string
+		status int
+		err    string
 	}
 	tests := testy.NewTable()
 	tests.Add("net error", tt{
@@ -2337,6 +2336,9 @@ func TestRevsDiff(t *testing.T) {
 						"possible_ancestors": [
 							"4-10265e5a26d807a3cfa459cf1a82ef2e"
 						]
+					},
+					"foo": {
+						"missing": ["1-xxx"]
 					}
 				}`)),
 			}, nil
@@ -2348,23 +2350,29 @@ func TestRevsDiff(t *testing.T) {
 				"5-067a00dff5e02add41819138abb3284d",
 			},
 		},
-		expected: map[string]driver.RevDiff{
-			"190f721ca3411be7aa9477db5f948bbb": {
-				Missing: []string{
-					"3-bb72a7682290f94a985f7afac8b27137",
-					"5-067a00dff5e02add41819138abb3284d",
-				},
-				PossibleAncestors: []string{
-					"4-10265e5a26d807a3cfa459cf1a82ef2e",
-				},
-			},
-		},
 	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
-		result, err := tt.db.RevsDiff(context.TODO(), tt.revMap)
+		ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+		defer cancel()
+		rows, err := tt.db.RevsDiff(ctx, tt.revMap)
 		testy.StatusError(t, tt.err, tt.status, err)
-		if d := diff.Interface(tt.expected, result); d != nil {
+		results := make(map[string]interface{})
+		drow := new(driver.Row)
+		for {
+			if err := rows.Next(drow); err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Fatal(err)
+			}
+			var row interface{}
+			if err := json.Unmarshal(drow.Value, &row); err != nil {
+				t.Fatal(err)
+			}
+			results[drow.ID] = row
+		}
+		if d := diff.AsJSON(&diff.File{Path: "testdata/" + testy.Stub(t)}, results); d != nil {
 			t.Error(d)
 		}
 	})

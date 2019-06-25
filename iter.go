@@ -87,6 +87,10 @@ type iter struct {
 	body        io.ReadCloser
 	parser      parser
 
+	// objMode enables reading one object at a time, with the ID treated as the
+	// docid. This was added for the _revs_diff endpoint.
+	objMode bool
+
 	dec    *json.Decoder
 	mu     sync.RWMutex
 	closed bool
@@ -119,7 +123,8 @@ func (i *iter) next(row interface{}) error {
 	err := i.nextRow(row)
 	if err != nil {
 		if err == io.EOF {
-			return i.finish()
+			e := i.finish()
+			return e
 		}
 	}
 	return err
@@ -127,12 +132,15 @@ func (i *iter) next(row interface{}) error {
 
 // begin parses the top-level of the result object; until rows
 func (i *iter) begin() error {
-	if i.expectedKey == "" {
+	if i.expectedKey == "" && !i.objMode {
 		return nil
 	}
 	// consume the first '{'
 	if err := consumeDelim(i.dec, json.Delim('{')); err != nil {
 		return err
+	}
+	if i.objMode {
+		return nil
 	}
 	for {
 		t, err := i.dec.Token()
@@ -156,6 +164,9 @@ func (i *iter) begin() error {
 }
 
 func (i *iter) parseMeta(key string) error {
+	if i.meta == nil {
+		return nil
+	}
 	if mp, ok := i.parser.(metaParser); ok {
 		return mp.parseMeta(i.meta, i.dec, key)
 	}
@@ -169,9 +180,16 @@ func (i *iter) finish() (err error) {
 			err = e2
 		}
 	}()
-	if i.expectedKey == "" {
+	if i.expectedKey == "" && !i.objMode {
 		_, err := i.dec.Token()
-		if err != io.EOF {
+		if err != nil && err != io.EOF {
+			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		}
+		return nil
+	}
+	if i.objMode {
+		err := consumeDelim(i.dec, json.Delim('}'))
+		if err != nil && err != io.EOF {
 			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 		}
 		return nil

@@ -815,11 +815,34 @@ func (d *db) Purge(ctx context.Context, docMap map[string][]string) (*driver.Pur
 
 var _ driver.RevsDiffer = &db{}
 
-func (d *db) RevsDiff(ctx context.Context, revMap interface{}) (map[string]driver.RevDiff, error) {
-	result := make(map[string]driver.RevDiff)
+func (d *db) RevsDiff(ctx context.Context, revMap interface{}) (driver.Rows, error) {
 	options := &chttp.Options{
 		Body: chttp.EncodeBody(revMap),
 	}
-	_, err := d.Client.DoJSON(ctx, http.MethodPost, d.path("_revs_diff"), options, &result)
-	return result, err
+	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_revs_diff"), options)
+	if err != nil {
+		return nil, err
+	}
+	if err = chttp.ResponseError(resp); err != nil {
+		return nil, err
+	}
+	return newRevsDiffRows(ctx, resp.Body), nil
+}
+
+type revsDiffParser struct{}
+
+func (p *revsDiffParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	t, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	row := i.(*driver.Row)
+	row.ID = t.(string)
+	return dec.Decode(&row.Value)
+}
+
+func newRevsDiffRows(ctx context.Context, in io.ReadCloser) driver.Rows {
+	iter := newIter(ctx, nil, "", in, &revsDiffParser{})
+	iter.objMode = true
+	return &rows{iter: iter}
 }
