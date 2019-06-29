@@ -124,6 +124,8 @@ func TestChangesNext(t *testing.T) {
 			name:     "end of input",
 			changes:  newChangesRows(context.TODO(), "", Body(``), ""),
 			expected: &driver.Change{},
+			status:   http.StatusInternalServerError,
+			err:      "EOF",
 		},
 	}
 	for _, test := range tests {

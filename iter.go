@@ -123,8 +123,10 @@ func (i *iter) next(row interface{}) error {
 	err := i.nextRow(row)
 	if err != nil {
 		if err == io.EOF {
-			e := i.finish()
-			return e
+			if e := i.finish(); e != nil {
+				err = e
+			}
+			return err
 		}
 	}
 	return err
