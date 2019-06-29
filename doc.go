@@ -1,6 +1,18 @@
 /*
 Package couchdb is a driver for connecting with a CouchDB server over HTTP.
 
+General Usage
+
+Use the `couch` driver name when using this driver. The DSN should be a full
+URL, likely with login credentials:
+
+    import (
+        "github.com/go-kivik/kivik"
+        _ "github.com/go-kivik/couchdb" // The CouchDB driver
+    )
+
+    client, err := kivik.New("couch", "http://username:password@127.0.0.1:5984/")
+
 Options
 
 The CouchDB driver generally interprets kivik.Options keys and values as URL
