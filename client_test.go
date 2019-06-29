@@ -287,6 +287,8 @@ func TestUpdatesNext(t *testing.T) {
 			name:     "consumed feed",
 			updates:  newUpdates(context.TODO(), Body("")),
 			expected: &driver.DBUpdate{},
+			status:   http.StatusInternalServerError,
+			err:      "EOF",
 		},
 		{
 			name:    "read feed",
