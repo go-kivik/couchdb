@@ -31,7 +31,7 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 	options := &chttp.Options{
 		Query: query,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, d.path("_changes"), options)
+	resp, err := d.Client.DoReq(ctx, kivik.MethodGet, "_changes", options)
 	if err != nil {
 		return nil, err
 	}
