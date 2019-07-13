@@ -50,7 +50,7 @@ To use one of the explicit authentication mechanisms, you'll need to use kivik's
 Authenticate method.  For example:
 
     client, _ := kivik.New("couch", "http://localhost:5984/")
-    err := client.Authenticate(couchdb.BasicAuth("bob", "abc123"))
+    err := client.Authenticate(ctx, couchdb.BasicAuth("bob", "abc123"))
 
 Multipart PUT
 
