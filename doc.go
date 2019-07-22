@@ -33,8 +33,10 @@ The only exceptions to the above rule are:
    headers rather than setting a URL parameter.
  - the `keys` key, when passed to a view query, will result in a POST query
    being done, rather than a GET, to accommodate an arbitrary number of keys.
--  the 'NoMultipartPut' option is interpreted by the kivik CouchDB driver
-   to disable multipart/related PUT uploads.
+ - the 'NoMultipartPut' option is interpreted by the Kivik CouchDB driver to
+   disable multipart/related PUT uploads of attachments.
+ - the 'NoMultipartGet' option is interpreted by the Kivik CouchDB driver to
+   disable multipart/related GET downloads of attachments.
 
 Authentication
 
