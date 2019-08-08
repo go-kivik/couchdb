@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/go-kivik/kivik"

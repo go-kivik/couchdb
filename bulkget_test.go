@@ -11,8 +11,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
@@ -146,7 +145,7 @@ func TestBulkGet(t *testing.T) {
 		defer rows.Close() // nolint: errcheck
 		testy.StatusError(t, test.rowErr, test.rowStatus, err)
 
-		if d := diff.Interface(test.expected, row); d != nil {
+		if d := testy.DiffInterface(test.expected, row); d != nil {
 			t.Error(d)
 		}
 	})
@@ -266,7 +265,7 @@ func TestGetBulkRowsIterator(t *testing.T) {
 			t.Fatalf("Ran too many iterations.")
 		}
 	}
-	if d := diff.Interface(expected, results); d != nil {
+	if d := testy.DiffInterface(expected, results); d != nil {
 		t.Error(d)
 	}
 	if expected := 4; count != expected {
@@ -331,7 +330,7 @@ func TestDecodeBulkResult(t *testing.T) {
 		var result bulkResult
 		err := json.Unmarshal([]byte(test.input), &result)
 		testy.Error(t, test.err, err)
-		if d := diff.Interface(test.expected, result); d != nil {
+		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}
 	})

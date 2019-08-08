@@ -7,8 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
@@ -133,7 +132,7 @@ func TestChangesNext(t *testing.T) {
 			row := new(driver.Change)
 			err := test.changes.Next(row)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, row); d != nil {
+			if d := testy.DiffInterface(test.expected, row); d != nil {
 				t.Error(d)
 			}
 		})

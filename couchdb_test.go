@@ -6,8 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 )
@@ -60,7 +59,7 @@ func TestNewClient(t *testing.T) {
 			if !ok {
 				t.Errorf("Unexpected type returned: %t", result)
 			}
-			if d := diff.Interface(test.expectedUA, client.Client.UserAgents); d != nil {
+			if d := testy.DiffInterface(test.expectedUA, client.Client.UserAgents); d != nil {
 				t.Error(d)
 			}
 		})

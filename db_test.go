@@ -17,8 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"
@@ -397,10 +396,10 @@ Content-Length: 86
 				doc.Attachments.(*multipartAttachments).mpReader = nil
 			}
 			doc.Body = nil // Determinism
-			if d := diff.Interface(test.doc, doc); d != nil {
+			if d := testy.DiffInterface(test.doc, doc); d != nil {
 				t.Errorf("Unexpected doc:\n%s", d)
 			}
-			if d := diff.Interface(test.attachments, attachments); d != nil {
+			if d := testy.DiffInterface(test.attachments, attachments); d != nil {
 				t.Errorf("Unexpected attachments:\n%s", d)
 			}
 		})
@@ -569,7 +568,7 @@ func TestOptionsToParams(t *testing.T) {
 				if msg != test.Error {
 					t.Errorf("Error\n\tExpected: %s\n\t  Actual: %s\n", test.Error, msg)
 				}
-				if d := diff.Interface(test.Expected, params); d != nil {
+				if d := testy.DiffInterface(test.Expected, params); d != nil {
 					t.Errorf("Params not as expected:\n%s\n", d)
 				}
 			})
@@ -1210,7 +1209,7 @@ func TestRowsQuery(t *testing.T) {
 					t.Errorf("Unexpected method: %s", r.Method)
 				}
 				defer r.Body.Close() // nolint: errcheck
-				if d := diff.AsJSON(map[string][]string{"keys": {"_design/_auth", "foo"}}, r.Body); d != nil {
+				if d := testy.DiffAsJSON(map[string][]string{"keys": {"_design/_auth", "foo"}}, r.Body); d != nil {
 					t.Error(d)
 				}
 				if keys := r.URL.Query().Get("keys"); keys != "" {
@@ -1251,7 +1250,7 @@ func TestRowsQuery(t *testing.T) {
 				"endkey": []string{"foo", "bar"},
 			},
 			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
-				if d := diff.AsJSON([]byte(`["foo","bar"]`), []byte(r.URL.Query().Get("endkey"))); d != nil {
+				if d := testy.DiffAsJSON([]byte(`["foo","bar"]`), []byte(r.URL.Query().Get("endkey"))); d != nil {
 					t.Error(d)
 				}
 				return &http.Response{
@@ -1293,7 +1292,7 @@ func TestRowsQuery(t *testing.T) {
 					t.Errorf("Unexpected method: %s", r.Method)
 				}
 				defer r.Body.Close() // nolint: errcheck
-				if d := diff.AsJSON(map[string][]interface{}{"keys": {"_design/_auth", "foo", []string{"bar", "baz"}}}, r.Body); d != nil {
+				if d := testy.DiffAsJSON(map[string][]interface{}{"keys": {"_design/_auth", "foo", []string{"bar", "baz"}}}, r.Body); d != nil {
 					t.Error(d)
 				}
 				if keys := r.URL.Query().Get("keys"); keys != "" {
@@ -1354,7 +1353,7 @@ func TestRowsQuery(t *testing.T) {
 				t.Errorf("RowsWarner interface not satisified!!?")
 			}
 
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -1414,7 +1413,7 @@ func TestSecurity(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Security(context.Background())
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -1462,7 +1461,7 @@ func TestSetSecurity(t *testing.T) {
 						"roles": []string{"users"},
 					},
 				}
-				if d := diff.AsJSON(expected, body); d != nil {
+				if d := testy.DiffAsJSON(expected, body); d != nil {
 					t.Error(d)
 				}
 				return &http.Response{
@@ -1797,11 +1796,11 @@ test content
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := diff.Text(test.content, string(content)); d != nil {
+			if d := testy.DiffText(test.content, string(content)); d != nil {
 				t.Errorf("Unexpected content:\n%s", d)
 			}
 			result.Content = nil // Determinism
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -1852,7 +1851,7 @@ func TestPurge(t *testing.T) {
 				if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
 					return nil, err
 				}
-				if d := diff.AsJSON(expectedDocMap, result); d != nil {
+				if d := testy.DiffAsJSON(expectedDocMap, result); d != nil {
 					return nil, fmt.Errorf("Unexpected payload:\n%s", d)
 				}
 				return &http.Response{
@@ -1911,7 +1910,7 @@ func TestPurge(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Purge(context.Background(), test.docMap)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -1973,7 +1972,7 @@ test content
 			expected := fmt.Sprintf(test.expected, boundary)
 			expected = strings.TrimPrefix(expected, "\n")
 			result = bytes.Replace(result, []byte("\r\n"), []byte("\n"), -1)
-			if d := diff.Text(expected, string(result)); d != nil {
+			if d := testy.DiffText(expected, string(result)); d != nil {
 				t.Error(d)
 			}
 		})
@@ -2002,7 +2001,7 @@ func TestAttachmentStubs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, _ := attachmentStubs(test.atts)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -2053,10 +2052,10 @@ func TestInterfaceToAttachments(t *testing.T) {
 			if ok != test.ok {
 				t.Errorf("Unexpected OK result: %v", result)
 			}
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Errorf("Unexpected result:\n%s\n", d)
 			}
-			if d := diff.Interface(test.output, test.input); d != nil {
+			if d := testy.DiffInterface(test.output, test.input); d != nil {
 				t.Errorf("Input not properly modified:\n%s\n", d)
 			}
 		})
@@ -2071,7 +2070,7 @@ func TestStubMarshalJSON(t *testing.T) {
 	expected := `{"content_type":"text/plain","length":123,"follows":true}`
 	result, err := json.Marshal(att)
 	testy.Error(t, "", err)
-	if d := diff.JSON([]byte(expected), result); d != nil {
+	if d := testy.DiffJSON([]byte(expected), result); d != nil {
 		t.Error(d)
 	}
 }
@@ -2102,12 +2101,12 @@ func TestAttachmentSize(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d := diff.Text(expBody, body); d != nil {
+		if d := testy.DiffText(expBody, body); d != nil {
 			t.Errorf("Content differs:\n%s\n", d)
 		}
 		test.att.Content = nil
 		test.expected.Content = nil
-		if d := diff.Interface(test.expected, test.att); d != nil {
+		if d := testy.DiffInterface(test.expected, test.att); d != nil {
 			t.Error(d)
 		}
 	})
@@ -2184,7 +2183,7 @@ func TestReaderSize(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d := diff.Text(test.body, body); d != nil {
+		if d := testy.DiffText(test.body, body); d != nil {
 			t.Errorf("Unexpected body content:\n%s\n", d)
 		}
 		if size != test.size {
@@ -2228,11 +2227,11 @@ func TestNewAttachment(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d := diff.Text(test.expContent, content); d != nil {
+		if d := testy.DiffText(test.expContent, content); d != nil {
 			t.Errorf("Unexpected content:\n%s\n", d)
 		}
 		result.Content = nil
-		if d := diff.Interface(test.expected, result); d != nil {
+		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}
 	})
@@ -2292,7 +2291,7 @@ func TestCopyWithAttachmentStubs(t *testing.T) {
 		}
 		err := copyWithAttachmentStubs(w, test.input, test.atts)
 		testy.StatusErrorRE(t, test.err, test.status, err)
-		if d := diff.Text(test.expected, w.(*bytes.Buffer).String()); d != nil {
+		if d := testy.DiffText(test.expected, w.(*bytes.Buffer).String()); d != nil {
 			t.Error(d)
 		}
 	})
@@ -2321,7 +2320,7 @@ func TestRevsDiff(t *testing.T) {
 				]
 			}`)
 			defer r.Body.Close() // nolint: errcheck
-			if d := diff.AsJSON(expectedBody, r.Body); d != nil {
+			if d := testy.DiffAsJSON(expectedBody, r.Body); d != nil {
 				return nil, fmt.Errorf("Unexpected payload: %s", d)
 			}
 
@@ -2372,7 +2371,7 @@ func TestRevsDiff(t *testing.T) {
 			}
 			results[drow.ID] = row
 		}
-		if d := diff.AsJSON(&diff.File{Path: "testdata/" + testy.Stub(t)}, results); d != nil {
+		if d := testy.DiffAsJSON(testy.Snapshot(t), results); d != nil {
 			t.Error(d)
 		}
 	})

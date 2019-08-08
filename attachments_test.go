@@ -11,8 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
@@ -121,7 +120,7 @@ func TestPutAttachment(t *testing.T) {
 					return nil, err
 				}
 				expected := "Hello, World!"
-				if d := diff.Text(expected, string(body)); d != nil {
+				if d := testy.DiffText(expected, string(body)); d != nil {
 					t.Errorf("Unexpected body:\n%s", d)
 				}
 				return &http.Response{
@@ -313,7 +312,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, att); d != nil {
+			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
@@ -414,12 +413,12 @@ func TestGetAttachment(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := diff.Text(test.content, string(fileContent)); d != nil {
+			if d := testy.DiffText(test.content, string(fileContent)); d != nil {
 				t.Errorf("Unexpected content:\n%s", d)
 			}
 			_ = att.Content.Close()
 			att.Content = nil // Determinism
-			if d := diff.Interface(test.expected, att); d != nil {
+			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
@@ -530,7 +529,7 @@ func TestFetchAttachment(t *testing.T) {
 			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			resp.Request = nil
-			if d := diff.Interface(test.resp, resp); d != nil {
+			if d := testy.DiffInterface(test.resp, resp); d != nil {
 				t.Error(d)
 			}
 		})
@@ -584,12 +583,12 @@ func TestDecodeAttachment(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := diff.Text(test.content, string(fileContent)); d != nil {
+			if d := testy.DiffText(test.content, string(fileContent)); d != nil {
 				t.Errorf("Unexpected content:\n%s", d)
 			}
 			_ = att.Content.Close()
 			att.Content = nil // Determinism
-			if d := diff.Interface(test.expected, att); d != nil {
+			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})

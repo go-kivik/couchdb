@@ -15,8 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/go-kivik/kivik"
@@ -112,7 +111,7 @@ func TestNew(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := New(test.dsn)
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -150,7 +149,7 @@ func TestParseDSN(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := parseDSN(test.input)
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Fatal(d)
 			}
 		})
@@ -322,7 +321,7 @@ func TestSetHeaders(t *testing.T) {
 					panic(err)
 				}
 				setHeaders(req, test.Options)
-				if d := diff.Interface(test.Expected, req.Header); d != nil {
+				if d := testy.DiffInterface(test.Expected, req.Header); d != nil {
 					t.Errorf("Headers:\n%s\n", d)
 				}
 			})
@@ -364,7 +363,7 @@ func TestSetQuery(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setQuery(test.req, test.opts)
-			if d := diff.Interface(test.expected, test.req); d != nil {
+			if d := testy.DiffInterface(test.expected, test.req); d != nil {
 				t.Error(d)
 			}
 		})
@@ -559,12 +558,12 @@ func TestDoJSON(t *testing.T) {
 			var i interface{}
 			response, err := test.client.DoJSON(context.Background(), test.method, test.path, test.opts, &i)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, i); d != nil {
+			if d := testy.DiffInterface(test.expected, i); d != nil {
 				t.Errorf("JSON result differs:\n%s\n", d)
 			}
 			response.Request = nil
 			response.Body = nil
-			if d := diff.Interface(test.response, response); d != nil {
+			if d := testy.DiffInterface(test.response, response); d != nil {
 				t.Errorf("Response differs:\n%s\n", d)
 			}
 		})
@@ -625,7 +624,7 @@ func TestNewRequest(t *testing.T) {
 			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
 			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
 			test.expected = test.expected.WithContext(req.Context()) // determinism
-			if d := diff.Interface(test.expected, req); d != nil {
+			if d := testy.DiffInterface(test.expected, req); d != nil {
 				t.Error(d)
 			}
 		})
@@ -700,7 +699,7 @@ func TestDoReq(t *testing.T) {
 					HTTPResponse: func(r *http.Response) {
 						*success = true
 						expected := &http.Response{StatusCode: 200}
-						if d := diff.HTTPResponse(expected, r); d != nil {
+						if d := testy.DiffHTTPResponse(expected, r); d != nil {
 							t.Error(d)
 						}
 					},
@@ -724,7 +723,7 @@ func TestDoReq(t *testing.T) {
 							StatusCode: 200,
 							Body:       Body("foo"),
 						}
-						if d := diff.HTTPResponse(expected, r); d != nil {
+						if d := testy.DiffHTTPResponse(expected, r); d != nil {
 							t.Error(d)
 						}
 					},
@@ -748,7 +747,7 @@ func TestDoReq(t *testing.T) {
 						expected.Header.Add("Accept", "application/json")
 						expected.Header.Add("Content-Type", "application/json")
 						expected.Header.Add("User-Agent", defaultUA)
-						if d := diff.HTTPRequest(expected, r); d != nil {
+						if d := testy.DiffHTTPRequest(expected, r); d != nil {
 							t.Error(d)
 						}
 					},
@@ -775,7 +774,7 @@ func TestDoReq(t *testing.T) {
 						expected.Header.Add("Accept", "application/json")
 						expected.Header.Add("Content-Type", "application/json")
 						expected.Header.Add("User-Agent", defaultUA)
-						if d := diff.HTTPRequest(expected, r); d != nil {
+						if d := testy.DiffHTTPRequest(expected, r); d != nil {
 							t.Error(d)
 						}
 					},

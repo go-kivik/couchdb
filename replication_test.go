@@ -9,8 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
@@ -117,7 +116,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			repErr := new(replicationError)
 			err := repErr.UnmarshalJSON([]byte(test.input))
 			testy.Error(t, test.err, err)
-			if d := diff.Interface(test.expected, repErr); d != nil {
+			if d := testy.DiffInterface(test.expected, repErr); d != nil {
 				t.Error(d)
 			}
 		})
@@ -318,7 +317,7 @@ func TestLegacyGetReplications(t *testing.T) {
 				result[i] = rep.(*replication)
 				result[i].db = nil
 			}
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -448,7 +447,7 @@ func TestReplicationUpdate(t *testing.T) {
 			result := new(driver.ReplicationInfo)
 			err := test.rep.Update(context.Background(), result)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -614,7 +613,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.rep.updateActiveTasks(context.Background())
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -698,7 +697,7 @@ func TestSetFromReplicatorDoc(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			test.rep.setFromReplicatorDoc(test.doc)
-			if d := diff.Interface(test.expected, test.rep); d != nil {
+			if d := testy.DiffInterface(test.expected, test.rep); d != nil {
 				t.Error(d)
 			}
 		})

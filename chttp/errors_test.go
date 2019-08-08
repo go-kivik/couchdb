@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
+
 	"github.com/go-kivik/kivik"
 )
 
@@ -153,7 +153,7 @@ func TestResponseError(t *testing.T) {
 				he.Response = nil
 				err = he
 			}
-			if d := diff.Interface(test.expected, err); d != nil {
+			if d := testy.DiffInterface(test.expected, err); d != nil {
 				t.Error(d)
 			}
 		})
@@ -194,13 +194,13 @@ func TestFormatError(t *testing.T) {
 	})
 
 	tests.Run(t, func(t *testing.T, test tst) {
-		if d := diff.Text(test.str, test.err.Error()); d != nil {
+		if d := testy.DiffText(test.str, test.err.Error()); d != nil {
 			t.Errorf("Error():\n%s", d)
 		}
-		if d := diff.Text(test.std, fmt.Sprintf("%v", test.err)); d != nil {
+		if d := testy.DiffText(test.std, fmt.Sprintf("%v", test.err)); d != nil {
 			t.Errorf("Standard:\n%s", d)
 		}
-		if d := diff.Text(test.full, fmt.Sprintf("%+v", test.err)); d != nil {
+		if d := testy.DiffText(test.full, fmt.Sprintf("%+v", test.err)); d != nil {
 			t.Errorf("Full:\n%s", d)
 		}
 	})
