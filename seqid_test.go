@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestSequenceIDUnmarshal(t *testing.T) {

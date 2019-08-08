@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestCancelableReadCloser(t *testing.T) {

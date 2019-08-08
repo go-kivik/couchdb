@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
-	"github.com/go-kivik/kivik"
+	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
+
+	"github.com/go-kivik/kivik"
 )
 
 func TestCookieAuthAuthenticate(t *testing.T) {

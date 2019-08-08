@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/go-kivik/kivik"

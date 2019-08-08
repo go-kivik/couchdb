@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestHTTPResponse(t *testing.T) {

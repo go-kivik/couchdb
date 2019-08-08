@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestEncodeKey(t *testing.T) {

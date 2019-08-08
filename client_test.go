@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"

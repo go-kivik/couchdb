@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
-	"github.com/go-kivik/kivik/driver"
 	"github.com/pkg/errors"
+	"gitlab.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik/driver"
 )
 
 func TestConfig(t *testing.T) {
