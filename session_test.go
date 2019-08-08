@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -58,7 +57,7 @@ func TestSession(t *testing.T) {
 			}
 			session, err := client.Session(context.Background())
 			testy.StatusErrorRE(t, test.err, test.errStatus, err)
-			if d := diff.Interface(test.expected, session); d != nil {
+			if d := testy.DiffInterface(test.expected, session); d != nil {
 				t.Error(d)
 			}
 		})

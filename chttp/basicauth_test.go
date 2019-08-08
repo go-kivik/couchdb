@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/diff"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestBasicAuthRoundTrip(t *testing.T) {
@@ -81,7 +81,7 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 			}
 			res.Body = nil
 			res.Request = nil
-			if d := diff.Interface(test.expected, res); d != nil {
+			if d := testy.DiffInterface(test.expected, res); d != nil {
 				t.Error(d)
 			}
 		})

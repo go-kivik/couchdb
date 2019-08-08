@@ -3,7 +3,7 @@ package couchdb
 import (
 	"testing"
 
-	"github.com/flimzy/diff"
+	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
 )
@@ -151,7 +151,7 @@ func TestExtractAttachments(t *testing.T) {
 					att.Content = nil
 				}
 			}
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

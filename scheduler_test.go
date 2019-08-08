@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -61,7 +60,7 @@ func TestSRUpdate(t *testing.T) {
 			var result driver.ReplicationInfo
 			err := test.rep.Update(context.Background(), &result)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, &result); d != nil {
+			if d := testy.DiffInterface(test.expected, &result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -110,7 +109,7 @@ func TestRepInfoUnmarshalJSON(t *testing.T) {
 			result := new(repInfo)
 			err := json.Unmarshal([]byte(test.input), result)
 			testy.ErrorRE(t, test.err, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -198,7 +197,7 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 				result[i] = rep.(*schedulerReplication)
 				result[i].db = nil
 			}
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -431,7 +430,7 @@ func TestSchedulerSupported(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.schedulerSupported(context.Background())
-			if d := diff.Interface(test.expectedState, test.client.schedulerDetected); d != nil {
+			if d := testy.DiffInterface(test.expectedState, test.client.schedulerDetected); d != nil {
 				t.Error(d)
 			}
 			testy.StatusError(t, test.err, test.status, err)
@@ -585,7 +584,7 @@ func TestSRinnerUpdate(t *testing.T) {
 			err := test.r.update(context.Background())
 			testy.StatusError(t, test.err, test.status, err)
 			test.r.db = nil
-			if d := diff.Interface(test.expected, test.r); d != nil {
+			if d := testy.DiffInterface(test.expected, test.r); d != nil {
 				t.Error(d)
 			}
 		})
@@ -648,7 +647,7 @@ func TestFetchSchedulerReplication(t *testing.T) {
 			result, err := test.client.fetchSchedulerReplication(context.Background(), test.docID)
 			testy.StatusError(t, test.err, test.status, err)
 			result.db = nil
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -241,7 +240,7 @@ func TestBulkNext(t *testing.T) {
 			result := new(driver.BulkResult)
 			err := test.results.Next(result)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

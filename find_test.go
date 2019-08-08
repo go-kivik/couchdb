@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -65,7 +64,7 @@ func TestExplain(t *testing.T) {
 					return nil, fmt.Errorf("decode error: %s", err)
 				}
 				expected := map[string]interface{}{"_id": "foo"}
-				if d := diff.Interface(expected, result); d != nil {
+				if d := testy.DiffInterface(expected, result); d != nil {
 					return nil, fmt.Errorf("unexpected result:\n%s", d)
 				}
 				return nil, errors.New("success")
@@ -79,7 +78,7 @@ func TestExplain(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Explain(context.Background(), test.query)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -126,7 +125,7 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 			result := new(queryPlan)
 			err := json.Unmarshal([]byte(test.input), &result)
 			testy.ErrorRE(t, test.err, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -242,7 +241,7 @@ func TestGetIndexes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.GetIndexes(context.Background())
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

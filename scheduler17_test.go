@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
 )
 
@@ -39,7 +38,7 @@ func TestNullTimeUnmarshalJSON(t *testing.T) {
 			var result nullTime
 			err := json.Unmarshal([]byte(test.input), &result)
 			testy.Error(t, test.err, err)
-			if d := diff.Interface(test.expected, time.Time(result)); d != nil {
+			if d := testy.DiffInterface(test.expected, time.Time(result)); d != nil {
 				t.Error(d)
 			}
 		})

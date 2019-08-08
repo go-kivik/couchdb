@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -75,7 +74,7 @@ func TestClusterStatus(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to parse `%s`: %s\n", input, err)
 				}
-				if d := diff.Interface(expected, result); d != nil {
+				if d := testy.DiffInterface(expected, result); d != nil {
 					t.Errorf("Unexpected db list:\n%s", d)
 				}
 				return &http.Response{
@@ -133,7 +132,7 @@ func TestClusterSetup(t *testing.T) {
 				if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
 					t.Fatal(err)
 				}
-				if d := diff.Interface(expected, result); d != nil {
+				if d := testy.DiffInterface(expected, result); d != nil {
 					t.Errorf("Unexpected request body:\n%s\n", d)
 				}
 				return &http.Response{

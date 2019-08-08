@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -56,7 +55,7 @@ func TestAllDBs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.AllDBs(context.Background(), test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -305,7 +304,7 @@ func TestUpdatesNext(t *testing.T) {
 			result := new(driver.DBUpdate)
 			err := test.updates.Next(result)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

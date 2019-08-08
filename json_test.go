@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 )
 
@@ -38,7 +37,7 @@ func TestEncodeKey(t *testing.T) {
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := encodeKey(test.input)
 		testy.StatusError(t, test.err, test.status, err)
-		if d := diff.JSON([]byte(test.expected), []byte(result)); d != nil {
+		if d := testy.DiffJSON([]byte(test.expected), []byte(result)); d != nil {
 			t.Error(d)
 		}
 	})
@@ -136,7 +135,7 @@ func TestEncodeKeys(t *testing.T) {
 	tests.Run(t, func(t *testing.T, test tst) {
 		err := encodeKeys(test.input)
 		testy.StatusError(t, test.err, test.status, err)
-		if d := diff.Interface(test.expected, test.input); d != nil {
+		if d := testy.DiffInterface(test.expected, test.input); d != nil {
 			t.Error(d)
 		}
 	})

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/couchdb/chttp"
@@ -103,7 +102,7 @@ func TestVersion2(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.Version(context.Background())
 			testy.StatusErrorRE(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

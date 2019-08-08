@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik"
@@ -147,7 +146,7 @@ func TestStats(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Stats(context.Background())
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -262,7 +261,7 @@ func TestDbsStats(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.DBsStats(context.Background(), test.dbnames)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

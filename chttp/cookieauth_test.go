@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
@@ -81,14 +80,14 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 		}
 		_, err = c.DoError(context.Background(), "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
-		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
+		if d := testy.DiffInterface(test.expectedCookie, test.auth.Cookie()); d != nil {
 			t.Error(d)
 		}
 
 		// Do it again; should be idempotent
 		_, err = c.DoError(context.Background(), "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
-		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
+		if d := testy.DiffInterface(test.expectedCookie, test.auth.Cookie()); d != nil {
 			t.Error(d)
 		}
 	})
@@ -145,7 +144,7 @@ func TestCookie(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := test.auth.Cookie()
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
 	"gitlab.com/flimzy/testy"
 )
 
@@ -69,7 +68,7 @@ func TestHTTPResponse(t *testing.T) {
 			trace := test.trace(t)
 			trace.httpResponseBody(test.resp)
 			trace.httpResponse(test.resp)
-			if d := diff.HTTPResponse(test.finalResp, test.resp); d != nil {
+			if d := testy.DiffHTTPResponse(test.finalResp, test.resp); d != nil {
 				t.Error(d)
 			}
 		})
@@ -157,7 +156,7 @@ func TestHTTPRequest(t *testing.T) {
 			trace := test.trace(t)
 			trace.httpRequestBody(test.req)
 			trace.httpRequest(test.req)
-			if d := diff.HTTPRequest(test.finalReq, test.req); d != nil {
+			if d := testy.DiffHTTPRequest(test.finalReq, test.req); d != nil {
 				t.Error(d)
 			}
 		})
@@ -198,7 +197,7 @@ func TestReplayReadCloser(t *testing.T) {
 
 			result, resultErr := ioutil.ReadAll(rc.(io.Reader))
 			resultCloseErr := rc.Close()
-			if d := diff.Text(test.expected, result); d != nil {
+			if d := testy.DiffText(test.expected, result); d != nil {
 				t.Error(d)
 			}
 			testy.Error(t, test.readErr, resultErr)
