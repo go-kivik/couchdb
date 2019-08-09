@@ -19,7 +19,7 @@ func encodeKey(i interface{}) (string, error) {
 	return string(raw), err
 }
 
-var jsonKeys = []string{"endkey", "end_key", "key", "startkey", "start_key", "keys"}
+var jsonKeys = []string{"endkey", "end_key", "key", "startkey", "start_key", "keys", "doc_ids"}
 
 func encodeKeys(opts map[string]interface{}) error {
 	for _, key := range jsonKeys {
