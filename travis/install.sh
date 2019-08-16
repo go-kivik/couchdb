@@ -2,11 +2,8 @@
 set -euC
 set -o xtrace
 
-if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-    brew install glide
-fi
-
-glide install
+curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+dep ensure
 
 function generate {
     go get -u github.com/jteeuwen/go-bindata/...
