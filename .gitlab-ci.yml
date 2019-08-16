@@ -2,7 +2,7 @@ stages:
     - test
 
 variables:
-    SRCDIR: /go/src/gitlab.com/go-kivik/couchdb
+    SRCDIR: /go/src/github.com/go-kivik/couchdb
 
 .test: &test_template
     stage: test
@@ -38,7 +38,7 @@ variables:
         - curl --silent --fail -o /dev/null -X PUT ${KIVIK_TEST_DSN_COUCH23}/_node/nonode@nohost/_config/replicator/interval -d '"1000"'
     script:
         - mkdir -p /go/src
-        - ln -s /builds /go/src/gitlab.com
+        - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
         - dep ensure && dep status
@@ -52,7 +52,7 @@ lint:
         - ''
     script:
         - mkdir -p /go/src
-        - ln -s /builds /go/src/gitlab.com
+        - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
         - dep ensure && dep status
@@ -67,7 +67,7 @@ coverage:
         - ''
     script:
         - mkdir -p /go/src
-        - ln -s /builds /go/src/gitlab.com
+        - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
         - dep ensure && dep status
