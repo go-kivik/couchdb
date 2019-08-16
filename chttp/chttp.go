@@ -439,7 +439,7 @@ func ExitStatus(err error) int {
 	if err == nil {
 		return 0
 	}
-	if statuser, ok := err.(exitStatuser); ok {
+	if statuser, ok := err.(exitStatuser); ok { // nolint: misspell
 		return statuser.ExitStatus()
 	}
 	return 0
