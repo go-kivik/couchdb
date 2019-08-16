@@ -32,7 +32,7 @@ variables:
         - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        - dep ensure && dep status
+        # - dep ensure && dep status
         - go test -race -tags=livetest ./...
 
 lint:
@@ -46,7 +46,7 @@ lint:
         - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        - dep ensure && dep status
+        # - dep ensure && dep status
         - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
         - golangci-lint run ./...
 
@@ -61,7 +61,7 @@ coverage:
         - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        - dep ensure && dep status
+        # - dep ensure && dep status
         - ./script/coverage.sh
 
 go-1.9:
