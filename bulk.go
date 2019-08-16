@@ -54,9 +54,9 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		var status int
 		switch updateResult.Error {
 		case "conflict":
-			status = kivik.StatusConflict
+			status = http.StatusConflict
 		default:
-			status = kivik.StatusUnknownError
+			status = http.StatusInternalServerError
 		}
 		update.Error = &kivik.Error{HTTPStatus: status, FromServer: true, Err: errors.New(updateResult.Reason)}
 	}
@@ -85,9 +85,9 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		return nil, err
 	}
 	switch resp.StatusCode {
-	case kivik.StatusCreated:
+	case http.StatusCreated:
 		// Nothing to do
-	case kivik.StatusExpectationFailed:
+	case http.StatusExpectationFailed:
 		err = &chttp.HTTPError{
 			Response: resp,
 			Reason:   "one or more document was rejected",

@@ -13,7 +13,6 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -35,7 +34,7 @@ func TestBulkGet(t *testing.T) {
 		db: &db{
 			client: newTestClient(nil, errors.New("random network error")),
 		},
-		status: kivik.StatusNetworkError,
+		status: http.StatusBadGateway,
 		err:    "Post http://example.com/_bulk_get: random network error",
 	})
 	tests.Add("valid document", tst{

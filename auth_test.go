@@ -103,7 +103,7 @@ func TestAuthentication(t *testing.T) {
 		auther: SetTransport(customTransport(func(r *http.Request) (*http.Response, error) { // nolint: misspell
 			return nil, errors.New("transport error")
 		})),
-		status: kivik.StatusNetworkError,
+		status: http.StatusBadGateway,
 		err:    "transport error",
 	})
 	tests.Add("SetTransport again", tst{
@@ -114,7 +114,7 @@ func TestAuthentication(t *testing.T) {
 		setup: func(t *testing.T, c *client) {
 			c.Client.Client.Transport = http.DefaultTransport
 		},
-		authStatus: kivik.StatusBadAPICall,
+		authStatus: http.StatusBadRequest,
 		authErr:    "kivik: HTTP client transport already set",
 	})
 	tests.Add("BasicAuth", tst{
@@ -196,7 +196,7 @@ func TestAuthentication(t *testing.T) {
 		setup: func(t *testing.T, c *client) {
 			c.Client.Client.Transport = http.DefaultTransport
 		},
-		authStatus: kivik.StatusBadAPICall,
+		authStatus: http.StatusBadRequest,
 		authErr:    "kivik: HTTP client transport already set",
 	})
 
