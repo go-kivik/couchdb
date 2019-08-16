@@ -232,10 +232,11 @@ func (a *multipartAttachments) Next(att *driver.Attachment) error {
 	}
 
 	*att = driver.Attachment{
-		Filename:    filename,
-		Size:        size,
-		ContentType: cType,
-		Content:     part,
+		Filename:        filename,
+		Size:            size,
+		ContentType:     cType,
+		Content:         part,
+		ContentEncoding: part.Header.Get("Content-Encoding"),
 	}
 	return nil
 }
