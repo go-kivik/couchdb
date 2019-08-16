@@ -49,9 +49,9 @@ func registerSuiteCouch17() {
 		"Log/Admin/HTTP/NegativeBytes.status": kivik.StatusInternalServerError,
 		"Log/Admin/HTTP/TextBytes.status":     kivik.StatusInternalServerError,
 
-		"Version.version":        `^1\.7\.1$`,
+		"Version.version":        `^1\.7\.2$`,
 		"Version.vendor":         `^The Apache Software Foundation$`,
-		"Version.vendor_version": `^1\.7\.1$`,
+		"Version.vendor_version": `^1\.7\.2$`,
 
 		"Get/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
