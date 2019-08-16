@@ -49,9 +49,9 @@ func registerSuiteCouch17() {
 		"Log/Admin/HTTP/NegativeBytes.status": kivik.StatusInternalServerError,
 		"Log/Admin/HTTP/TextBytes.status":     kivik.StatusInternalServerError,
 
-		"Version.version":        `^1\.7\.1$`,
+		"Version.version":        `^1\.7\.2$`,
 		"Version.vendor":         `^The Apache Software Foundation$`,
-		"Version.vendor_version": `^1\.7\.1$`,
+		"Version.vendor_version": `^1\.7\.2$`,
 
 		"Get/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
@@ -98,6 +98,7 @@ func registerSuiteCouch17() {
 		"Session/Post/BadCredsForm.status":                          kivik.StatusUnauthorized,
 		"Session/Post/GoodCredsJSONRemoteRedirHeaderInjection.skip": true, // CouchDB allows header injection
 		"Session/Post/GoodCredsJSONRemoteRedirInvalidURL.skip":      true, // CouchDB doesn't sanitize the Location value, so sends unparseable headers.
+		"Session/Post/GoodCredsJSONRedirRelativeNoSlash.skip":       true, // As of Go 1.11.13 and 1.12.8, the result is rejected by Go for security reasons
 
 		"Stats.databases":             []string{"_users", "chicken", "_duck"},
 		"Stats/Admin/chicken.status":  kivik.StatusNotFound,
