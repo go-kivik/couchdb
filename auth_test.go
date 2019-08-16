@@ -85,7 +85,7 @@ func TestAuthentication(t *testing.T) {
 	type tst struct {
 		handler    func(*testing.T) http.Handler
 		setup      func(*testing.T, *client)
-		auther     Authenticator
+		auther     Authenticator // nolint: misspell
 		authStatus int
 		authErr    string
 		status     int
@@ -100,7 +100,7 @@ func TestAuthentication(t *testing.T) {
 	tests := testy.NewTable()
 	tests.Add("SetTransport", tst{
 		handler: handler200,
-		auther: SetTransport(customTransport(func(r *http.Request) (*http.Response, error) {
+		auther: SetTransport(customTransport(func(r *http.Request) (*http.Response, error) { // nolint: misspell
 			return nil, errors.New("transport error")
 		})),
 		status: kivik.StatusNetworkError,
@@ -108,7 +108,7 @@ func TestAuthentication(t *testing.T) {
 	})
 	tests.Add("SetTransport again", tst{
 		handler: handler200,
-		auther: SetTransport(customTransport(func(r *http.Request) (*http.Response, error) {
+		auther: SetTransport(customTransport(func(r *http.Request) (*http.Response, error) { // nolint: misspell
 			return nil, errors.New("transport error")
 		})),
 		setup: func(t *testing.T, c *client) {
@@ -127,7 +127,7 @@ func TestAuthentication(t *testing.T) {
 				_, _ = w.Write([]byte(`{}`))
 			})
 		},
-		auther: BasicAuth("bob", "abc123"),
+		auther: BasicAuth("bob", "abc123"), // nolint: misspell
 	})
 	tests.Add("CookieAuth", tst{
 		handler: func(t *testing.T) http.Handler {
@@ -142,7 +142,7 @@ func TestAuthentication(t *testing.T) {
 				_, _ = w.Write([]byte(`{}`))
 			})
 		},
-		auther: CookieAuth("bob", "abc123"),
+		auther: CookieAuth("bob", "abc123"), // nolint: misspell
 	})
 	tests.Add("ProxyAuth", tst{
 		handler: func(t *testing.T) http.Handler {
@@ -160,7 +160,7 @@ func TestAuthentication(t *testing.T) {
 				_, _ = w.Write([]byte(`{}`))
 			})
 		},
-		auther: ProxyAuth("bob", "abc123", []string{"users", "admins"}, map[string]string{"X-Auth-CouchDB-Token": "moo"}),
+		auther: ProxyAuth("bob", "abc123", []string{"users", "admins"}, map[string]string{"X-Auth-CouchDB-Token": "moo"}), // nolint: misspell
 	})
 	tests.Add("SetCookie", tst{
 		handler: func(t *testing.T) http.Handler {
@@ -176,7 +176,7 @@ func TestAuthentication(t *testing.T) {
 				_, _ = w.Write([]byte(`{}`))
 			})
 		},
-		auther: SetCookie(&http.Cookie{Name: "cow", Value: "moo"}),
+		auther: SetCookie(&http.Cookie{Name: "cow", Value: "moo"}), // nolint: misspell
 	})
 	tests.Add("SetCookie again", tst{
 		handler: func(t *testing.T) http.Handler {
@@ -192,7 +192,7 @@ func TestAuthentication(t *testing.T) {
 				_, _ = w.Write([]byte(`{}`))
 			})
 		},
-		auther: SetCookie(&http.Cookie{Name: "cow", Value: "moo"}),
+		auther: SetCookie(&http.Cookie{Name: "cow", Value: "moo"}), // nolint: misspell
 		setup: func(t *testing.T, c *client) {
 			c.Client.Client.Transport = http.DefaultTransport
 		},
