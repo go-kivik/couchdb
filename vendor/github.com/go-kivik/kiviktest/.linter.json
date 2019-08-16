@@ -1,0 +1,7 @@
+{
+    "Enable":   ["gofmt", "vet", "golint", "ineffassign", "vetshadow", "gas", "unparam", "unused", "varcheck", "errcheck"],
+    "Exclude":  ["Errors unhandled\\..*\\(gas\\)"],
+    "Vendor":   true,
+    "Test":     true,
+    "Deadline": "60s"
+}

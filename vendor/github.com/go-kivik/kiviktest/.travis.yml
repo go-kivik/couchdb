@@ -1,0 +1,25 @@
+dist: trusty
+language: go
+go:
+    - 1.9.x
+    - 1.10.x
+    - 1.11.x
+    - 1.12.x
+    - master
+matrix:
+    fast_finish: true
+    allow_failures:
+        - go: master
+
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:masterminds/glide'
+    packages:
+      - glide
+
+install:
+    - glide install
+
+script:
+    - ./travis/test.sh

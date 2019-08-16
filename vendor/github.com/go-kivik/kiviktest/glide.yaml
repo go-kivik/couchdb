@@ -1,0 +1,14 @@
+package: github.com/go-kivik/kiviktest
+import:
+- package: github.com/go-kivik/kivik
+  version: master
+  subpackages:
+  - errors
+- package: github.com/go-kivik/couchdb
+  version: master
+- package: github.com/go-kivik/pouchdb
+  version: master
+- package: github.com/flimzy/diff
+  version: ~0.1.2
+- package: github.com/pkg/errors
+  version: ^0.8.0

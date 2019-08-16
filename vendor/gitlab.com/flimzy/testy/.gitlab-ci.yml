@@ -1,0 +1,37 @@
+stages:
+    - test
+
+variables:
+    SRCDIR: /go/src/gitlab.com/flimzy/testy
+
+.test: &test_template
+    stage: test
+    script:
+        - mkdir -p /go/src
+        - ln -s /builds /go/src/gitlab.com
+        - cd ${SRCDIR}
+        - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+        - dep ensure
+        - go version | grep -q go1.12 && curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1 && golangci-lint run ./...
+        - go test -cover -race ./...
+
+go-1.10:
+    <<: *test_template
+    stage: test
+    image: golang:1.10
+
+go-1.11:
+    <<: *test_template
+    stage: test
+    image: golang:1.11
+
+go-1.12:
+    <<: *test_template
+    stage: test
+    image: golang:1.12
+
+go-rc:
+    <<: *test_template
+    stage: test
+    image: golang:rc
+    allow_failure: true
