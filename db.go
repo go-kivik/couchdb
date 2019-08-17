@@ -793,9 +793,11 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 		return "", err
 	}
 	opts := &chttp.Options{
-		FullCommit:  fullCommit,
-		Destination: targetID,
-		Query:       params,
+		FullCommit: fullCommit,
+		Query:      params,
+		Header: http.Header{
+			chttp.HeaderDestination: []string{targetID},
+		},
 	}
 	resp, err := d.Client.DoReq(ctx, kivik.MethodCopy, d.path(chttp.EncodeDocID(sourceID)), opts)
 	if err != nil {
