@@ -1348,18 +1348,29 @@ func (r *Request) closeBody() {
 }
 
 func (r *Request) isReplayable() bool {
+	fmt.Printf("r.Body nil? %t\n", r.Body == nil)
+	fmt.Printf("r.GetBody nil? %t\n", r.GetBody == nil)
 	if r.Body == nil || r.Body == NoBody || r.GetBody != nil {
+		fmt.Printf("AA\n")
 		switch valueOrDefault(r.Method, "GET") {
 		case "GET", "HEAD", "OPTIONS", "TRACE":
+			fmt.Printf("method = %s\n", r.Method)
 			return true
+		}
+		fmt.Printf("BB\n")
+		for k := range r.Header {
+			fmt.Printf("have header %s\n", k)
 		}
 		// The Idempotency-Key, while non-standard, is widely used to
 		// mean a POST or other request is idempotent. See
 		// https://golang.org/issue/19943#issuecomment-421092421
 		if r.Header.has("Idempotency-Key") || r.Header.has("X-Idempotency-Key") {
+			fmt.Printf("Found Idempotency-Key header")
 			return true
 		}
+		fmt.Printf("CC\n")
 	}
+	fmt.Printf("not replayable\n")
 	return false
 }
 
