@@ -510,6 +510,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
 func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+	fmt.Printf("check 1\n")
 	if http2isNoCachedConnError(err) {
 		// Issue 16582: if the user started a bunch of
 		// requests at once, they can all pick the same conn
@@ -519,10 +520,12 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// this request.
 		return true
 	}
+	fmt.Printf("check 2\n")
 	if err == errMissingHost {
 		// User error.
 		return false
 	}
+	fmt.Printf("check 3\n")
 	if !pc.isReused() {
 		// This was a fresh connection. There's no reason the server
 		// should've hung up on us.
@@ -533,26 +536,31 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// our request (as opposed to sending an error).
 		return false
 	}
+	fmt.Printf("check 4 err T = %T\n", err)
 	if _, ok := err.(nothingWrittenError); ok {
 		// We never wrote anything, so it's safe to retry, if there's no body or we
 		// can "rewind" the body with GetBody.
 		return req.outgoingLength() == 0 || req.GetBody != nil
 	}
+	fmt.Printf("check 5\n")
 	if !req.isReplayable() {
 		// Don't retry non-idempotent requests.
 		return false
 	}
+	fmt.Printf("check 6 err T = %T\n", err)
 	if _, ok := err.(transportReadFromServerError); ok {
 		// We got some non-EOF net.Conn.Read failure reading
 		// the 1st response byte from the server.
 		return true
 	}
+	fmt.Printf("check 7: err = %v\n", err)
 	if err == errServerClosedIdle {
 		// The server replied with io.EOF while we were trying to
 		// read the response. Probably an unfortunately keep-alive
 		// timeout, just as the client was writing a request.
 		return true
 	}
+	fmt.Printf("check 8\n")
 	return false // conservatively
 }
 
