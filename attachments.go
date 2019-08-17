@@ -48,7 +48,7 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 		FullCommit:  fullCommit,
 		Query:       query,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
+	_, err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
 	if err != nil {
 		return "", err
 	}
@@ -56,7 +56,7 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 }
 
 func (d *db) GetAttachmentMeta(ctx context.Context, docID, filename string, options map[string]interface{}) (*driver.Attachment, error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, filename, options)
+	resp, err := d.fetchAttachment(ctx, http.MethodHead, docID, filename, options)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, filename string, opti
 }
 
 func (d *db) GetAttachment(ctx context.Context, docID, filename string, options map[string]interface{}) (*driver.Attachment, error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, filename, options)
+	resp, err := d.fetchAttachment(ctx, http.MethodGet, docID, filename, options)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, 
 		FullCommit: fullCommit,
 		Query:      query,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
+	_, err = d.Client.DoJSON(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
 	if err != nil {
 		return "", err
 	}

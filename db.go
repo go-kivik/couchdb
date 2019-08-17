@@ -79,9 +79,9 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 		return nil, err
 	}
 	options := &chttp.Options{Query: query}
-	method := kivik.MethodGet
+	method := http.MethodGet
 	if keys != nil {
-		method = kivik.MethodPost
+		method = http.MethodPost
 		options.Body = chttp.EncodeBody(map[string]interface{}{
 			"keys": keys,
 		})
@@ -311,7 +311,7 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]
 		Body:       chttp.EncodeBody(doc),
 		FullCommit: fullCommit,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPost, path, opts, &result)
+	_, err = d.Client.DoJSON(ctx, http.MethodPost, path, opts, &result)
 	return result.ID, result.Rev, err
 }
 
@@ -358,7 +358,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)), opts, &result)
+	_, err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)), opts, &result)
 	if err != nil {
 		return "", err
 	}
@@ -719,7 +719,7 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 		FullCommit: fullCommit,
 		Query:      query,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)), opts)
+	resp, err := d.Client.DoReq(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)), opts)
 	if err != nil {
 		return "", err
 	}
@@ -728,12 +728,12 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 }
 
 func (d *db) Flush(ctx context.Context) error {
-	_, err := d.Client.DoError(ctx, kivik.MethodPost, d.path("/_ensure_full_commit"), nil)
+	_, err := d.Client.DoError(ctx, http.MethodPost, d.path("/_ensure_full_commit"), nil)
 	return err
 }
 
 func (d *db) Compact(ctx context.Context) error {
-	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact"), nil)
+	res, err := d.Client.DoReq(ctx, http.MethodPost, d.path("/_compact"), nil)
 	if err != nil {
 		return err
 	}
@@ -744,7 +744,7 @@ func (d *db) CompactView(ctx context.Context, ddocID string) error {
 	if ddocID == "" {
 		return missingArg("ddocID")
 	}
-	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_compact/"+ddocID), nil)
+	res, err := d.Client.DoReq(ctx, http.MethodPost, d.path("/_compact/"+ddocID), nil)
 	if err != nil {
 		return err
 	}
@@ -752,7 +752,7 @@ func (d *db) CompactView(ctx context.Context, ddocID string) error {
 }
 
 func (d *db) ViewCleanup(ctx context.Context) error {
-	res, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("/_view_cleanup"), nil)
+	res, err := d.Client.DoReq(ctx, http.MethodPost, d.path("/_view_cleanup"), nil)
 	if err != nil {
 		return err
 	}
@@ -761,7 +761,7 @@ func (d *db) ViewCleanup(ctx context.Context) error {
 
 func (d *db) Security(ctx context.Context) (*driver.Security, error) {
 	var sec *driver.Security
-	_, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.path("/_security"), nil, &sec)
+	_, err := d.Client.DoJSON(ctx, http.MethodGet, d.path("/_security"), nil, &sec)
 	return sec, err
 }
 
@@ -769,7 +769,7 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	opts := &chttp.Options{
 		Body: chttp.EncodeBody(security),
 	}
-	res, err := d.Client.DoReq(ctx, kivik.MethodPut, d.path("/_security"), opts)
+	res, err := d.Client.DoReq(ctx, http.MethodPut, d.path("/_security"), opts)
 	if err != nil {
 		return err
 	}
@@ -799,7 +799,7 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 			chttp.HeaderDestination: []string{targetID},
 		},
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodCopy, d.path(chttp.EncodeDocID(sourceID)), opts)
+	resp, err := d.Client.DoReq(ctx, "COPY", d.path(chttp.EncodeDocID(sourceID)), opts)
 	if err != nil {
 		return "", err
 	}
@@ -812,7 +812,7 @@ func (d *db) Purge(ctx context.Context, docMap map[string][]string) (*driver.Pur
 	options := &chttp.Options{
 		Body: chttp.EncodeBody(docMap),
 	}
-	_, err := d.Client.DoJSON(ctx, kivik.MethodPost, d.path("_purge"), options, &result)
+	_, err := d.Client.DoJSON(ctx, http.MethodPost, d.path("_purge"), options, &result)
 	return result, err
 }
 

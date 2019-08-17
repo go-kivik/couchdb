@@ -79,7 +79,7 @@ func (a *CookieAuth) authenticate(req *http.Request) error {
 	opts := &Options{
 		Body: EncodeBody(a),
 	}
-	if _, err := a.client.DoError(ctx, kivik.MethodPost, "/_session", opts); err != nil {
+	if _, err := a.client.DoError(ctx, http.MethodPost, "/_session", opts); err != nil {
 		return err
 	}
 	if c := a.Cookie(); c != nil {

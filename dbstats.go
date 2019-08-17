@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 
 	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -50,7 +50,7 @@ func (s *dbStats) driverStats() *driver.DBStats {
 
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	result := dbStats{}
-	if _, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.dbName, nil, &result); err != nil {
+	if _, err := d.Client.DoJSON(ctx, http.MethodGet, d.dbName, nil, &result); err != nil {
 		return nil, err
 	}
 	return result.driverStats(), nil
@@ -71,7 +71,7 @@ func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBSt
 		Body: chttp.EncodeBody(dbsInfoRequest{Keys: dbnames}),
 	}
 	result := []dbsInfoResponse{}
-	_, err := c.DoJSON(context.Background(), kivik.MethodPost, "/_dbs_info", opts, &result)
+	_, err := c.DoJSON(context.Background(), http.MethodPost, "/_dbs_info", opts, &result)
 	if err != nil {
 		return nil, err
 	}
