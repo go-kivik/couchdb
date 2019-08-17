@@ -285,8 +285,10 @@ func TestSetHeaders(t *testing.T) {
 			},
 		},
 		{
-			Name:    "Destination",
-			Options: &Options{Destination: "somewhere nice"},
+			Name: "Destination",
+			Options: &Options{Header: http.Header{
+				HeaderDestination: []string{"somewhere nice"},
+			}},
 			Expected: http.Header{
 				"Accept":       {"application/json"},
 				"Content-Type": {"application/json"},

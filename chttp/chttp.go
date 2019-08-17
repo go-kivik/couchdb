@@ -148,9 +148,6 @@ type Options struct {
 	// it is not already.
 	IfNoneMatch string
 
-	// Destination is the target ID for COPY
-	Destination string
-
 	// Query is appended to the exiting url, if present. If the passed url
 	// already contains query parameters, the values in Query are appended.
 	// No merging takes place.
@@ -361,9 +358,6 @@ func setHeaders(req *http.Request, opts *Options) {
 		}
 		if opts.FullCommit {
 			req.Header.Add("X-Couch-Full-Commit", "true")
-		}
-		if opts.Destination != "" {
-			req.Header.Add("Destination", opts.Destination)
 		}
 		if opts.IfNoneMatch != "" {
 			inm := "\"" + strings.Trim(opts.IfNoneMatch, "\"") + "\""
