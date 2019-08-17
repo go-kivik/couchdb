@@ -69,38 +69,38 @@ func TestGet(t *testing.T) {
 	}{
 		{
 			name:   "missing doc ID",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:    "invalid options",
 			id:      "foo",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name:   "network failure",
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/testdb/foo: net error",
 		},
 		{
 			name: "error response",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       Body(""),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "status OK",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Type": {typeJSON},
 					"ETag":         {`"12-xxx"`},
@@ -127,21 +127,21 @@ func TestGet(t *testing.T) {
 			}),
 			id:      "foo",
 			options: map[string]interface{}{OptionIfNoneMatch: "foo"},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "Get http://example.com/testdb/foo: success",
 		},
 		{
 			name:    "invalid If-None-Match value",
 			id:      "foo",
 			options: map[string]interface{}{OptionIfNoneMatch: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'If-None-Match' must be string, not int",
 		},
 		{
 			name: "invalid content type in response",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Type": {"image/jpeg"},
 					"ETag":         {`"12-xxx"`},
@@ -149,14 +149,14 @@ func TestGet(t *testing.T) {
 				ContentLength: 13,
 				Body:          Body("some response"),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "kivik: invalid content type in response: image/jpeg",
 		},
 		{
 			name: "invalid content type header",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Type": {"cow; =moo"},
 					"ETag":         {`"12-xxx"`},
@@ -164,13 +164,13 @@ func TestGet(t *testing.T) {
 				ContentLength: 13,
 				Body:          Body("some response"),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "mime: invalid media parameter",
 		},
 		{
 			name: "missing multipart boundary",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Type": {typeMPRelated},
 					"ETag":         {`"12-xxx"`},
@@ -179,13 +179,13 @@ func TestGet(t *testing.T) {
 				Body:          Body("some response"),
 			}, nil),
 			id:     "foo",
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "kivik: boundary missing for multipart/related response",
 		},
 		{
 			name: "no multipart data",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Length": {"538"},
 					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
@@ -198,13 +198,13 @@ func TestGet(t *testing.T) {
 			}, nil),
 			id:      "foo",
 			options: map[string]interface{}{"include_docs": true},
-			status:  kivik.StatusBadResponse,
+			status:  http.StatusBadGateway,
 			err:     "multipart: NextPart: EOF",
 		},
 		{
 			name: "incomplete multipart data",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Length": {"538"},
 					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
@@ -218,7 +218,7 @@ func TestGet(t *testing.T) {
 			}, nil),
 			id:      "foo",
 			options: map[string]interface{}{"include_docs": true},
-			status:  kivik.StatusBadResponse,
+			status:  http.StatusBadGateway,
 			err:     "malformed MIME header (initial )?line:.*bogus data",
 		},
 		{
@@ -252,7 +252,7 @@ func TestGet(t *testing.T) {
 			name: "multipart attachments",
 			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Length": {"538"},
 					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
@@ -307,7 +307,7 @@ Content-Length: 86
 			name: "multipart attachments, doc content length",
 			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Content-Length": {"558"},
 					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
@@ -419,41 +419,41 @@ func TestCreateDoc(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("foo error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb: foo error",
 		},
 		{
 			name:   "invalid doc",
 			doc:    make(chan int),
 			db:     newTestDB(nil, errors.New("")),
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "Post http://example.com/testdb: json: unsupported type: chan int",
 		},
 		{
 			name: "error response",
 			doc:  map[string]interface{}{"foo": "bar"},
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "invalid JSON response",
 			doc:  map[string]interface{}{"foo": "bar"},
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "success, 1.6.1",
 			doc:  map[string]interface{}{"foo": "bar"},
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: map[string][]string{
 					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 					"Location":       {"http://localhost:5984/foo/43734cf3ce6d5a37050c050bb600006b"},
@@ -474,7 +474,7 @@ func TestCreateDoc(t *testing.T) {
 			db:      newTestDB(nil, errors.New("success")),
 			doc:     map[string]string{"foo": "bar"},
 			options: map[string]interface{}{"batch": "ok"},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "Post http://example.com/testdb?batch=ok: success",
 		},
 		{
@@ -489,21 +489,21 @@ func TestCreateDoc(t *testing.T) {
 				return nil, errors.New("success")
 			}),
 			options: map[string]interface{}{OptionFullCommit: true},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "Post http://example.com/testdb: success",
 		},
 		{
 			name:    "invalid options",
 			db:      &db{},
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name:    "invalid full commit type",
 			db:      &db{},
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
@@ -586,7 +586,7 @@ func TestCompact(t *testing.T) {
 		{
 			name:   "net error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_compact: net error",
 		},
 		{
@@ -596,7 +596,7 @@ func TestCompact(t *testing.T) {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusOK,
+					StatusCode: http.StatusOK,
 					Header: http.Header{
 						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 						"Date":           {"Thu, 26 Oct 2017 13:07:52 GMT"},
@@ -627,14 +627,14 @@ func TestCompactView(t *testing.T) {
 	}{
 		{
 			name:   "no ddoc",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: ddocID required",
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			id:     "foo",
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_compact/foo: net error",
 		},
 		{
@@ -645,7 +645,7 @@ func TestCompactView(t *testing.T) {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusAccepted,
+					StatusCode: http.StatusAccepted,
 					Header: http.Header{
 						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 						"Date":           {"Thu, 26 Oct 2017 13:07:52 GMT"},
@@ -676,7 +676,7 @@ func TestViewCleanup(t *testing.T) {
 		{
 			name:   "net error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_view_cleanup: net error",
 		},
 		{
@@ -686,7 +686,7 @@ func TestViewCleanup(t *testing.T) {
 					return nil, fmt.Errorf("Expected Content-Type: application/json, got %s", ct)
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusOK,
+					StatusCode: http.StatusOK,
 					Header: http.Header{
 						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 						"Date":           {"Thu, 26 Oct 2017 13:07:52 GMT"},
@@ -722,34 +722,34 @@ func TestPut(t *testing.T) {
 	tests := []pTest{
 		{
 			name:   "missing docID",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "network error",
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Put http://example.com/testdb/foo: net error",
 		},
 		{
 			name: "error response",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "invalid JSON response",
 			id:   "foo",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
@@ -757,10 +757,10 @@ func TestPut(t *testing.T) {
 			id:   "foo",
 			doc:  make(chan int),
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "Put http://example.com/testdb/foo: json: unsupported type: chan int",
 		},
 		{
@@ -768,7 +768,7 @@ func TestPut(t *testing.T) {
 			id:   "foo",
 			doc:  map[string]string{"foo": "bar"},
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusCreated,
+				StatusCode: http.StatusCreated,
 				Header: http.Header{
 					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 					"Location":       {"http://localhost:5984/foo/foo"},
@@ -796,7 +796,7 @@ func TestPut(t *testing.T) {
 			id:      "foo",
 			doc:     map[string]string{"foo": "bar"},
 			options: map[string]interface{}{OptionFullCommit: true},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "Put http://example.com/testdb/foo: success",
 		},
 		{
@@ -805,7 +805,7 @@ func TestPut(t *testing.T) {
 			id:      "foo",
 			doc:     map[string]string{"foo": "bar"},
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
@@ -822,7 +822,7 @@ func TestPut(t *testing.T) {
 			}(),
 			id:     "cow",
 			doc:    map[string]interface{}{"feet": 4},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
 		func() pTest {
@@ -874,13 +874,13 @@ func TestDelete(t *testing.T) {
 	}{
 		{
 			name:   "no doc id",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "no rev",
 			id:     "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: rev required",
 		},
 		{
@@ -888,7 +888,7 @@ func TestDelete(t *testing.T) {
 			id:     "foo",
 			rev:    "1-xxx",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "(Delete http://example.com/testdb/foo?rev=: )?net error",
 		},
 		{
@@ -906,7 +906,7 @@ func TestDelete(t *testing.T) {
 				},
 				Body: ioutil.NopCloser(strings.NewReader(`{"error":"conflict","reason":"Document update conflict."}`)),
 			}, nil),
-			status: kivik.StatusConflict,
+			status: http.StatusConflict,
 			err:    "Conflict",
 		},
 		{
@@ -941,7 +941,7 @@ func TestDelete(t *testing.T) {
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{"batch": "ok"},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "success",
 		},
 		{
@@ -950,7 +950,7 @@ func TestDelete(t *testing.T) {
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -967,7 +967,7 @@ func TestDelete(t *testing.T) {
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{OptionFullCommit: true},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "success",
 		},
 		{
@@ -976,7 +976,7 @@ func TestDelete(t *testing.T) {
 			id:      "foo",
 			rev:     "1-xxx",
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
@@ -1001,7 +1001,7 @@ func TestFlush(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_ensure_full_commit: net error",
 		},
 		{
@@ -1075,31 +1075,31 @@ func TestRowsQuery(t *testing.T) {
 			name:    "invalid options",
 			path:    "_all_docs",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name:   "network error",
 			path:   "_all_docs",
 			db:     newTestDB(nil, errors.New("go away")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/testdb/_all_docs: go away",
 		},
 		{
 			name: "error response",
 			path: "_all_docs",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "all docs default 1.6.1",
 			path: "_all_docs",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: map[string][]string{
 					"Transfer-Encoding": {"chunked"},
 					"Date":              {"Tue, 24 Oct 2017 21:17:12 GMT"},
@@ -1140,7 +1140,7 @@ func TestRowsQuery(t *testing.T) {
 			name: "all docs options 1.6.1",
 			path: "/_all_docs?update_seq=true&limit=1&skip=1",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: map[string][]string{
 					"Transfer-Encoding": {"chunked"},
 					"Date":              {"Tue, 24 Oct 2017 21:17:12 GMT"},
@@ -1171,7 +1171,7 @@ func TestRowsQuery(t *testing.T) {
 			name: "all docs options 2.0.0, no results",
 			path: "/_all_docs?update_seq=true&limit=1",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: map[string][]string{
 					"Transfer-Encoding":  {"chunked"},
 					"Date":               {"Tue, 24 Oct 2017 21:21:30 GMT"},
@@ -1216,7 +1216,7 @@ func TestRowsQuery(t *testing.T) {
 					t.Error("query key 'keys' should be absent")
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusOK,
+					StatusCode: http.StatusOK,
 					Header: http.Header{
 						"Transfer-Encoding":  {"chunked"},
 						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
@@ -1254,7 +1254,7 @@ func TestRowsQuery(t *testing.T) {
 					t.Error(d)
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusOK,
+					StatusCode: http.StatusOK,
 					Header: http.Header{
 						"Transfer-Encoding":  {"chunked"},
 						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
@@ -1299,7 +1299,7 @@ func TestRowsQuery(t *testing.T) {
 					t.Error("query key 'keys' should be absent")
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusOK,
+					StatusCode: http.StatusOK,
 					Header: http.Header{
 						"Transfer-Encoding":  {"chunked"},
 						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
@@ -1371,7 +1371,7 @@ func TestSecurity(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/testdb/_security: net error",
 		},
 		{
@@ -1431,7 +1431,7 @@ func TestSetSecurity(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Put http://example.com/testdb/_security: net error",
 		},
 		{
@@ -1499,14 +1499,14 @@ func TestGetMeta(t *testing.T) {
 	}{
 		{
 			name:   "no doc id",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "network error",
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Head http://example.com/testdb/foo: net error",
 		},
 		{
@@ -1558,13 +1558,13 @@ func TestCopy(t *testing.T) {
 	}{
 		{
 			name:   "missing source",
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "kivik: sourceID required",
 		},
 		{
 			name:   "missing target",
 			source: "foo",
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "kivik: targetID required",
 		},
 		{
@@ -1572,7 +1572,7 @@ func TestCopy(t *testing.T) {
 			source: "foo",
 			target: "bar",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "(Copy http://example.com/testdb/foo: )?net error",
 		},
 		{
@@ -1581,7 +1581,7 @@ func TestCopy(t *testing.T) {
 			source:  "foo",
 			target:  "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -1590,7 +1590,7 @@ func TestCopy(t *testing.T) {
 			source:  "foo",
 			target:  "bar",
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
@@ -1689,7 +1689,7 @@ func TestMultipartAttachmentsNext(t *testing.T) {
 					return r
 				}(),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "multipart: NextPart: EOF",
 		},
 		{
@@ -1700,7 +1700,7 @@ Content-Type: text/plain
 
 --xxx--`), "xxx"),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "Content-Disposition: mime: no media type",
 		},
 		{
@@ -1715,7 +1715,7 @@ Content-Disposition: attachment; filename="foo.txt"
 
 --xxx--`), "xxx"),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "mime: invalid media parameter",
 		},
 		{
@@ -1728,7 +1728,7 @@ Content-Disposition: attachment; filename="foo.txt"
 test content
 --xxx--`), "xxx"),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "File 'foo.txt' not in manifest",
 		},
 		{
@@ -1740,7 +1740,7 @@ Content-Disposition: oink
 
 --xxx--`), "xxx"),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "Unexpected Content-Disposition: oink",
 		},
 		{
@@ -1855,7 +1855,7 @@ func TestPurge(t *testing.T) {
 					return nil, fmt.Errorf("Unexpected payload:\n%s", d)
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusOK,
+					StatusCode: http.StatusOK,
 					Header: http.Header{
 						"Server":         []string{"CouchDB/1.7.1 (Erlang OTP/17)"},
 						"Date":           []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
@@ -1872,7 +1872,7 @@ func TestPurge(t *testing.T) {
 		{
 			name: "1.7.1, all deleted",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Server":         []string{"CouchDB/1.7.1 (Erlang OTP/17)"},
 					"Date":           []string{"Thu, 06 Sep 2018 16:55:26 GMT"},
@@ -1903,7 +1903,7 @@ func TestPurge(t *testing.T) {
 			}, nil),
 			docMap: expectedDocMap,
 			err:    "Not Implemented: this feature is not yet implemented",
-			status: kivik.StatusNotImplemented,
+			status: http.StatusNotImplemented,
 		},
 	}
 	for _, test := range tests {

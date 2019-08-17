@@ -24,7 +24,7 @@ func TestNewClient(t *testing.T) {
 		{
 			name:   "invalid url",
 			dsn:    "foo.com/%xxx",
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    `parse http://foo.com/%xxx: invalid URL escape "%xx"`,
 		},
 		{
@@ -90,7 +90,7 @@ func TestDB(t *testing.T) {
 	}{
 		{
 			name:   "no dbname",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
