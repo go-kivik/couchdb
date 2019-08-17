@@ -18,7 +18,6 @@ import (
 	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/errors"
 )
 
@@ -40,14 +39,14 @@ func TestNew(t *testing.T) {
 		{
 			name:       "invalid url",
 			dsn:        "http://foo.com/%xx",
-			status:     kivik.StatusBadAPICall,
+			status:     http.StatusBadRequest,
 			curlStatus: ExitStatusURLMalformed,
 			err:        `parse http://foo.com/%xx: invalid URL escape "%xx"`,
 		},
 		{
 			name:       "no url",
 			dsn:        "",
-			status:     kivik.StatusBadAPICall,
+			status:     http.StatusBadRequest,
 			curlStatus: ExitFailedToInitialize,
 			err:        "no URL specified",
 		},
@@ -66,7 +65,7 @@ func TestNew(t *testing.T) {
 		},
 		func() newTest {
 			h := func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(kivik.StatusOK)
+				w.WriteHeader(http.StatusOK)
 				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`) // nolint: errcheck
 			}
 			s := httptest.NewServer(http.HandlerFunc(h))
@@ -494,7 +493,7 @@ func TestDoJSON(t *testing.T) {
 			name:   "network error",
 			method: "GET",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com: net error",
 		},
 		{
@@ -510,7 +509,7 @@ func TestDoJSON(t *testing.T) {
 				Body:          Body(`{"error":"unauthorized","reason":"Name or password is incorrect."}`),
 				Request:       &http.Request{Method: "GET"},
 			}, nil),
-			status: kivik.StatusUnauthorized,
+			status: http.StatusUnauthorized,
 			err:    "Unauthorized: Name or password is incorrect.",
 		},
 		{
@@ -526,7 +525,7 @@ func TestDoJSON(t *testing.T) {
 				Body:          Body(`invalid response`),
 				Request:       &http.Request{Method: "GET"},
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
@@ -585,7 +584,7 @@ func TestNewRequest(t *testing.T) {
 			client:     newTestClient(nil, nil),
 			method:     "GET",
 			path:       "%xx",
-			status:     kivik.StatusBadAPICall,
+			status:     http.StatusBadRequest,
 			curlStatus: ExitStatusURLMalformed,
 			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
@@ -593,7 +592,7 @@ func TestNewRequest(t *testing.T) {
 			name:       "invalid method",
 			method:     "FOO BAR",
 			client:     newTestClient(nil, nil),
-			status:     kivik.StatusBadAPICall,
+			status:     http.StatusBadRequest,
 			curlStatus: 0,
 			err:        `net/http: invalid method "FOO BAR"`,
 		},
@@ -652,7 +651,7 @@ func TestDoReq(t *testing.T) {
 			method:     "GET",
 			path:       "%xx",
 			client:     newTestClient(nil, nil),
-			status:     kivik.StatusBadAPICall,
+			status:     http.StatusBadRequest,
 			curlStatus: ExitStatusURLMalformed,
 			err:        `parse %xx: invalid URL escape "%xx"`,
 		},
@@ -661,7 +660,7 @@ func TestDoReq(t *testing.T) {
 			method: "GET",
 			path:   "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/foo: net error",
 		},
 		{
@@ -688,8 +687,8 @@ func TestDoReq(t *testing.T) {
 			name:   "body error",
 			method: "PUT",
 			path:   "foo",
-			client: newTestClient(nil, errors.Status(kivik.StatusBadRequest, "bad request")),
-			status: kivik.StatusBadRequest,
+			client: newTestClient(nil, errors.Status(http.StatusBadRequest, "bad request")),
+			status: http.StatusBadRequest,
 			err:    "Put http://example.com/foo: bad request",
 		},
 		{
@@ -850,11 +849,11 @@ func TestDoError(t *testing.T) {
 			method: "GET",
 			path:   "foo",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       Body(""),
 				Request:    &http.Request{Method: "GET"},
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
@@ -862,7 +861,7 @@ func TestDoError(t *testing.T) {
 			method: "GET",
 			path:   "foo",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       Body(""),
 				Request:    &http.Request{Method: "GET"},
 			}, nil),
@@ -907,7 +906,7 @@ func TestNetError(t *testing.T) {
 				_, err = http.DefaultClient.Do(req.WithContext(ctx))
 				return err
 			}(),
-			status:     kivik.StatusNetworkError,
+			status:     http.StatusBadGateway,
 			curlStatus: ExitOperationTimeout,
 			err:        `Get http://127.0.0.1:\d+: context deadline exceeded`,
 		},
@@ -921,7 +920,7 @@ func TestNetError(t *testing.T) {
 				_, err = http.DefaultClient.Do(req)
 				return err
 			}(),
-			status:     kivik.StatusNetworkError,
+			status:     http.StatusBadGateway,
 			curlStatus: ExitHostNotResolved,
 			err:        ": no such host$",
 		},
@@ -935,7 +934,7 @@ func TestNetError(t *testing.T) {
 				_, err = http.DefaultClient.Do(req)
 				return err
 			}(),
-			status:     kivik.StatusNetworkError,
+			status:     http.StatusBadGateway,
 			curlStatus: ExitFailedToConnect,
 			err:        ": connection refused$",
 		},
@@ -950,7 +949,7 @@ func TestNetError(t *testing.T) {
 				_, err := http.Get(s.URL)
 				return err
 			}(),
-			status:     kivik.StatusNetworkError,
+			status:     http.StatusBadGateway,
 			curlStatus: ExitTooManyRedirects,
 			err:        `^Get http://127.0.0.1:\d+: stopped after 10 redirects$`,
 		},
@@ -961,7 +960,7 @@ func TestNetError(t *testing.T) {
 				URL: "http://foo.com/",
 				Err: errors.New("some error"),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			// curlStatus: ExitStatusURLMalformed,
 			err: "Get http://foo.com/: some error",
 		},
@@ -970,22 +969,22 @@ func TestNetError(t *testing.T) {
 			input: &url.Error{
 				Op:  "Get",
 				URL: "http://foo.com/",
-				Err: errors.Status(kivik.StatusBadRequest, "some error"),
+				Err: errors.Status(http.StatusBadRequest, "some error"),
 			},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Get http://foo.com/: some error",
 		},
 		{
 			name:       "other error",
 			input:      errors.New("other error"),
-			status:     kivik.StatusNetworkError,
+			status:     http.StatusBadGateway,
 			curlStatus: ExitUnknownFailure,
 			err:        "other error",
 		},
 		{
 			name:       "other error with embedded status",
-			input:      errors.Status(kivik.StatusBadRequest, "bad req"),
-			status:     kivik.StatusBadRequest,
+			input:      errors.Status(http.StatusBadRequest, "bad req"),
+			status:     http.StatusBadRequest,
 			curlStatus: 0,
 			err:        "bad req",
 		},

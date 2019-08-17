@@ -9,7 +9,6 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -25,35 +24,35 @@ func TestChanges(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name:    "eventsource",
 			options: map[string]interface{}{"feed": "eventsource"},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: eventsource feed not supported, use 'continuous'",
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/testdb/_changes: net error",
 		},
 		{
 			name:    "continuous",
 			db:      newTestDB(nil, errors.New("net error")),
 			options: map[string]interface{}{"feed": "continuous"},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "Get http://example.com/testdb/_changes?feed=continuous: net error",
 		},
 		{
 			name: "error response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       Body(""),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
@@ -99,7 +98,7 @@ func TestChangesNext(t *testing.T) {
 		{
 			name:    "invalid json",
 			changes: newChangesRows(context.TODO(), "", Body("invalid json"), ""),
-			status:  kivik.StatusBadResponse,
+			status:  http.StatusBadGateway,
 			err:     "invalid character 'i' looking for beginning of value",
 		},
 		{

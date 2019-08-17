@@ -8,7 +8,6 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -24,7 +23,7 @@ func TestAllDBs(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_all_dbs: net error",
 		},
 		{
@@ -73,14 +72,14 @@ func TestDBExists(t *testing.T) {
 	}{
 		{
 			name:   "no db specified",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Head http://example.com/foo: net error",
 		},
 		{
@@ -138,14 +137,14 @@ func TestCreateDB(t *testing.T) {
 	}{
 		{
 			name:   "missing dbname",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Put http://example.com/foo: net error",
 		},
 		{
@@ -163,7 +162,7 @@ func TestCreateDB(t *testing.T) {
 				ContentLength: 94,
 				Body:          Body(`{"error":"file_exists","reason":"The database could not be created, the file already exists."}`),
 			}, nil),
-			status: kivik.StatusPreconditionFailed,
+			status: http.StatusPreconditionFailed,
 			err:    "Precondition Failed: The database could not be created, the file already exists.",
 		},
 		{
@@ -192,14 +191,14 @@ func TestDestroyDB(t *testing.T) {
 	}{
 		{
 			name:   "no db name",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "(Delete http://example.com/foo: )?net error",
 		},
 		{
@@ -236,7 +235,7 @@ func TestDBUpdates(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_db_updates?feed=continuous&since=now: net error",
 		},
 		{
@@ -245,7 +244,7 @@ func TestDBUpdates(t *testing.T) {
 				StatusCode: 400,
 				Body:       Body(""),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{

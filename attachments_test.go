@@ -13,7 +13,6 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -45,14 +44,14 @@ func TestPutAttachment(t *testing.T) {
 	tests := []paoTest{
 		{
 			name:   "missing docID",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "nil attachment",
 			id:     "foo",
 			rev:    "1-xxx",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att required",
 		},
 		{
@@ -60,7 +59,7 @@ func TestPutAttachment(t *testing.T) {
 			id:     "foo",
 			rev:    "1-xxx",
 			att:    &driver.Attachment{},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att.Filename required",
 		},
 		{
@@ -70,7 +69,7 @@ func TestPutAttachment(t *testing.T) {
 			att: &driver.Attachment{
 				Filename: "x.jpg",
 			},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att.ContentType required",
 		},
 		{
@@ -81,7 +80,7 @@ func TestPutAttachment(t *testing.T) {
 				Filename:    "x.jpg",
 				ContentType: "image/jpeg",
 			},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att.Content required",
 		},
 		{
@@ -94,7 +93,7 @@ func TestPutAttachment(t *testing.T) {
 				ContentType: "image/jpeg",
 				Content:     Body("x"),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Put http://example.com/testdb/foo/x.jpg\\?rev=1-xxx: net error",
 		},
 		{
@@ -153,7 +152,7 @@ func TestPutAttachment(t *testing.T) {
 				ContentType: "text/plain",
 				Content:     Body("x"),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
 		},
 		{
@@ -167,7 +166,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{"foo": "oink"},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "foo=oink",
 		},
 		{
@@ -181,7 +180,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -203,7 +202,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{OptionFullCommit: true},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "success",
 		},
 		{
@@ -217,7 +216,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		func() paoTest {
@@ -241,7 +240,7 @@ func TestPutAttachment(t *testing.T) {
 					Content:     Body("x"),
 				},
 				options: map[string]interface{}{OptionFullCommit: true},
-				status:  kivik.StatusNetworkError,
+				status:  http.StatusBadGateway,
 				err:     "success",
 				final: func(t *testing.T) {
 					if !body.closed {
@@ -281,7 +280,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "Head http://example.com/testdb/foo/foo.txt: net error",
 		},
 		{
@@ -330,7 +329,7 @@ func TestGetDigest(t *testing.T) {
 		{
 			name:   "no etag header",
 			resp:   &http.Response{},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "ETag header not found",
 		},
 		{
@@ -376,7 +375,7 @@ func TestGetAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "Get http://example.com/testdb/foo/foo.txt: net error",
 		},
 		{
@@ -438,20 +437,20 @@ func TestFetchAttachment(t *testing.T) {
 	}{
 		{
 			name:   "no method",
-			status: kivik.StatusInternalServerError,
+			status: http.StatusInternalServerError,
 			err:    "method required",
 		},
 		{
 			name:   "no docID",
 			method: "GET",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "no filename",
 			method: "GET",
 			id:     "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: filename required",
 		},
 		{
@@ -460,7 +459,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "http://example.com/testdb/foo/foo.txt:",
 		},
 		{
@@ -482,7 +481,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": "bar"},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "foo=bar",
 		},
 		{
@@ -492,7 +491,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadAPICall,
+			status:   http.StatusBadRequest,
 			err:      "kivik: invalid type chan int for options",
 		},
 		{
@@ -510,7 +509,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionIfNoneMatch: "foo"},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "success",
 		},
 		{
@@ -520,7 +519,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionIfNoneMatch: 123},
-			status:   kivik.StatusBadRequest,
+			status:   http.StatusBadRequest,
 			err:      "kivik: option 'If-None-Match' must be string, not int",
 		},
 	}
@@ -548,7 +547,7 @@ func TestDecodeAttachment(t *testing.T) {
 		{
 			name:   "no content type",
 			resp:   &http.Response{},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "no Content-Type in response",
 		},
 		{
@@ -556,7 +555,7 @@ func TestDecodeAttachment(t *testing.T) {
 			resp: &http.Response{
 				Header: http.Header{"Content-Type": {"text/plain"}},
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "ETag header not found",
 		},
 		{
@@ -608,20 +607,20 @@ func TestDeleteAttachment(t *testing.T) {
 	}{
 		{
 			name:   "no doc id",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "no rev",
 			id:     "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: rev required",
 		},
 		{
 			name:   "no filename",
 			id:     "foo",
 			rev:    "1-xxx",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: filename required",
 		},
 		{
@@ -630,7 +629,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "(Delete http://example.com/testdb/foo/foo.txt\\?rev=1-xxx: )?net error",
 		},
 		{
@@ -667,7 +666,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": "oink"},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "success",
 		},
 		{
@@ -677,7 +676,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadAPICall,
+			status:   http.StatusBadRequest,
 			err:      "kivik: invalid type chan int for options",
 		},
 		{
@@ -695,7 +694,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionFullCommit: true},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "success",
 		},
 		{
@@ -705,7 +704,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionFullCommit: 123},
-			status:   kivik.StatusBadRequest,
+			status:   http.StatusBadRequest,
 			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
