@@ -1,11 +1,10 @@
 package couchdb
 
 import (
+	"net/http"
 	"testing"
 
 	"gitlab.com/flimzy/testy"
-
-	"github.com/go-kivik/kivik"
 )
 
 func TestFullCommit(t *testing.T) {
@@ -24,7 +23,7 @@ func TestFullCommit(t *testing.T) {
 		{
 			name:   "new error",
 			input:  map[string]interface{}{OptionFullCommit: 123},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		{
@@ -68,7 +67,7 @@ func TestIfNoneMatch(t *testing.T) {
 		{
 			name:   "wrong type",
 			opts:   map[string]interface{}{OptionIfNoneMatch: 123},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: option 'If-None-Match' must be string, not int",
 		},
 		{

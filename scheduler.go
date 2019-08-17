@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -81,13 +80,13 @@ func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
 	}
 	var supported bool
 	switch resp.StatusCode {
-	case kivik.StatusBadRequest:
+	case http.StatusBadRequest:
 		// 1.6.x, 1.7.x
 		supported = false
-	case kivik.StatusNotFound:
+	case http.StatusNotFound:
 		// 2.0.x
 		supported = false
-	case kivik.StatusOK, kivik.StatusUnauthorized:
+	case http.StatusOK, http.StatusUnauthorized:
 		// 2.1.x +
 		supported = true
 	default:
