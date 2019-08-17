@@ -78,6 +78,9 @@ func (a *CookieAuth) authenticate(req *http.Request) error {
 	ctx = context.WithValue(ctx, authInProgress, true)
 	opts := &Options{
 		Body: EncodeBody(a),
+		Header: http.Header{
+			HeaderIdempotencyKey: []string{},
+		},
 	}
 	if _, err := a.client.DoError(ctx, http.MethodPost, "/_session", opts); err != nil {
 		return err

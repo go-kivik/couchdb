@@ -69,6 +69,9 @@ type dbsInfoResponse struct {
 func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBStats, error) {
 	opts := &chttp.Options{
 		Body: chttp.EncodeBody(dbsInfoRequest{Keys: dbnames}),
+		Header: http.Header{
+			chttp.HeaderIdempotencyKey: []string{},
+		},
 	}
 	result := []dbsInfoResponse{}
 	_, err := c.DoJSON(context.Background(), http.MethodPost, "/_dbs_info", opts, &result)
