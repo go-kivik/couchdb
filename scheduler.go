@@ -75,7 +75,7 @@ func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
 	if c.schedulerDetected != nil {
 		return *c.schedulerDetected, nil
 	}
-	resp, err := c.DoReq(ctx, kivik.MethodHead, "_scheduler/jobs", nil)
+	resp, err := c.DoReq(ctx, http.MethodHead, "_scheduler/jobs", nil)
 	if err != nil {
 		return false, err
 	}
@@ -193,7 +193,7 @@ func isBug1000(err error) bool {
 func (r *schedulerReplication) update(ctx context.Context) error {
 	path := fmt.Sprintf("/_scheduler/docs/%s/%s", r.database, chttp.EncodeDocID(r.docID))
 	var doc schedulerDoc
-	if _, err := r.db.Client.DoJSON(ctx, kivik.MethodGet, path, nil, &doc); err != nil {
+	if _, err := r.db.Client.DoJSON(ctx, http.MethodGet, path, nil, &doc); err != nil {
 		if isBug1000(err) {
 			return r.update(ctx)
 		}
@@ -215,7 +215,7 @@ func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[s
 	if params != nil {
 		path = path + "?" + params.Encode()
 	}
-	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
+	if _, err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Docs))

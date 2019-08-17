@@ -1205,7 +1205,7 @@ func TestRowsQuery(t *testing.T) {
 				"keys": []string{"_design/_auth", "foo"},
 			},
 			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
-				if r.Method != kivik.MethodPost {
+				if r.Method != http.MethodPost {
 					t.Errorf("Unexpected method: %s", r.Method)
 				}
 				defer r.Body.Close() // nolint: errcheck
@@ -1288,7 +1288,7 @@ func TestRowsQuery(t *testing.T) {
 				"keys": []interface{}{"_design/_auth", "foo", []string{"bar", "baz"}},
 			},
 			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
-				if r.Method != kivik.MethodPost {
+				if r.Method != http.MethodPost {
 					t.Errorf("Unexpected method: %s", r.Method)
 				}
 				defer r.Body.Close() // nolint: errcheck

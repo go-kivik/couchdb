@@ -3,8 +3,8 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -38,7 +38,7 @@ func (s *session) UnmarshalJSON(data []byte) error {
 
 func (c *client) Session(ctx context.Context) (*driver.Session, error) {
 	s := &session{}
-	_, err := c.DoJSON(ctx, kivik.MethodGet, "/_session", nil, s)
+	_, err := c.DoJSON(ctx, http.MethodGet, "/_session", nil, s)
 	return &driver.Session{
 		RawResponse:            s.Data,
 		Name:                   s.UserCtx.Name,

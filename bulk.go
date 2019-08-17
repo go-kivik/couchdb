@@ -77,10 +77,10 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	}
 	options["docs"] = docs
 	opts := &chttp.Options{
-		Body:       chttp.EncodeBody(options),
+		GetBody:    chttp.BodyEncoder(options),
 		FullCommit: fullCommit,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs"), opts)
+	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_docs"), opts)
 	if err != nil {
 		return nil, err
 	}

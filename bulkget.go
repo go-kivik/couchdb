@@ -16,8 +16,11 @@ func (d *db) BulkGet(ctx context.Context, docs []driver.BulkGetReference, opts m
 		return nil, err
 	}
 	options := &chttp.Options{
-		Query: query,
-		Body:  chttp.EncodeBody(docs),
+		Query:   query,
+		GetBody: chttp.BodyEncoder(docs),
+		Header: http.Header{
+			chttp.HeaderIdempotencyKey: []string{},
+		},
 	}
 	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_get"), options)
 	if err != nil {

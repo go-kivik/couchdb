@@ -133,6 +133,10 @@ type Options struct {
 	// Body sets the body of the request.
 	Body io.ReadCloser
 
+	// GetBody is a function to set the body, and can be used on retries. If
+	// set, Body is ignored.
+	GetBody func() (io.ReadCloser, error)
+
 	// JSON is an arbitrary data type which is marshaled to the request's body.
 	// It an error to set both Body and JSON on the same request. When this is
 	// set, ContentType is unconditionally set to 'application/json'. Note that
@@ -220,6 +224,13 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	}
 	var body io.Reader
 	if opts != nil {
+		if opts.GetBody != nil {
+			var err error
+			opts.Body, err = opts.GetBody()
+			if err != nil {
+				return nil, err
+			}
+		}
 		if opts.Body != nil {
 			body = opts.Body
 			defer opts.Body.Close() // nolint: errcheck
@@ -232,6 +243,9 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	fixPath(req, path)
 	setHeaders(req, opts)
 	setQuery(req, opts)
+	if opts != nil {
+		req.GetBody = opts.GetBody
+	}
 
 	trace := ContextClientTrace(ctx)
 	if trace != nil {
@@ -301,6 +315,14 @@ func fixPath(req *http.Request, path string) {
 	// Remove any query parameters
 	parts := strings.SplitN(path, "?", 2)
 	req.URL.RawPath = "/" + strings.TrimPrefix(parts[0], "/")
+}
+
+// BodyEncoder returns a function which returns the encoded body. It is meant
+// to be used as a http.Request.GetBody value.
+func BodyEncoder(i interface{}) func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
+		return EncodeBody(i), nil
+	}
 }
 
 // EncodeBody JSON encodes i to an io.ReadCloser. If an encoding error
