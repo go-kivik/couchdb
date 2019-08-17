@@ -34,7 +34,9 @@ variables:
         - mv ./http/*.go $(go env GOROOT)/src/net/http
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
         # - dep ensure && dep status
-        - go test -race -tags=livetest ./...
+        - go test -race -tags=livetest ./... && true
+        - curl ${KIVIK_TEST_DSN_COUCH17}/_log
+        - exit 1
 
 lint:
     stage: test
