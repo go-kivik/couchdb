@@ -31,6 +31,7 @@ variables:
         - mkdir -p /go/src
         - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
+        - mv ./http/*.go $(go env GOROOT)/src/net/http
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
         # - dep ensure && dep status
         - go test -race -tags=livetest ./...
