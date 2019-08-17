@@ -155,6 +155,9 @@ type Options struct {
 	// already contains query parameters, the values in Query are appended.
 	// No merging takes place.
 	Query url.Values
+
+	// Header is a list of default headers to be set on the request.
+	Header http.Header
 }
 
 // Response represents a response from a CouchDB server.
@@ -368,6 +371,11 @@ func setHeaders(req *http.Request, opts *Options) {
 		}
 		if opts.ContentLength != 0 {
 			req.ContentLength = opts.ContentLength
+		}
+		for k, v := range opts.Header {
+			if _, ok := req.Header[k]; !ok {
+				req.Header[k] = v
+			}
 		}
 	}
 	req.Header.Add("Accept", accept)
