@@ -27,7 +27,7 @@ func TestClusterStatus(t *testing.T) {
 	tests := testy.NewTable()
 	tests.Add("network error", tst{
 		client: newTestClient(nil, errors.New("network error")),
-		status: kivik.StatusNetworkError,
+		status: http.StatusBadGateway,
 		err:    "Get http://example.com/_cluster_setup: network error",
 	})
 	tests.Add("finished", tst{
@@ -49,7 +49,7 @@ func TestClusterStatus(t *testing.T) {
 		options: map[string]interface{}{
 			optionEnsureDBsExist: 1.0,
 		},
-		status: kivik.StatusBadAPICall,
+		status: http.StatusBadRequest,
 		err:    "kivik: invalid type float64 for options",
 	})
 	tests.Add("invalid param", tst{
@@ -61,7 +61,7 @@ func TestClusterStatus(t *testing.T) {
 		options: map[string]interface{}{
 			optionEnsureDBsExist: "foo,bar,baz",
 		},
-		status: kivik.StatusBadRequest,
+		status: http.StatusBadRequest,
 		err:    "Get http://example.com/_cluster_setup?ensure_dbs_exist=foo%2Cbar%2Cbaz: invalid character 'o' in literal false (expecting 'a')",
 	})
 	tests.Add("ensure dbs", func(t *testing.T) interface{} {
@@ -113,13 +113,13 @@ func TestClusterSetup(t *testing.T) {
 	tests := testy.NewTable()
 	tests.Add("network error", tst{
 		client: newTestClient(nil, errors.New("network error")),
-		status: kivik.StatusNetworkError,
+		status: http.StatusBadGateway,
 		err:    "Post http://example.com/_cluster_setup: network error",
 	})
 	tests.Add("invalid action", tst{
 		client: newTestClient(nil, nil),
 		action: func() {},
-		status: kivik.StatusBadAPICall,
+		status: http.StatusBadRequest,
 		err:    "Post http://example.com/_cluster_setup: json: unsupported type: func()",
 	})
 	tests.Add("success", func(t *testing.T) interface{} {
@@ -164,7 +164,7 @@ func TestClusterSetup(t *testing.T) {
 		action: map[string]interface{}{
 			"action": "finish_cluster",
 		},
-		status: kivik.StatusBadRequest,
+		status: http.StatusBadRequest,
 		err:    "Bad Request: Cluster is already finished",
 	})
 

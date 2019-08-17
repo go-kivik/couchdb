@@ -165,7 +165,7 @@ func TestReplicate(t *testing.T) {
 				client.schedulerDetected = &b
 				return client
 			}(),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/_replicator: net eror",
 		},
 		{
@@ -238,7 +238,7 @@ func TestReplicate(t *testing.T) {
 			name:   "scheduler detection error",
 			target: "foo", source: "bar",
 			client: newTestClient(nil, errors.New("sched err")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Head http://example.com/_scheduler/jobs: sched err",
 		},
 	}
@@ -275,7 +275,7 @@ func TestLegacyGetReplications(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_replicator/_all_docs?include_docs=true: net error",
 		},
 		{
@@ -334,7 +334,7 @@ func TestGetReplications(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Head http://example.com/_scheduler/jobs: net error",
 		},
 		{
@@ -400,7 +400,7 @@ func TestReplicationUpdate(t *testing.T) {
 				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d: net error",
 		},
 		{
@@ -467,7 +467,7 @@ func TestReplicationDelete(t *testing.T) {
 				docID: "foo",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Head http://example.com/testdb/foo: net error",
 		},
 		{
@@ -492,7 +492,7 @@ func TestReplicationDelete(t *testing.T) {
 					return nil, errors.New("delete error")
 				}),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "^(Delete http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\\?rev=2-6419706e969050d8000efad07259de4f: )?delete error",
 		},
 		{
@@ -551,7 +551,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 			rep: &replication{
 				db: newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_active_tasks: net error",
 		},
 		{
@@ -574,7 +574,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 					Body:       Body("invalid json"),
 				}, nil),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{

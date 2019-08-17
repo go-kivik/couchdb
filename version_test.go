@@ -26,7 +26,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/: net error",
 		},
 		{
@@ -35,7 +35,7 @@ func TestVersion2(t *testing.T) {
 				StatusCode: kivik.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"name":[]}}`)),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "json: cannot unmarshal array into Go ",
 		},
 		{

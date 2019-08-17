@@ -35,7 +35,7 @@ func TestExplain(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_explain: net error",
 		},
 		{
@@ -70,7 +70,7 @@ func TestExplain(t *testing.T) {
 				return nil, errors.New("success")
 			}),
 			query:  []byte(`{"_id":"foo"}`),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_explain: success",
 		},
 	}
@@ -158,7 +158,7 @@ func TestCreateIndex(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_index: net error",
 		},
 		{
@@ -197,7 +197,7 @@ func TestGetIndexes(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/testdb/_index: net error",
 		},
 		{
@@ -274,7 +274,7 @@ func TestDeleteIndex(t *testing.T) {
 			ddoc:      "foo",
 			indexName: "bar",
 			db:        newTestDB(nil, errors.New("net error")),
-			status:    kivik.StatusNetworkError,
+			status:    http.StatusBadGateway,
 			err:       "^(Delete http://example.com/testdb/_index/foo/json/bar: )?net error",
 		},
 		{
@@ -322,7 +322,7 @@ func TestFind(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Post http://example.com/testdb/_find: net error",
 		},
 		{

@@ -29,7 +29,7 @@ func TestSRUpdate(t *testing.T) {
 				docID:    "foo",
 				db:       newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
 		},
 		{
@@ -128,7 +128,7 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_scheduler/docs: net error",
 		},
 		{
@@ -217,7 +217,7 @@ func TestSchedulerReplicationDelete(t *testing.T) {
 				docID: "foo",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Head http://example.com/testdb/foo: net error",
 		},
 		{
@@ -237,7 +237,7 @@ func TestSchedulerReplicationDelete(t *testing.T) {
 					return nil, errors.New("net error")
 				}),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "(Delete http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92: )?net error",
 		},
 		{
@@ -413,7 +413,7 @@ func TestSchedulerSupported(t *testing.T) {
 			name:          "network error",
 			client:        newTestClient(nil, errors.New("net error")),
 			expectedState: nil,
-			status:        kivik.StatusNetworkError,
+			status:        http.StatusBadGateway,
 			err:           "Head http://example.com/_scheduler/jobs: net error",
 		},
 		{
@@ -456,7 +456,7 @@ func TestSRinnerUpdate(t *testing.T) {
 				docID:    "foo",
 				db:       newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
 		},
 		{
@@ -603,7 +603,7 @@ func TestFetchSchedulerReplication(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "Get http://example.com/_scheduler/docs/_replicator/: net error",
 		},
 		{
