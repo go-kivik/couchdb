@@ -12,7 +12,6 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -29,7 +28,7 @@ func TestExplain(t *testing.T) {
 			name:   "invalid query",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "Post http://example.com/testdb/_explain: json: unsupported type: chan int",
 		},
 		{
@@ -41,16 +40,16 @@ func TestExplain(t *testing.T) {
 		{
 			name: "error response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusNotFound,
+				StatusCode: http.StatusNotFound,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "Not Found",
 		},
 		{
 			name: "success",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"dbname":"foo"}`)),
 			}, nil),
 			expected: &driver.QueryPlan{DBName: "foo"},
@@ -145,14 +144,14 @@ func TestCreateIndex(t *testing.T) {
 			name:   "invalid JSON index",
 			db:     newTestDB(nil, nil),
 			index:  `invalid json`,
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name:   "invalid raw index",
 			db:     newTestDB(nil, nil),
 			index:  map[string]interface{}{"foo": make(chan int)},
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "Post http://example.com/testdb/_index: json: unsupported type: chan int",
 		},
 		{
@@ -258,14 +257,14 @@ func TestDeleteIndex(t *testing.T) {
 	}{
 		{
 			name:   "no ddoc",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			db:     newTestDB(nil, nil),
 			err:    "kivik: ddoc required",
 		},
 		{
 			name:   "no index name",
 			ddoc:   "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			db:     newTestDB(nil, nil),
 			err:    "kivik: name required",
 		},
@@ -316,7 +315,7 @@ func TestFind(t *testing.T) {
 			name:   "invalid query json",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadAPICall,
+			status: http.StatusBadRequest,
 			err:    "Post http://example.com/testdb/_find: json: unsupported type: chan int",
 		},
 		{
@@ -341,7 +340,7 @@ func TestFind(t *testing.T) {
 				ContentLength: 77,
 				Body:          Body(`{"error":"bad_content_type","reason":"Content-Type must be application/json"}`),
 			}, nil),
-			status: kivik.StatusUnsupportedMediaType,
+			status: http.StatusUnsupportedMediaType,
 			err:    "Unsupported Media Type: Content-Type must be application/json",
 		},
 		{

@@ -10,7 +10,6 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -134,7 +133,7 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{

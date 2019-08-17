@@ -77,7 +77,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "doc example 1",
 			input: `"db_not_found: could not open http://adm:*****@localhost:5984/missing/"`,
 			expected: &replicationError{
-				status: kivik.StatusNotFound,
+				status: http.StatusNotFound,
 				reason: "db_not_found: could not open http://adm:*****@localhost:5984/missing/",
 			},
 		},
@@ -85,7 +85,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "timeout",
 			input: `"timeout: some timeout occurred"`,
 			expected: &replicationError{
-				status: kivik.StatusRequestTimeout,
+				status: http.StatusRequestTimeout,
 				reason: "timeout: some timeout occurred",
 			},
 		},
@@ -93,7 +93,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "unknown",
 			input: `"unknown error"`,
 			expected: &replicationError{
-				status: kivik.StatusInternalServerError,
+				status: http.StatusInternalServerError,
 				reason: "unknown error",
 			},
 		},
@@ -106,7 +106,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "Unauthorized",
 			input: `"unauthorized: unauthorized to access or create database foo"`,
 			expected: &replicationError{
-				status: kivik.StatusUnauthorized,
+				status: http.StatusUnauthorized,
 				reason: "unauthorized: unauthorized to access or create database foo",
 			},
 		},
@@ -134,13 +134,13 @@ func TestReplicate(t *testing.T) {
 	}{
 		{
 			name:   "no target",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: targetDSN required",
 		},
 		{
 			name:   "no source",
 			target: "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: sourceDSN required",
 		},
 		{
@@ -153,7 +153,7 @@ func TestReplicate(t *testing.T) {
 			}(),
 			target: "foo", source: "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "Post http://example.com/_replicator: json: unsupported type: chan int",
 		},
 		{
@@ -269,7 +269,7 @@ func TestLegacyGetReplications(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -354,7 +354,7 @@ func TestGetReplications(t *testing.T) {
 				client.schedulerDetected = &b
 				return client
 			}(),
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "Not Found",
 		},
 		{
@@ -374,7 +374,7 @@ func TestGetReplications(t *testing.T) {
 				client.schedulerDetected = &b
 				return client
 			}(),
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "Not Found",
 		},
 	}
@@ -563,7 +563,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 					Body:       Body(""),
 				}, nil),
 			},
-			status: kivik.StatusInternalServerError,
+			status: http.StatusInternalServerError,
 			err:    "Internal Server Error",
 		},
 		{
@@ -586,7 +586,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 					Body:       Body("[]"),
 				}, nil),
 			},
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "task not found",
 		},
 		{
