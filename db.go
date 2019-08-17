@@ -342,18 +342,11 @@ func putOpts(doc interface{}, options map[string]interface{}) (*chttp.Options, e
 			}, nil
 		}
 	}
-	opts := &chttp.Options{
-		GetBody:    chttp.BodyEncoder(doc),
+	return &chttp.Options{
+		Body:       chttp.EncodeBody(doc),
 		FullCommit: fullCommit,
 		Query:      params,
-	}
-	if newEdits, ok := options["new_edits"].(bool); ok && !newEdits {
-		// These are the only PUT requests which are idempotent
-		opts.Header = http.Header{
-			chttp.HeaderIdempotencyKey: []string{},
-		}
-	}
-	return opts, nil
+	}, nil
 }
 
 func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
