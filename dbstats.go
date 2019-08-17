@@ -68,7 +68,7 @@ type dbsInfoResponse struct {
 
 func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBStats, error) {
 	opts := &chttp.Options{
-		Body: chttp.EncodeBody(dbsInfoRequest{Keys: dbnames}),
+		GetBody: chttp.BodyEncoder(dbsInfoRequest{Keys: dbnames}),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},

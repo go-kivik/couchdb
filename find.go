@@ -53,7 +53,7 @@ func (d *db) DeleteIndex(ctx context.Context, ddoc, name string) error {
 
 func (d *db) Find(ctx context.Context, query interface{}) (driver.Rows, error) {
 	opts := &chttp.Options{
-		Body: chttp.EncodeBody(query),
+		GetBody: chttp.BodyEncoder(query),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},
@@ -97,7 +97,7 @@ func (f *fields) UnmarshalJSON(data []byte) error {
 
 func (d *db) Explain(ctx context.Context, query interface{}) (*driver.QueryPlan, error) {
 	opts := &chttp.Options{
-		Body: chttp.EncodeBody(query),
+		GetBody: chttp.BodyEncoder(query),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},

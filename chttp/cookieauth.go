@@ -77,7 +77,7 @@ func (a *CookieAuth) authenticate(req *http.Request) error {
 	}
 	ctx = context.WithValue(ctx, authInProgress, true)
 	opts := &Options{
-		Body: EncodeBody(a),
+		GetBody: BodyEncoder(a),
 		Header: http.Header{
 			HeaderIdempotencyKey: []string{},
 		},

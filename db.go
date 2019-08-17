@@ -82,7 +82,7 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	method := http.MethodGet
 	if keys != nil {
 		method = http.MethodPost
-		options.Body = chttp.EncodeBody(map[string]interface{}{
+		options.GetBody = chttp.BodyEncoder(map[string]interface{}{
 			"keys": keys,
 		})
 		options.Header = http.Header{
@@ -790,7 +790,7 @@ func (d *db) Security(ctx context.Context) (*driver.Security, error) {
 
 func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	opts := &chttp.Options{
-		Body: chttp.EncodeBody(security),
+		GetBody: chttp.BodyEncoder(security),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},
@@ -836,7 +836,7 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 func (d *db) Purge(ctx context.Context, docMap map[string][]string) (*driver.PurgeResult, error) {
 	result := &driver.PurgeResult{}
 	options := &chttp.Options{
-		Body: chttp.EncodeBody(docMap),
+		GetBody: chttp.BodyEncoder(docMap),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},
@@ -849,7 +849,7 @@ var _ driver.RevsDiffer = &db{}
 
 func (d *db) RevsDiff(ctx context.Context, revMap interface{}) (driver.Rows, error) {
 	options := &chttp.Options{
-		Body: chttp.EncodeBody(revMap),
+		GetBody: chttp.BodyEncoder(revMap),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},
