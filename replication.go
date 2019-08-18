@@ -36,13 +36,13 @@ func (re *replicationError) UnmarshalJSON(data []byte) error {
 	}
 	switch (strings.SplitN(re.reason, ":", 2))[0] {
 	case "db_not_found":
-		re.status = kivik.StatusNotFound
+		re.status = http.StatusNotFound
 	case "timeout":
-		re.status = kivik.StatusRequestTimeout
+		re.status = http.StatusRequestTimeout
 	case "unauthorized":
-		re.status = kivik.StatusUnauthorized
+		re.status = http.StatusUnauthorized
 	default:
-		re.status = kivik.StatusInternalServerError
+		re.status = http.StatusInternalServerError
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func (r *replication) Update(ctx context.Context, state *driver.ReplicationInfo)
 	}
 	info, err := r.updateActiveTasks(ctx)
 	if err != nil {
-		if kivik.StatusCode(err) == kivik.StatusNotFound {
+		if kivik.StatusCode(err) == http.StatusNotFound {
 			// not listed in _active_tasks (because the replication is done, or
 			// hasn't yet started), but this isn't an error
 			return nil

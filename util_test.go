@@ -2,11 +2,10 @@ package couchdb
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 
 	"gitlab.com/flimzy/testy"
-
-	"github.com/go-kivik/kivik"
 )
 
 func TestDeJSONify(t *testing.T) {
@@ -40,7 +39,7 @@ func TestDeJSONify(t *testing.T) {
 		{
 			name:   "invalid JSON sring",
 			input:  `{"foo":"\C"}`,
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "invalid character 'C' in string escape code",
 		},
 	}
