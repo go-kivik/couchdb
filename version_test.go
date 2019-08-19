@@ -11,7 +11,6 @@ import (
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kivik/driver"
 )
 
@@ -32,7 +31,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "invalid JSON response",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"name":[]}}`)),
 			}, nil),
 			status: http.StatusBadGateway,
@@ -41,16 +40,16 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "error response",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusInternalServerError,
+				StatusCode: http.StatusInternalServerError,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusInternalServerError,
+			status: http.StatusInternalServerError,
 			err:    "Internal Server Error",
 		},
 		{
 			name: "CouchDB 1.6.1",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"version":"1.6.1","name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -62,7 +61,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "CouchDB 2.0.0",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -74,7 +73,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "CouchDB 2.1.0",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.1.0","features":["scheduler"],"vendor":{"name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -87,7 +86,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "Cloudant 2017-10-23",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"IBM Cloudant","version":"6365","variant":"paas"},"features":["geo","scheduler"]}`)),
 			}, nil),
 			expected: &driver.Version{
