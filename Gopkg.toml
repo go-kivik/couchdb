@@ -40,7 +40,7 @@ ignored = ["github.com/gopherjs/gopherjs"]
 
 [[constraint]]
   name = "github.com/pkg/errors"
-  version = "0.8.0"
+  version = "0.8.1"
 
 [[constraint]]
   branch = "master"
