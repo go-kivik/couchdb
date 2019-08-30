@@ -28,10 +28,6 @@ ignored = ["github.com/gopherjs/gopherjs"]
 
 [[constraint]]
   branch = "master"
-  name = "github.com/flimzy/testy"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/go-kivik/kivik"
 
 [[constraint]]
