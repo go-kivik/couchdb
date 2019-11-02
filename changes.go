@@ -100,6 +100,7 @@ type change struct {
 }
 
 func (r *changesRows) Next(row *driver.Change) error {
+	row.Deleted = false
 	return r.iter.next(row)
 }
 
