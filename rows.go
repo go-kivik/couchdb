@@ -120,6 +120,7 @@ func (r *rows) UpdateSeq() string {
 }
 
 func (r *rows) Next(row *driver.Row) error {
+	row.Error = nil
 	return r.iter.next(row)
 }
 
