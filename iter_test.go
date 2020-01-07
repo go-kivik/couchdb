@@ -70,4 +70,17 @@ func TestCancelableReadCloser(t *testing.T) {
 			t.Errorf("Unexpected result: %s", string(result))
 		}
 	})
+	t.Run("closed early", func(t *testing.T) {
+		t.Parallel()
+		rc := newCancelableReadCloser(
+			context.Background(),
+			ioutil.NopCloser(testy.NeverReader()),
+		)
+		rc.Close()
+		result, err := ioutil.ReadAll(rc)
+		testy.Error(t, "iterator closed", err)
+		if string(result) != "" {
+			t.Errorf("Unexpected result: %s", string(result))
+		}
+	})
 }
