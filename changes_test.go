@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
 	"gitlab.com/flimzy/testy"
 
@@ -139,10 +140,29 @@ func TestChangesNext(t *testing.T) {
 }
 
 func TestChangesClose(t *testing.T) {
-	body := &closeTracker{ReadCloser: Body("foo")}
-	feed := newChangesRows(context.TODO(), "", body, "")
-	_ = feed.Close()
-	if !body.closed {
-		t.Errorf("Failed to close")
-	}
+	t.Run("normal", func(t *testing.T) {
+		body := &closeTracker{ReadCloser: Body("foo")}
+		feed := newChangesRows(context.TODO(), "", body, "")
+		_ = feed.Close()
+		if !body.closed {
+			t.Errorf("Failed to close")
+		}
+	})
+
+	t.Run("next in progress", func(t *testing.T) {
+		body := &closeTracker{ReadCloser: ioutil.NopCloser(testy.NeverReader())}
+		feed := newChangesRows(context.TODO(), "", body, "")
+		row := new(driver.Change)
+		done := make(chan struct{})
+		go func() {
+			_ = feed.Next(row)
+			close(done)
+		}()
+		time.Sleep(50 * time.Millisecond)
+		_ = feed.Close()
+		<-done
+		if !body.closed {
+			t.Errorf("Failed to close")
+		}
+	})
 }

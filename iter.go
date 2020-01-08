@@ -3,6 +3,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,25 +22,43 @@ type metaParser interface {
 
 type cancelableReadCloser struct {
 	ctx    context.Context
-	err    error
 	rc     io.ReadCloser
-	closed bool
+	cancel func()
+
 	mu     sync.RWMutex
+	closed bool
+	err    error
 }
 
 var _ io.ReadCloser = &cancelableReadCloser{}
 
 func newCancelableReadCloser(ctx context.Context, rc io.ReadCloser) io.ReadCloser {
-	return &cancelableReadCloser{ctx: ctx, rc: rc}
+	ctx, cancel := context.WithCancel(ctx)
+	return &cancelableReadCloser{
+		ctx:    ctx,
+		rc:     rc,
+		cancel: cancel,
+	}
+}
+
+func (r *cancelableReadCloser) readErr() error {
+	r.mu.RLock()
+	if !r.closed {
+		r.mu.RUnlock()
+		return nil
+	}
+	err := r.err
+	r.mu.RUnlock()
+	if err == nil {
+		err = errors.New("iterator closed")
+	}
+	return err
 }
 
 func (r *cancelableReadCloser) Read(p []byte) (int, error) {
-	r.mu.RLock()
-	if r.closed {
-		r.mu.RUnlock()
-		return 0, r.close(nil)
+	if err := r.readErr(); err != nil {
+		return 0, err
 	}
-	r.mu.RUnlock()
 	var c int
 	var err error
 	done := make(chan struct{})
@@ -49,7 +68,11 @@ func (r *cancelableReadCloser) Read(p []byte) (int, error) {
 	}()
 	select {
 	case <-r.ctx.Done():
-		return 0, r.close(r.ctx.Err())
+		var err error
+		if err = r.readErr(); err == nil {
+			err = r.ctx.Err()
+		}
+		return 0, r.close(err)
 	case <-done:
 		if err != nil {
 			e := r.close(err)
@@ -63,6 +86,7 @@ func (r *cancelableReadCloser) close(err error) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if !r.closed {
+		r.cancel()
 		r.closed = true
 		e := r.rc.Close()
 		if err == nil {
