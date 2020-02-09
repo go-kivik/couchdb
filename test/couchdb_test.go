@@ -5,7 +5,7 @@ package test
 import (
 	"testing"
 
-	_ "github.com/go-kivik/couchdb"
+	_ "github.com/go-kivik/v3/couchdb"
 	"github.com/go-kivik/kiviktest"
 )
 

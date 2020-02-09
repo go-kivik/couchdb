@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/couchdb/v3/chttp"
+	"github.com/go-kivik/kivik/v3/driver"
 )
 
 func (d *db) CreateIndex(ctx context.Context, ddoc, name string, index interface{}) error {

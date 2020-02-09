@@ -3,7 +3,7 @@ package test
 import (
 	"net/http"
 
-	"github.com/go-kivik/kivik"
+	kivik "github.com/go-kivik/kivik/v3"
 	"github.com/go-kivik/kiviktest"
 	"github.com/go-kivik/kiviktest/kt"
 )

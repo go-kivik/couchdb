@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/couchdb/v3/chttp"
+	kivik "github.com/go-kivik/kivik/v3"
+	"github.com/go-kivik/kivik/v3/driver"
 )
 
 func (c *client) AllDBs(ctx context.Context, opts map[string]interface{}) ([]string, error) {

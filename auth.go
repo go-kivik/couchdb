@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/couchdb/v3/chttp"
+	kivik "github.com/go-kivik/kivik/v3"
 )
 
 func (c *client) Authenticate(ctx context.Context, a interface{}) error {

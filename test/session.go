@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/couchdb/v3/chttp"
+	kivik "github.com/go-kivik/kivik/v3"
 	"github.com/go-kivik/kiviktest/kt"
 )
 
