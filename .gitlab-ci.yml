@@ -24,6 +24,13 @@ variables:
         - ./script/complete_couch2.sh ${KIVIK_TEST_DSN_COUCH22}
         - ./script/complete_couch2.sh ${KIVIK_TEST_DSN_COUCH23}
     script:
+        - go mod download
+        - ./script/test_version.sh
+        - go test -race -tags=livetest ./...
+
+.nomod: &nomod_template
+    <<: *test_template
+    script:
         - mkdir -p /go/src
         - ln -s /builds /go/src/github.com
         - cd ${SRCDIR}
@@ -39,11 +46,7 @@ lint:
     before_script:
         - ''
     script:
-        - mkdir -p /go/src
-        - ln -s /builds /go/src/github.com
-        - cd ${SRCDIR}
-        - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        - dep ensure && dep status
+        - go mod download
         - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
         - golangci-lint run ./...
 
@@ -54,20 +57,16 @@ coverage:
     before_script:
         - ''
     script:
-        - mkdir -p /go/src
-        - ln -s /builds /go/src/github.com
-        - cd ${SRCDIR}
-        - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        - dep ensure && dep status
+        - go mod download
         - ./script/coverage.sh
 
 go-1.9:
-    <<: *test_template
+    <<: *nomod_template
     stage: test
     image: golang:1.9
 
 go-1.10:
-    <<: *test_template
+    <<: *nomod_template
     stage: test
     image: golang:1.10
 
