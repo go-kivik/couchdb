@@ -19,8 +19,8 @@ package main
 import (
     "context"
 
-    "github.com/go-kivik/kivik"
-    _ "github.com/go-kivik/couchdb" // The CouchDB driver
+    kivik "github.com/go-kivik/kivik/v3"
+    _ "github.com/go-kivik/couchdb/v3" // The CouchDB driver
 )
 
 func main() {
