@@ -3,6 +3,7 @@ stages:
 
 variables:
     SRCDIR: /go/src/github.com/go-kivik/couchdb
+    GO111MODULE: "on"
 
 .test: &test_template
     stage: test
@@ -59,16 +60,6 @@ coverage:
     script:
         - go mod download
         - ./script/coverage.sh
-
-go-1.9:
-    <<: *nomod_template
-    stage: test
-    image: golang:1.9
-
-go-1.10:
-    <<: *nomod_template
-    stage: test
-    image: golang:1.10
 
 go-1.11:
     <<: *test_template

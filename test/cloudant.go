@@ -3,9 +3,9 @@ package test
 import (
 	"net/http"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kiviktest"
-	"github.com/go-kivik/kiviktest/kt"
+	kivik "github.com/go-kivik/kivik/v3"
+	kiviktest "github.com/go-kivik/kiviktest/v3"
+	"github.com/go-kivik/kiviktest/v3/kt"
 )
 
 func registerSuiteCloudant() {

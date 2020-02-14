@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/v3/driver"
 )
 
 // Version returns the server's version info.

@@ -5,8 +5,8 @@ package test
 import (
 	"testing"
 
-	_ "github.com/go-kivik/couchdb"
-	"github.com/go-kivik/kiviktest"
+	_ "github.com/go-kivik/couchdb/v3"
+	kiviktest "github.com/go-kivik/kiviktest/v3"
 )
 
 func init() {

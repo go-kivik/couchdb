@@ -11,7 +11,7 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
+	kivik "github.com/go-kivik/kivik/v3"
 )
 
 const optionEnsureDBsExist = "ensure_dbs_exist"

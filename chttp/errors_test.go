@@ -9,7 +9,7 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
+	kivik "github.com/go-kivik/kivik/v3"
 )
 
 func TestHTTPErrorError(t *testing.T) {

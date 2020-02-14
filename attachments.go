@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/couchdb/v3/chttp"
+	kivik "github.com/go-kivik/kivik/v3"
+	"github.com/go-kivik/kivik/v3/driver"
 )
 
 func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.Attachment, options map[string]interface{}) (newRev string, err error) {
