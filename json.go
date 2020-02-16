@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	kivik "github.com/go-kivik/kivik/v3"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 // encodeKey encodes a key to a view query, or similar, to be passed to CouchDB.

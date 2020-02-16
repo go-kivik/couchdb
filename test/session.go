@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/go-kivik/couchdb/v3/chttp"
-	kivik "github.com/go-kivik/kivik/v3"
-	"github.com/go-kivik/kiviktest/v3/kt"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kiviktest/v4/kt"
 )
 
 func init() {

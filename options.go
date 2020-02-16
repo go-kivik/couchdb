@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	kivik "github.com/go-kivik/kivik/v3"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 func fullCommit(opts map[string]interface{}) (bool, error) {

@@ -7,7 +7,7 @@ CouchDB driver for [Kivik](https://github.com/go-kivik/kivik).
 ## Usage
 
 This package provides an implementation of the
-[`github.com/go-kivik/kivik/v3/driver`](http://godoc.org/github.com/go-kivik/kivik/driver)
+[`github.com/go-kivik/kivik/v4/driver`](http://godoc.org/github.com/go-kivik/kivik/driver)
 interface. You must import the driver and can then use the full
 [`Kivik`](http://godoc.org/github.com/go-kivik/kivik) API. Please consult the
 [Kivik wiki](https://github.com/go-kivik/kivik/wiki) for complete documentation
@@ -19,8 +19,8 @@ package main
 import (
     "context"
 
-    kivik "github.com/go-kivik/kivik/v3"
-    _ "github.com/go-kivik/couchdb/v3" // The CouchDB driver
+    kivik "github.com/go-kivik/kivik/v4"
+    _ "github.com/go-kivik/couchdb/v4" // The CouchDB driver
 )
 
 func main() {

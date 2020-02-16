@@ -12,8 +12,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/go-kivik/couchdb/v3/chttp"
-	"github.com/go-kivik/kiviktest/v3/kt"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	"github.com/go-kivik/kiviktest/v4/kt"
 )
 
 type customTransport func(*http.Request) (*http.Response, error)

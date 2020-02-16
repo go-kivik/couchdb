@@ -10,7 +10,7 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik/v3/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestStats(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/v3/chttp"
+	"github.com/go-kivik/couchdb/v4/chttp"
 )
 
 func (c *client) ClusterStatus(ctx context.Context, opts map[string]interface{}) (string, error) {

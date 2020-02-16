@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/v3/chttp"
-	kivik "github.com/go-kivik/kivik/v3"
-	"github.com/go-kivik/kivik/v3/driver"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 // Changes returns the changes stream for the database.
