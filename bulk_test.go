@@ -12,8 +12,8 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	kivik "github.com/go-kivik/kivik/v3"
-	"github.com/go-kivik/kivik/v3/driver"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestBulkDocs(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	kivik "github.com/go-kivik/kivik/v3"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 // deJSONify unmarshals a string, []byte, or json.RawMessage. All other types

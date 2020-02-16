@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-kivik/kivik/v3/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type session struct {

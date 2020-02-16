@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/v3/chttp"
-	"github.com/go-kivik/kivik/v3/driver"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func (d *db) BulkGet(ctx context.Context, docs []driver.BulkGetReference, opts map[string]interface{}) (driver.Rows, error) {

@@ -18,7 +18,7 @@ import (
 	"sync"
 	"syscall"
 
-	kivik "github.com/go-kivik/kivik/v3"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 const (

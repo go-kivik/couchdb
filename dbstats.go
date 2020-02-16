@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/v3/chttp"
-	"github.com/go-kivik/kivik/v3/driver"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type dbStats struct {
