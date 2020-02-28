@@ -8,5 +8,6 @@ func RegisterCouchDBSuites() {
 	registerSuiteCouch21()
 	registerSuiteCouch22()
 	registerSuiteCouch23()
+	registerSuiteCouch30()
 	registerSuiteCloudant()
 }
