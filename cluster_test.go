@@ -28,7 +28,7 @@ func TestClusterStatus(t *testing.T) {
 	tests.Add("network error", tst{
 		client: newTestClient(nil, errors.New("network error")),
 		status: http.StatusBadGateway,
-		err:    "Get http://example.com/_cluster_setup: network error",
+		err:    `Get "?http://example.com/_cluster_setup"?: network error`,
 	})
 	tests.Add("finished", tst{
 		client: newTestClient(&http.Response{
@@ -62,7 +62,7 @@ func TestClusterStatus(t *testing.T) {
 			optionEnsureDBsExist: "foo,bar,baz",
 		},
 		status: http.StatusBadRequest,
-		err:    "Get http://example.com/_cluster_setup?ensure_dbs_exist=foo%2Cbar%2Cbaz: invalid character 'o' in literal false (expecting 'a')",
+		err:    `Get "?http://example.com/_cluster_setup\?ensure_dbs_exist=foo%2Cbar%2Cbaz"?: invalid character 'o' in literal false \(expecting 'a'\)`,
 	})
 	tests.Add("ensure dbs", func(t *testing.T) interface{} {
 		return tst{
@@ -96,7 +96,7 @@ func TestClusterStatus(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := test.client.ClusterStatus(context.Background(), test.options)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if result != test.expected {
 			t.Errorf("Unexpected result:\nExpected: %s\n  Actual: %s\n", test.expected, result)
 		}
@@ -114,13 +114,13 @@ func TestClusterSetup(t *testing.T) {
 	tests.Add("network error", tst{
 		client: newTestClient(nil, errors.New("network error")),
 		status: http.StatusBadGateway,
-		err:    "Post http://example.com/_cluster_setup: network error",
+		err:    `Post "?http://example.com/_cluster_setup"?: network error`,
 	})
 	tests.Add("invalid action", tst{
 		client: newTestClient(nil, nil),
 		action: func() {},
 		status: http.StatusBadRequest,
-		err:    "Post http://example.com/_cluster_setup: json: unsupported type: func()",
+		err:    `Post "?http://example.com/_cluster_setup"?: json: unsupported type: func()`,
 	})
 	tests.Add("success", func(t *testing.T) interface{} {
 		return tst{
@@ -170,6 +170,6 @@ func TestClusterSetup(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		err := test.client.ClusterSetup(context.Background(), test.action)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 	})
 }

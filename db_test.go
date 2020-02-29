@@ -27,25 +27,25 @@ import (
 func TestAllDocs(t *testing.T) {
 	db := newTestDB(nil, errors.New("test error"))
 	_, err := db.AllDocs(context.Background(), nil)
-	testy.Error(t, "Get http://example.com/testdb/_all_docs: test error", err)
+	testy.ErrorRE(t, `Get "?http://example.com/testdb/_all_docs"?: test error`, err)
 }
 
 func TestDesignDocs(t *testing.T) {
 	db := newTestDB(nil, errors.New("test error"))
 	_, err := db.DesignDocs(context.Background(), nil)
-	testy.Error(t, "Get http://example.com/testdb/_design_docs: test error", err)
+	testy.ErrorRE(t, `Get "?http://example.com/testdb/_design_docs"?: test error`, err)
 }
 
 func TestLocalDocs(t *testing.T) {
 	db := newTestDB(nil, errors.New("test error"))
 	_, err := db.LocalDocs(context.Background(), nil)
-	testy.Error(t, "Get http://example.com/testdb/_local_docs: test error", err)
+	testy.ErrorRE(t, `Get "?http://example.com/testdb/_local_docs"?: test error`, err)
 }
 
 func TestQuery(t *testing.T) {
 	db := newTestDB(nil, errors.New("test error"))
 	_, err := db.Query(context.Background(), "ddoc", "view", nil)
-	testy.Error(t, "Get http://example.com/testdb/_design/ddoc/_view/view: test error", err)
+	testy.ErrorRE(t, `Get "?http://example.com/testdb/_design/ddoc/_view/view"?: test error`, err)
 }
 
 type Attachment struct {
@@ -84,7 +84,7 @@ func TestGet(t *testing.T) {
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb/foo: net error",
+			err:    `Get "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "error response",
@@ -128,7 +128,7 @@ func TestGet(t *testing.T) {
 			id:      "foo",
 			options: map[string]interface{}{OptionIfNoneMatch: "foo"},
 			status:  http.StatusBadGateway,
-			err:     "Get http://example.com/testdb/foo: success",
+			err:     `Get "?http://example.com/testdb/foo"?: success`,
 		},
 		{
 			name:    "invalid If-None-Match value",
@@ -420,14 +420,14 @@ func TestCreateDoc(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("foo error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb: foo error",
+			err:    `Post "?http://example.com/testdb"?: foo error`,
 		},
 		{
 			name:   "invalid doc",
 			doc:    make(chan int),
 			db:     newTestDB(nil, errors.New("")),
 			status: http.StatusBadRequest,
-			err:    "Post http://example.com/testdb: json: unsupported type: chan int",
+			err:    `Post "?http://example.com/testdb"?: json: unsupported type: chan int`,
 		},
 		{
 			name: "error response",
@@ -475,7 +475,7 @@ func TestCreateDoc(t *testing.T) {
 			doc:     map[string]string{"foo": "bar"},
 			options: map[string]interface{}{"batch": "ok"},
 			status:  http.StatusBadGateway,
-			err:     "Post http://example.com/testdb?batch=ok: success",
+			err:     `^Post "?http://example.com/testdb\?batch=ok"?: success$`,
 		},
 		{
 			name: "full commit",
@@ -490,7 +490,7 @@ func TestCreateDoc(t *testing.T) {
 			}),
 			options: map[string]interface{}{OptionFullCommit: true},
 			status:  http.StatusBadGateway,
-			err:     "Post http://example.com/testdb: success",
+			err:     `Post "?http://example.com/testdb"?: success`,
 		},
 		{
 			name:    "invalid options",
@@ -510,7 +510,7 @@ func TestCreateDoc(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			id, rev, err := test.db.CreateDoc(context.Background(), test.doc, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
 			}
@@ -587,7 +587,7 @@ func TestCompact(t *testing.T) {
 			name:   "net error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_compact: net error",
+			err:    `Post "?http://example.com/testdb/_compact"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -612,7 +612,7 @@ func TestCompact(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.Compact(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -635,7 +635,7 @@ func TestCompactView(t *testing.T) {
 			db:     newTestDB(nil, errors.New("net error")),
 			id:     "foo",
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_compact/foo: net error",
+			err:    `Post "?http://example.com/testdb/_compact/foo"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -661,7 +661,7 @@ func TestCompactView(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.CompactView(context.Background(), test.id)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -677,7 +677,7 @@ func TestViewCleanup(t *testing.T) {
 			name:   "net error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_view_cleanup: net error",
+			err:    `Post "?http://example.com/testdb/_view_cleanup"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -702,7 +702,7 @@ func TestViewCleanup(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.ViewCleanup(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -730,7 +730,7 @@ func TestPut(t *testing.T) {
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Put http://example.com/testdb/foo: net error",
+			err:    `Put "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "error response",
@@ -761,7 +761,7 @@ func TestPut(t *testing.T) {
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusBadRequest,
-			err:    "Put http://example.com/testdb/foo: json: unsupported type: chan int",
+			err:    `Put "?http://example.com/testdb/foo"?: json: unsupported type: chan int`,
 		},
 		{
 			name: "doc created, 1.6.1",
@@ -797,7 +797,7 @@ func TestPut(t *testing.T) {
 			doc:     map[string]string{"foo": "bar"},
 			options: map[string]interface{}{OptionFullCommit: true},
 			status:  http.StatusBadGateway,
-			err:     "Put http://example.com/testdb/foo: success",
+			err:     `Put "?http://example.com/testdb/foo"?: success`,
 		},
 		{
 			name:    "invalid full commit",
@@ -823,7 +823,7 @@ func TestPut(t *testing.T) {
 			id:     "cow",
 			doc:    map[string]interface{}{"feet": 4},
 			status: http.StatusBadGateway,
-			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
+			err:    `Put "?http://127.0.0.1:1/animals/cow"?: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused`,
 		},
 		func() pTest {
 			db := realDB(t)
@@ -889,7 +889,7 @@ func TestDelete(t *testing.T) {
 			rev:    "1-xxx",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "(Delete http://example.com/testdb/foo?rev=: )?net error",
+			err:    `(Delete "?http://example.com/testdb/foo?rev="?: )?net error`,
 		},
 		{
 			name: "1.6.1 conflict",
@@ -1002,7 +1002,7 @@ func TestFlush(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_ensure_full_commit: net error",
+			err:    `Post "?http://example.com/testdb/_ensure_full_commit"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -1048,7 +1048,7 @@ func TestFlush(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.Flush(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -1083,7 +1083,7 @@ func TestRowsQuery(t *testing.T) {
 			path:   "_all_docs",
 			db:     newTestDB(nil, errors.New("go away")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb/_all_docs: go away",
+			err:    `Get "?http://example.com/testdb/_all_docs"?: go away`,
 		},
 		{
 			name: "error response",
@@ -1330,7 +1330,7 @@ func TestRowsQuery(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			rows, err := test.db.rowsQuery(context.Background(), test.path, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result := queryResult{
 				Rows: []driver.Row{},
 			}
@@ -1372,7 +1372,7 @@ func TestSecurity(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb/_security: net error",
+			err:    `Get "?http://example.com/testdb/_security"?: net error`,
 		},
 		{
 			name: "1.6.1 empty",
@@ -1412,7 +1412,7 @@ func TestSecurity(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Security(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -1432,7 +1432,7 @@ func TestSetSecurity(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Put http://example.com/testdb/_security: net error",
+			err:    `Put "?http://example.com/testdb/_security"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -1481,7 +1481,7 @@ func TestSetSecurity(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.SetSecurity(context.Background(), test.security)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -1507,7 +1507,7 @@ func TestGetMeta(t *testing.T) {
 			id:     "foo",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Head http://example.com/testdb/foo: net error",
+			err:    `Head "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -1535,7 +1535,7 @@ func TestGetMeta(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			size, rev, err := test.db.GetMeta(context.Background(), test.id, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if size != test.size {
 				t.Errorf("Got size %d, expected %d", size, test.size)
 			}
@@ -2308,7 +2308,7 @@ func TestRevsDiff(t *testing.T) {
 	tests.Add("net error", tt{
 		db:     newTestDB(nil, errors.New("net error")),
 		status: http.StatusBadGateway,
-		err:    "Post http://example.com/testdb/_revs_diff: net error",
+		err:    `Post "?http://example.com/testdb/_revs_diff"?: net error`,
 	})
 	tests.Add("success", tt{
 		db: newCustomDB(func(r *http.Request) (*http.Response, error) {
@@ -2355,7 +2355,7 @@ func TestRevsDiff(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
 		defer cancel()
 		rows, err := tt.db.RevsDiff(ctx, tt.revMap)
-		testy.StatusError(t, tt.err, tt.status, err)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
 		results := make(map[string]interface{})
 		drow := new(driver.Row)
 		for {

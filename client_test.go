@@ -24,7 +24,7 @@ func TestAllDBs(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_all_dbs: net error",
+			err:    `Get "?http://example.com/_all_dbs"?: net error`,
 		},
 		{
 			name: "2.0.0",
@@ -47,13 +47,13 @@ func TestAllDBs(t *testing.T) {
 			name:    "bad options",
 			options: map[string]interface{}{"foo": func() {}},
 			status:  http.StatusBadRequest,
-			err:     "kivik: invalid type func() for options",
+			err:     `kivik: invalid type func\(\) for options`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.AllDBs(context.Background(), test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -80,7 +80,7 @@ func TestDBExists(t *testing.T) {
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Head http://example.com/foo: net error",
+			err:    `Head "?http://example.com/foo"?: net error`,
 		},
 		{
 			name:   "not found, 1.6.1",
@@ -118,7 +118,7 @@ func TestDBExists(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			exists, err := test.client.DBExists(context.Background(), test.dbName, nil)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if exists != test.exists {
 				t.Errorf("Unexpected result: %t", exists)
 			}
@@ -145,7 +145,7 @@ func TestCreateDB(t *testing.T) {
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Put http://example.com/foo: net error",
+			err:    `Put "?http://example.com/foo"?: net error`,
 		},
 		{
 			name:   "conflict 1.6.1",
@@ -170,13 +170,13 @@ func TestCreateDB(t *testing.T) {
 			dbName:  "foo",
 			options: map[string]interface{}{"foo": func() {}},
 			status:  http.StatusBadRequest,
-			err:     "kivik: invalid type func() for options",
+			err:     `^kivik: invalid type func\(\) for options$`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.client.CreateDB(context.Background(), test.dbName, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -199,7 +199,7 @@ func TestDestroyDB(t *testing.T) {
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "(Delete http://example.com/foo: )?net error",
+			err:    `(Delete "?http://example.com/foo"?: )?net error`,
 		},
 		{
 			name:   "1.6.1",
@@ -236,7 +236,7 @@ func TestDBUpdates(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_db_updates?feed=continuous&since=now: net error",
+			err:    `Get "?http://example.com/_db_updates\?feed=continuous&since=now"?: net error`,
 		},
 		{
 			name: "error response",
@@ -265,7 +265,7 @@ func TestDBUpdates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.DBUpdates(context.TODO())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := result.(*couchUpdates); !ok {
 				t.Errorf("Unexpected type returned: %t", result)
 			}
@@ -366,14 +366,14 @@ func TestPing(t *testing.T) {
 			client:   newTestClient(nil, errors.New("network error")),
 			expected: false,
 			status:   http.StatusBadGateway,
-			err:      "Head http://example.com/_up: network error",
+			err:      `Head "?http://example.com/_up"?: network error`,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.Ping(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if result != test.expected {
 				t.Errorf("Unexpected result: %t", result)
 			}
