@@ -29,7 +29,7 @@ func TestSRUpdate(t *testing.T) {
 				db:       newTestDB(nil, errors.New("net error")),
 			},
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator/foo"?: net error`,
 		},
 		{
 			name: "real example",
@@ -58,7 +58,7 @@ func TestSRUpdate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var result driver.ReplicationInfo
 			err := test.rep.Update(context.Background(), &result)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, &result); d != nil {
 				t.Error(d)
 			}
@@ -128,7 +128,7 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_scheduler/docs: net error",
+			err:    `^Get "?http://example\.com/_scheduler/docs"?: net error$`,
 		},
 		{
 			name:    "invalid options",
@@ -190,7 +190,7 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reps, err := test.client.getReplicationsFromScheduler(context.Background(), test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result := make([]*schedulerReplication, len(reps))
 			for i, rep := range reps {
 				result[i] = rep.(*schedulerReplication)
@@ -217,7 +217,7 @@ func TestSchedulerReplicationDelete(t *testing.T) {
 				db:    newTestDB(nil, errors.New("net error")),
 			},
 			status: http.StatusBadGateway,
-			err:    "Head http://example.com/testdb/foo: net error",
+			err:    `Head "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "DELETE network error",
@@ -237,7 +237,7 @@ func TestSchedulerReplicationDelete(t *testing.T) {
 				}),
 			},
 			status: http.StatusBadGateway,
-			err:    "(Delete http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92: )?net error",
+			err:    `(Delete "?http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92"?: )?net error`,
 		},
 		{
 			name: "success",
@@ -413,7 +413,7 @@ func TestSchedulerSupported(t *testing.T) {
 			client:        newTestClient(nil, errors.New("net error")),
 			expectedState: nil,
 			status:        http.StatusBadGateway,
-			err:           "Head http://example.com/_scheduler/jobs: net error",
+			err:           `Head "?http://example.com/_scheduler/jobs"?: net error`,
 		},
 		{
 			name: "Unexpected response code",
@@ -432,7 +432,7 @@ func TestSchedulerSupported(t *testing.T) {
 			if d := testy.DiffInterface(test.expectedState, test.client.schedulerDetected); d != nil {
 				t.Error(d)
 			}
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if result != test.expected {
 				t.Errorf("Unexpected result: %v", result)
 			}
@@ -456,7 +456,7 @@ func TestSRinnerUpdate(t *testing.T) {
 				db:       newTestDB(nil, errors.New("net error")),
 			},
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator/foo"?: net error`,
 		},
 		{
 			name: "2.1.1 500 bug",
@@ -581,7 +581,7 @@ func TestSRinnerUpdate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.r.update(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			test.r.db = nil
 			if d := testy.DiffInterface(test.expected, test.r); d != nil {
 				t.Error(d)
@@ -603,7 +603,7 @@ func TestFetchSchedulerReplication(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_scheduler/docs/_replicator/: net error",
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator/"?: net error`,
 		},
 		{
 			name: "loop wait",
@@ -644,7 +644,7 @@ func TestFetchSchedulerReplication(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.fetchSchedulerReplication(context.Background(), test.docID)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result.db = nil
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
