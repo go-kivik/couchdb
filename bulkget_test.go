@@ -35,7 +35,7 @@ func TestBulkGet(t *testing.T) {
 			client: newTestClient(nil, errors.New("random network error")),
 		},
 		status: http.StatusBadGateway,
-		err:    "Post http://example.com/_bulk_get: random network error",
+		err:    `^Post "?http://example.com/_bulk_get"?: random network error$`,
 	})
 	tests.Add("valid document", tst{
 		db: &db{
@@ -137,7 +137,7 @@ func TestBulkGet(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		rows, err := test.db.BulkGet(context.Background(), test.docs, test.options)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 
 		row := new(driver.Row)
 		err = rows.Next(row)

@@ -38,14 +38,14 @@ func TestChanges(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb/_changes: net error",
+			err:    `Get "?http://example.com/testdb/_changes"?: net error`,
 		},
 		{
 			name:    "continuous",
 			db:      newTestDB(nil, errors.New("net error")),
 			options: map[string]interface{}{"feed": "continuous"},
 			status:  http.StatusBadGateway,
-			err:     "Get http://example.com/testdb/_changes?feed=continuous: net error",
+			err:     `Get "?http://example.com/testdb/_changes\?feed=continuous"?: net error`,
 		},
 		{
 			name: "error response",
@@ -80,7 +80,7 @@ func TestChanges(t *testing.T) {
 			if ch != nil {
 				defer ch.Close()
 			}
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if etag := ch.ETag(); etag != test.etag {
 				t.Errorf("Unexpected ETag: %s", etag)
 			}

@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 			dsn:        "http://foo.com/%xx",
 			status:     http.StatusBadRequest,
 			curlStatus: ExitStatusURLMalformed,
-			err:        `parse http://foo.com/%xx: invalid URL escape "%xx"`,
+			err:        `parse "?http://foo.com/%xx"?: invalid URL escape "%xx"`,
 		},
 		{
 			name:       "no url",
@@ -496,7 +496,7 @@ func TestDoJSON(t *testing.T) {
 			method: "GET",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com: net error",
+			err:    `Get "?http://example.com"?: net error`,
 		},
 		{
 			name:   "error response",
@@ -558,7 +558,7 @@ func TestDoJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var i interface{}
 			response, err := test.client.DoJSON(context.Background(), test.method, test.path, test.opts, &i)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, i); d != nil {
 				t.Errorf("JSON result differs:\n%s\n", d)
 			}
@@ -588,7 +588,7 @@ func TestNewRequest(t *testing.T) {
 			path:       "%xx",
 			status:     http.StatusBadRequest,
 			curlStatus: ExitStatusURLMalformed,
-			err:        `parse %xx: invalid URL escape "%xx"`,
+			err:        `parse "?%xx"?: invalid URL escape "%xx"`,
 		},
 		{
 			name:       "invalid method",
@@ -655,7 +655,7 @@ func TestDoReq(t *testing.T) {
 			client:     newTestClient(nil, nil),
 			status:     http.StatusBadRequest,
 			curlStatus: ExitStatusURLMalformed,
-			err:        `parse %xx: invalid URL escape "%xx"`,
+			err:        `parse "?%xx"?: invalid URL escape "%xx"`,
 		},
 		{
 			name:   "network error",
@@ -663,7 +663,7 @@ func TestDoReq(t *testing.T) {
 			path:   "foo",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/foo: net error",
+			err:    `Get "?http://example.com/foo"?: net error`,
 		},
 		{
 			name:   "error response",
@@ -691,7 +691,7 @@ func TestDoReq(t *testing.T) {
 			path:   "foo",
 			client: newTestClient(nil, errors.Status(http.StatusBadRequest, "bad request")),
 			status: http.StatusBadRequest,
-			err:    "Put http://example.com/foo: bad request",
+			err:    `Put "?http://example.com/foo"?: bad request`,
 		},
 		{
 			name: "response trace",
@@ -910,7 +910,7 @@ func TestNetError(t *testing.T) {
 			}(),
 			status:     http.StatusBadGateway,
 			curlStatus: ExitOperationTimeout,
-			err:        `Get http://127.0.0.1:\d+: context deadline exceeded`,
+			err:        `Get "?http://127.0.0.1:\d+"?: context deadline exceeded`,
 		},
 		{
 			name: "cannot resolve host",
@@ -953,7 +953,7 @@ func TestNetError(t *testing.T) {
 			}(),
 			status:     http.StatusBadGateway,
 			curlStatus: ExitTooManyRedirects,
-			err:        `^Get http://127.0.0.1:\d+: stopped after 10 redirects$`,
+			err:        `^Get "?http://127.0.0.1:\d+"?: stopped after 10 redirects$`,
 		},
 		{
 			name: "url error",
@@ -964,7 +964,7 @@ func TestNetError(t *testing.T) {
 			},
 			status: http.StatusBadGateway,
 			// curlStatus: ExitStatusURLMalformed,
-			err: "Get http://foo.com/: some error",
+			err: `Get "?http://foo.com/"?: some error`,
 		},
 		{
 			name: "url error with embedded status",
@@ -974,7 +974,7 @@ func TestNetError(t *testing.T) {
 				Err: errors.Status(http.StatusBadRequest, "some error"),
 			},
 			status: http.StatusBadRequest,
-			err:    "Get http://foo.com/: some error",
+			err:    `Get "?http://foo.com/"?: some error`,
 		},
 		{
 			name:       "other error",

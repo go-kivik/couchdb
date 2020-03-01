@@ -27,13 +27,13 @@ func TestConfig(t *testing.T) {
 		client: newTestClient(nil, errors.New("net error")),
 		node:   "local",
 		status: http.StatusBadGateway,
-		err:    "Get http://example.com/_node/local/_config: net error",
+		err:    `^Get "?http://example.com/_node/local/_config"?: net error$`,
 	})
 	tests.Add("Couch 1.x path", tst{
 		client: newTestClient(nil, errors.New("net error")),
 		node:   Couch1ConfigNode,
 		status: http.StatusBadGateway,
-		err:    "Get http://example.com/_config: net error",
+		err:    `^Get "?http://example.com/_config"?: net error$`,
 	})
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
@@ -48,7 +48,7 @@ func TestConfig(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := test.client.Config(context.Background(), test.node)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}
@@ -69,14 +69,14 @@ func TestConfigSection(t *testing.T) {
 		node:    "local",
 		section: "foo",
 		status:  http.StatusBadGateway,
-		err:     "Get http://example.com/_node/local/_config/foo: net error",
+		err:     `^Get "?http://example.com/_node/local/_config/foo"?: net error$`,
 	})
 	tests.Add("Couch 1.x path", tst{
 		client:  newTestClient(nil, errors.New("net error")),
 		node:    Couch1ConfigNode,
 		section: "foo",
 		status:  http.StatusBadGateway,
-		err:     "Get http://example.com/_config/foo: net error",
+		err:     `^Get "?http://example.com/_config/foo"?: net error$`,
 	})
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
@@ -90,7 +90,7 @@ func TestConfigSection(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := test.client.ConfigSection(context.Background(), test.node, test.section)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}
@@ -112,7 +112,7 @@ func TestConfigValue(t *testing.T) {
 		section: "foo",
 		key:     "tre",
 		status:  http.StatusBadGateway,
-		err:     "Get http://example.com/_node/local/_config/foo/tre: net error",
+		err:     `Get "?http://example.com/_node/local/_config/foo/tre"?: net error`,
 	})
 	tests.Add("Couch 1.x path", tst{
 		client:  newTestClient(nil, errors.New("net error")),
@@ -120,7 +120,7 @@ func TestConfigValue(t *testing.T) {
 		section: "foo",
 		key:     "bar",
 		status:  http.StatusBadGateway,
-		err:     "Get http://example.com/_config/foo/bar: net error",
+		err:     `Get "?http://example.com/_config/foo/bar"?: net error`,
 	})
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
@@ -135,7 +135,7 @@ func TestConfigValue(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := test.client.ConfigValue(context.Background(), test.node, test.section, test.key)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}
@@ -157,7 +157,7 @@ func TestSetConfigValue(t *testing.T) {
 		section: "foo",
 		key:     "bar",
 		status:  http.StatusBadGateway,
-		err:     "Put http://example.com/_node/local/_config/foo/bar: net error",
+		err:     `Put "?http://example.com/_node/local/_config/foo/bar"?: net error`,
 	})
 	tests.Add("Couch 1.x path", tst{
 		client:  newTestClient(nil, errors.New("net error")),
@@ -165,7 +165,7 @@ func TestSetConfigValue(t *testing.T) {
 		section: "foo",
 		key:     "bar",
 		status:  http.StatusBadGateway,
-		err:     "Put http://example.com/_config/foo/bar: net error",
+		err:     `^Put "?http://example.com/_config/foo/bar"?: net error$`,
 	})
 	tests.Add("success", tst{
 		client: newCustomClient(func(r *http.Request) (*http.Response, error) {
@@ -192,7 +192,7 @@ func TestSetConfigValue(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := test.client.SetConfigValue(context.Background(), test.node, test.section, test.key, test.value)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}
@@ -214,7 +214,7 @@ func TestDeleteConfigKey(t *testing.T) {
 		section: "foo",
 		key:     "bar",
 		status:  http.StatusBadGateway,
-		err:     "Delete http://example.com/_node/local/_config/foo/bar: net error",
+		err:     `Delete "?http://example.com/_node/local/_config/foo/bar"?: net error`,
 	})
 	tests.Add("Couch 1.x path", tst{
 		client:  newTestClient(nil, errors.New("net error")),
@@ -222,7 +222,7 @@ func TestDeleteConfigKey(t *testing.T) {
 		section: "foo",
 		key:     "bar",
 		status:  http.StatusBadGateway,
-		err:     "Delete http://example.com/_config/foo/bar: net error",
+		err:     `Delete "?http://example.com/_config/foo/bar"?: net error`,
 	})
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
@@ -237,7 +237,7 @@ func TestDeleteConfigKey(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := test.client.DeleteConfigKey(context.Background(), test.node, test.section, test.key)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 		if d := testy.DiffInterface(test.expected, result); d != nil {
 			t.Error(d)
 		}

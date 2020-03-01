@@ -14,12 +14,12 @@ github.com/go-kivik/kivik/v3 v3.0.0-pre1 h1:9LMdKntRidwO/sou+ICYhAm/u6BvLyRlut2k
 github.com/go-kivik/kivik/v3 v3.0.0-pre1/go.mod h1:+4F5AG/l5+s1DKAu/SVREvNFa/ffVpwlG32gXB8yUng=
 github.com/go-kivik/kivik/v4 v4.0.0-20200214160900-846fe547c809 h1:tHMOmNuZ5G9p7lx0ogfEaaG/RIkVeuKEriFX4llWTEQ=
 github.com/go-kivik/kivik/v4 v4.0.0-20200214160900-846fe547c809/go.mod h1:yZnDIahvQZWysqlj1PZ3xS3uAldJ7LnAeBnCI7i/r20=
+github.com/go-kivik/kivik/v4 v4.0.0-20200301210331-2becb1a4e42e h1:ofOWDtTlIugaY4CIA3rziHah5jr2phzGedP0f/Ykfnk=
+github.com/go-kivik/kivik/v4 v4.0.0-20200301210331-2becb1a4e42e/go.mod h1:O2fxy5xMXO7vaVr2gQG38sYTj/mHwg5Md/8kP7qUZQk=
 github.com/go-kivik/kiviktest v2.0.0+incompatible h1:y1RyPHqWQr+eFlevD30Tr3ipiPCxK78vRoD3o9YysjI=
 github.com/go-kivik/kiviktest v2.0.0+incompatible/go.mod h1:JdhVyzixoYhoIDUt6hRf1yAfYyaDa5/u9SDOindDkfQ=
 github.com/go-kivik/kiviktest/v3 v3.0.0-pre1 h1:OysIzVnRMXBQlr5aSfxasDNDOI//NP/ODBo+jAwJGAE=
 github.com/go-kivik/kiviktest/v3 v3.0.0-pre1/go.mod h1:K7mIkVapQ/isL2pUlQpRcBSTzvrHFImmLS/xgHdKcak=
-github.com/go-kivik/kiviktest/v4 v4.0.0-20200214165217-a51629876bec h1:tFjt3ujLvg6JW5O45bfdWYATfyEczD3/PVs/VNVjvxY=
-github.com/go-kivik/kiviktest/v4 v4.0.0-20200214165217-a51629876bec/go.mod h1:O1RstYmiM4JgH4MMLMlg8yICQLbJR1wA8pb07mhbb78=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20200228145622-419614d175fb h1:W4qf6SsDQbB8anyQ+Ti8YhX2//P5w6YxbdFZCGgek1k=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20200228145622-419614d175fb/go.mod h1:O1RstYmiM4JgH4MMLMlg8yICQLbJR1wA8pb07mhbb78=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
@@ -43,8 +43,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 gitlab.com/flimzy/testy v0.0.0-20190816103046-aca1ef5ffe7e/go.mod h1:MQwjgAyueIbBZv+qSYAMs6LaZwsJysPs0BK/niv9JiI=
-gitlab.com/flimzy/testy v0.0.2 h1:wii65HpZEbstqGT44+msiwzrX7SaxqNXj0BFjJc9iUY=
-gitlab.com/flimzy/testy v0.0.2/go.mod h1:YObF4cq711ubd/3U0ydRQQVz7Cnq/ChgJpVwNr/AJac=
+gitlab.com/flimzy/testy v0.0.3 h1:UkCz4aDa52cUX6uwvuVrwlTFZC1AesU5W6grDUcVFlg=
+gitlab.com/flimzy/testy v0.0.3/go.mod h1:YObF4cq711ubd/3U0ydRQQVz7Cnq/ChgJpVwNr/AJac=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20200202094626-16171245cfb2 h1:CCH4IOTTfewWjGOlSp+zGcjutRKlBEZQ6wTn8ozI/nI=
 golang.org/x/net v0.0.0-20200202094626-16171245cfb2/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=

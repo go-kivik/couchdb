@@ -25,7 +25,7 @@ func TestNewClient(t *testing.T) {
 			name:   "invalid url",
 			dsn:    "foo.com/%xxx",
 			status: http.StatusBadRequest,
-			err:    `parse http://foo.com/%xxx: invalid URL escape "%xx"`,
+			err:    `parse "?http://foo.com/%xxx"?: invalid URL escape "%xx"`,
 		},
 		{
 			name: "success",
@@ -54,7 +54,7 @@ func TestNewClient(t *testing.T) {
 				driver = &Couch{}
 			}
 			result, err := driver.NewClient(test.dsn)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			client, ok := result.(*client)
 			if !ok {
 				t.Errorf("Unexpected type returned: %t", result)

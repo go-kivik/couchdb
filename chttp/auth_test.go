@@ -113,7 +113,7 @@ func TestAuthenticate(t *testing.T) {
 	tests.Add("failed cookie auth", authTest{
 		addr:   s.URL,
 		auther: &CookieAuth{Username: "foo"}, // nolint: misspell
-		err:    "Get " + s.URL + "/foo: Unauthorized",
+		err:    `Get "?` + s.URL + `/foo"?: Unauthorized`,
 		status: http.StatusUnauthorized,
 	})
 	tests.Add("already authenticated with cookie", func() interface{} {
@@ -148,6 +148,6 @@ func TestAuthenticate(t *testing.T) {
 			testy.StatusError(t, test.authErr, test.authStatus, e)
 		}
 		_, err = c.DoError(ctx, "GET", "/foo", nil)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 	})
 }
