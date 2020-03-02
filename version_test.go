@@ -26,7 +26,7 @@ func TestVersion2(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/: net error",
+			err:    `Get "?http://example.com/"?: net error`,
 		},
 		{
 			name: "invalid JSON response",

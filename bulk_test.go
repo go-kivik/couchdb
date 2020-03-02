@@ -29,7 +29,7 @@ func TestBulkDocs(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_bulk_docs: net error",
+			err:    `Post "?http://example.com/testdb/_bulk_docs"?: net error`,
 		},
 		{
 			name: "JSON encoding error",
@@ -39,7 +39,7 @@ func TestBulkDocs(t *testing.T) {
 			}, nil),
 			docs:   []interface{}{make(chan int)},
 			status: http.StatusBadRequest,
-			err:    "Post http://example.com/testdb/_bulk_docs: json: unsupported type: chan int",
+			err:    `Post "?http://example.com/testdb/_bulk_docs"?: json: unsupported type: chan int`,
 		},
 		{
 			name: "docs rejected",
@@ -131,7 +131,7 @@ func TestBulkDocs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.db.BulkDocs(context.Background(), test.docs, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }

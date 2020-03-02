@@ -25,7 +25,7 @@ func TestStats(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb: net error",
+			err:    `Get "?http://example.com/testdb"?: net error`,
 		},
 		{
 			name: "read error",
@@ -144,7 +144,7 @@ func TestStats(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Stats(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -166,7 +166,7 @@ func TestDbsStats(t *testing.T) {
 			client:  newTestClient(nil, errors.New("net error")),
 			dbnames: []string{"foo", "bar"},
 			status:  http.StatusBadGateway,
-			err:     "Post http://example.com/_dbs_info: net error",
+			err:     `Post "?http://example.com/_dbs_info"?: net error`,
 		},
 		{
 			name: "read error",
@@ -259,7 +259,7 @@ func TestDbsStats(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.DBsStats(context.Background(), test.dbnames)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}

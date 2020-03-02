@@ -94,7 +94,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			status: http.StatusBadGateway,
-			err:    "Put http://example.com/testdb/foo/x.jpg\\?rev=1-xxx: net error",
+			err:    `Put "?http://example.com/testdb/foo/x.jpg\?rev=1-xxx"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -153,7 +153,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			status: http.StatusBadGateway,
-			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
+			err:    `Put "?http://example.com/testdb/foo/foo.txt"?: ignore this error`,
 		},
 		{
 			name: "with options",
@@ -281,7 +281,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
 			status:   http.StatusBadGateway,
-			err:      "Head http://example.com/testdb/foo/foo.txt: net error",
+			err:      `^Head "?http://example.com/testdb/foo/foo.txt"?: net error$`,
 		},
 		{
 			name:     "1.6.1",
@@ -310,7 +310,7 @@ func TestGetAttachmentMeta(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.filename, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
@@ -376,7 +376,7 @@ func TestGetAttachment(t *testing.T) {
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
 			status:   http.StatusBadGateway,
-			err:      "Get http://example.com/testdb/foo/foo.txt: net error",
+			err:      `Get "?http://example.com/testdb/foo/foo.txt"?: net error`,
 		},
 		{
 			name:     "1.6.1",
@@ -407,7 +407,7 @@ func TestGetAttachment(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			att, err := test.db.GetAttachment(context.Background(), test.id, test.filename, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			fileContent, err := ioutil.ReadAll(att.Content)
 			if err != nil {
 				t.Fatal(err)
@@ -460,7 +460,7 @@ func TestFetchAttachment(t *testing.T) {
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("ignore this error")),
 			status:   http.StatusBadGateway,
-			err:      "http://example.com/testdb/foo/foo.txt:",
+			err:      "http://example.com/testdb/foo/foo.txt",
 		},
 		{
 			name:     "success",
@@ -630,7 +630,7 @@ func TestDeleteAttachment(t *testing.T) {
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
 			status:   http.StatusBadGateway,
-			err:      "(Delete http://example.com/testdb/foo/foo.txt\\?rev=1-xxx: )?net error",
+			err:      `(Delete "?http://example.com/testdb/foo/foo.txt\\?rev=1-xxx"?: )?net error`,
 		},
 		{
 			name:     "success 1.6.1",

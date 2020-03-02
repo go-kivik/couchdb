@@ -29,13 +29,13 @@ func TestExplain(t *testing.T) {
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
 			status: http.StatusBadRequest,
-			err:    "Post http://example.com/testdb/_explain: json: unsupported type: chan int",
+			err:    `Post "?http://example.com/testdb/_explain"?: json: unsupported type: chan int`,
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_explain: net error",
+			err:    `Post "?http://example.com/testdb/_explain"?: net error`,
 		},
 		{
 			name: "error response",
@@ -70,13 +70,13 @@ func TestExplain(t *testing.T) {
 			}),
 			query:  []byte(`{"_id":"foo"}`),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_explain: success",
+			err:    `Post "?http://example.com/testdb/_explain"?: success`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Explain(context.Background(), test.query)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -152,13 +152,13 @@ func TestCreateIndex(t *testing.T) {
 			db:     newTestDB(nil, nil),
 			index:  map[string]interface{}{"foo": make(chan int)},
 			status: http.StatusBadRequest,
-			err:    "Post http://example.com/testdb/_index: json: unsupported type: chan int",
+			err:    `Post "?http://example.com/testdb/_index"?: json: unsupported type: chan int`,
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_index: net error",
+			err:    `Post "?http://example.com/testdb/_index"?: net error`,
 		},
 		{
 			name: "success 2.1.0",
@@ -180,7 +180,7 @@ func TestCreateIndex(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.CreateIndex(context.Background(), test.ddoc, test.indexName, test.index)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -197,7 +197,7 @@ func TestGetIndexes(t *testing.T) {
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb/_index: net error",
+			err:    `Get "?http://example.com/testdb/_index"?: net error`,
 		},
 		{
 			name: "2.1.0",
@@ -239,7 +239,7 @@ func TestGetIndexes(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.GetIndexes(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -274,7 +274,7 @@ func TestDeleteIndex(t *testing.T) {
 			indexName: "bar",
 			db:        newTestDB(nil, errors.New("net error")),
 			status:    http.StatusBadGateway,
-			err:       "^(Delete http://example.com/testdb/_index/foo/json/bar: )?net error",
+			err:       `^(Delete "?http://example.com/testdb/_index/foo/json/bar"?: )?net error`,
 		},
 		{
 			name:      "2.1.0 success",
@@ -316,13 +316,13 @@ func TestFind(t *testing.T) {
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
 			status: http.StatusBadRequest,
-			err:    "Post http://example.com/testdb/_find: json: unsupported type: chan int",
+			err:    `Post "?http://example.com/testdb/_find"?: json: unsupported type: chan int`,
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/testdb/_find: net error",
+			err:    `Post "?http://example.com/testdb/_find"?: net error`,
 		},
 		{
 			name: "error response",
@@ -368,7 +368,7 @@ func TestFind(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Find(context.Background(), test.query)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := result.(*rows); !ok {
 				t.Errorf("Unexpected type returned: %t", result)
 			}

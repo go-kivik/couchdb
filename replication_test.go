@@ -154,19 +154,19 @@ func TestReplicate(t *testing.T) {
 			target: "foo", source: "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
 			status:  http.StatusBadRequest,
-			err:     "Post http://example.com/_replicator: json: unsupported type: chan int",
+			err:     `^Post "?http://example.com/_replicator"?: json: unsupported type: chan int$`,
 		},
 		{
 			name:   "network error",
 			target: "foo", source: "bar",
 			client: func() *client {
-				client := newTestClient(nil, errors.New("net eror"))
+				client := newTestClient(nil, errors.New("net error"))
 				b := false
 				client.schedulerDetected = &b
 				return client
 			}(),
 			status: http.StatusBadGateway,
-			err:    "Post http://example.com/_replicator: net eror",
+			err:    `Post "?http://example.com/_replicator"?: net error`,
 		},
 		{
 			name:   "1.6.1",
@@ -239,13 +239,13 @@ func TestReplicate(t *testing.T) {
 			target: "foo", source: "bar",
 			client: newTestClient(nil, errors.New("sched err")),
 			status: http.StatusBadGateway,
-			err:    "Head http://example.com/_scheduler/jobs: sched err",
+			err:    `Head "?http://example.com/_scheduler/jobs"?: sched err`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := test.client.Replicate(context.Background(), test.target, test.source, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := resp.(*replication); ok {
 				return
 			}
@@ -276,7 +276,7 @@ func TestLegacyGetReplications(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_replicator/_all_docs?include_docs=true: net error",
+			err:    `^Get "?http://example.com/_replicator/_all_docs\?include_docs=true"?: net error$`,
 		},
 		{
 			name: "success, 1.6.1",
@@ -311,7 +311,7 @@ func TestLegacyGetReplications(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reps, err := test.client.legacyGetReplications(context.Background(), test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result := make([]*replication, len(reps))
 			for i, rep := range reps {
 				result[i] = rep.(*replication)
@@ -335,7 +335,7 @@ func TestGetReplications(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    "Head http://example.com/_scheduler/jobs: net error",
+			err:    `Head "?http://example.com/_scheduler/jobs"?: net error`,
 		},
 		{
 			name: "no scheduler",
@@ -381,7 +381,7 @@ func TestGetReplications(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.client.GetReplications(context.Background(), nil)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -401,7 +401,7 @@ func TestReplicationUpdate(t *testing.T) {
 				db:    newTestDB(nil, errors.New("net error")),
 			},
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d: net error",
+			err:    `Get "?http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d"?: net error`,
 		},
 		{
 			name: "no active reps 1.6.1",
@@ -446,7 +446,7 @@ func TestReplicationUpdate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result := new(driver.ReplicationInfo)
 			err := test.rep.Update(context.Background(), result)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
@@ -468,7 +468,7 @@ func TestReplicationDelete(t *testing.T) {
 				db:    newTestDB(nil, errors.New("net error")),
 			},
 			status: http.StatusBadGateway,
-			err:    "Head http://example.com/testdb/foo: net error",
+			err:    `Head "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "delete network error",
@@ -493,7 +493,7 @@ func TestReplicationDelete(t *testing.T) {
 				}),
 			},
 			status: http.StatusBadGateway,
-			err:    "^(Delete http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\\?rev=2-6419706e969050d8000efad07259de4f: )?delete error",
+			err:    `^(Delete "?http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\?rev=2-6419706e969050d8000efad07259de4f"?: )?delete error`,
 		},
 		{
 			name: "success, 1.6.1",
@@ -552,7 +552,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 				db: newTestDB(nil, errors.New("net error")),
 			},
 			status: http.StatusBadGateway,
-			err:    "Get http://example.com/_active_tasks: net error",
+			err:    `Get "?http://example.com/_active_tasks"?: net error`,
 		},
 		{
 			name: "error response",
@@ -612,7 +612,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.rep.updateActiveTasks(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
