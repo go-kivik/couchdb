@@ -266,3 +266,73 @@ func TestDbsStats(t *testing.T) {
 		})
 	}
 }
+
+func TestPartitionStats(t *testing.T) {
+	type tt struct {
+		db     *db
+		name   string
+		status int
+		err    string
+	}
+
+	tests := testy.NewTable()
+	tests.Add("network error", tt{
+		db:     newTestDB(nil, errors.New("net error")),
+		name:   "partXX",
+		status: http.StatusBadGateway,
+		err:    `Get "?http://example.com/testdb/_partition/partXX"?: net error`,
+	})
+	tests.Add("read error", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Body: &mockReadCloser{
+				ReadFunc: func(_ []byte) (int, error) {
+					return 0, errors.New("read error")
+				},
+				CloseFunc: func() error { return nil },
+			},
+		}, nil),
+		status: http.StatusBadGateway,
+		err:    "read error",
+	})
+	tests.Add("invalid JSON response", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Body:       ioutil.NopCloser(strings.NewReader(`invalid json`)),
+		}, nil),
+		status: http.StatusBadGateway,
+		err:    "invalid character 'i' looking for beginning of value",
+	})
+	tests.Add("error response", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       ioutil.NopCloser(strings.NewReader("")),
+		}, nil),
+		status: http.StatusBadRequest,
+		err:    "Bad Request",
+	})
+	tests.Add("3.0.0-pre", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Server":              {"CouchDB/2.3.0-a1e11cea9 (Erlang OTP/21)"},
+				"Date":                {"Thu, 24 Jan 2019 17:19:59 GMT"},
+				"Content-Type":        {"application/json"},
+				"Content-Length":      {"119"},
+				"Cache-Control":       {"must-revalidate"},
+				"X-Couch-Request-ID":  {"2486f27546"},
+				"X-CouchDB-Body-Time": {"0"},
+			},
+			Body: ioutil.NopCloser(strings.NewReader(`{"db_name":"my_new_db","doc_count":1,"doc_del_count":0,"partition":"sensor-260","sizes":{"active":244,"external":347}}
+`)),
+		}, nil),
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		result, err := tt.db.PartitionStats(context.Background(), tt.name)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+		if d := testy.DiffInterface(testy.Snapshot(t), result); d != nil {
+			t.Error(d)
+		}
+	})
+}
