@@ -20,6 +20,7 @@ func TestExplain(t *testing.T) {
 		name     string
 		db       *db
 		query    interface{}
+		opts     map[string]interface{}
 		expected *driver.QueryPlan
 		status   int
 		err      string
@@ -72,10 +73,19 @@ func TestExplain(t *testing.T) {
 			status: http.StatusBadGateway,
 			err:    `Post "?http://example.com/testdb/_explain"?: success`,
 		},
+		{
+			name: "partitioned request",
+			db:   newTestDB(nil, errors.New("expected")),
+			opts: map[string]interface{}{
+				OptionPartition: "x1",
+			},
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_partition/x1/_explain"?: expected`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.db.Explain(context.Background(), test.query)
+			result, err := test.db.Explain(context.Background(), test.query, test.opts)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
@@ -136,6 +146,7 @@ func TestCreateIndex(t *testing.T) {
 		name            string
 		ddoc, indexName string
 		index           interface{}
+		options         map[string]interface{}
 		db              *db
 		status          int
 		err             string
@@ -176,10 +187,19 @@ func TestCreateIndex(t *testing.T) {
 				Body: Body(`{"result":"created","id":"_design/a7ee061f1a2c0c6882258b2f1e148b714e79ccea","name":"a7ee061f1a2c0c6882258b2f1e148b714e79ccea"}`),
 			}, nil),
 		},
+		{
+			name: "partitioned query",
+			db:   newTestDB(nil, errors.New("expected")),
+			options: map[string]interface{}{
+				OptionPartition: "xxy",
+			},
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_partition/xxy/_index"?: expected`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.db.CreateIndex(context.Background(), test.ddoc, test.indexName, test.index)
+			err := test.db.CreateIndex(context.Background(), test.ddoc, test.indexName, test.index, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
@@ -188,6 +208,7 @@ func TestCreateIndex(t *testing.T) {
 func TestGetIndexes(t *testing.T) {
 	tests := []struct {
 		name     string
+		options  map[string]interface{}
 		db       *db
 		expected []driver.Index
 		status   int
@@ -235,10 +256,19 @@ func TestGetIndexes(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "partitioned query",
+			db:   newTestDB(nil, errors.New("expected")),
+			options: map[string]interface{}{
+				OptionPartition: "yyz",
+			},
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/testdb/_partition/yyz/_index"?: expected`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.db.GetIndexes(context.Background())
+			result, err := test.db.GetIndexes(context.Background(), test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
@@ -251,6 +281,7 @@ func TestDeleteIndex(t *testing.T) {
 	tests := []struct {
 		name            string
 		ddoc, indexName string
+		options         map[string]interface{}
 		db              *db
 		status          int
 		err             string
@@ -294,10 +325,21 @@ func TestDeleteIndex(t *testing.T) {
 				Body: Body(`{"ok":true}`),
 			}, nil),
 		},
+		{
+			name:      "partitioned query",
+			ddoc:      "_design/foo",
+			indexName: "bar",
+			db:        newTestDB(nil, errors.New("expected")),
+			options: map[string]interface{}{
+				OptionPartition: "qqz",
+			},
+			status: http.StatusBadGateway,
+			err:    `Delete "?http://example.com/testdb/_partition/qqz/_index/_design/foo/json/bar"?: expected`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.db.DeleteIndex(context.Background(), test.ddoc, test.indexName)
+			err := test.db.DeleteIndex(context.Background(), test.ddoc, test.indexName, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
@@ -308,6 +350,7 @@ func TestFind(t *testing.T) {
 		name   string
 		db     *db
 		query  interface{}
+		opts   map[string]interface{}
 		status int
 		err    string
 	}{
@@ -364,10 +407,19 @@ func TestFind(t *testing.T) {
 ]}`),
 			}, nil),
 		},
+		{
+			name: "partitioned request",
+			db:   newTestDB(nil, errors.New("expected")),
+			opts: map[string]interface{}{
+				OptionPartition: "x2",
+			},
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_partition/x2/_find"?: expected`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.db.Find(context.Background(), test.query)
+			result, err := test.db.Find(context.Background(), test.query, test.opts)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := result.(*rows); !ok {
 				t.Errorf("Unexpected type returned: %t", result)

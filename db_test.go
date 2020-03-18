@@ -25,9 +25,19 @@ import (
 )
 
 func TestAllDocs(t *testing.T) {
-	db := newTestDB(nil, errors.New("test error"))
-	_, err := db.AllDocs(context.Background(), nil)
-	testy.ErrorRE(t, `Get "?http://example.com/testdb/_all_docs"?: test error`, err)
+	t.Run("standard", func(t *testing.T) {
+		db := newTestDB(nil, errors.New("test error"))
+		_, err := db.AllDocs(context.Background(), nil)
+		testy.ErrorRE(t, `Get "?http://example.com/testdb/_all_docs"?: test error`, err)
+	})
+
+	t.Run("partitioned", func(t *testing.T) {
+		db := newTestDB(nil, errors.New("test error"))
+		_, err := db.AllDocs(context.Background(), map[string]interface{}{
+			OptionPartition: "a1",
+		})
+		testy.ErrorRE(t, `Get "?http://example.com/testdb/_partition/a1/_all_docs"?: test error`, err)
+	})
 }
 
 func TestDesignDocs(t *testing.T) {
@@ -43,9 +53,18 @@ func TestLocalDocs(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	db := newTestDB(nil, errors.New("test error"))
-	_, err := db.Query(context.Background(), "ddoc", "view", nil)
-	testy.ErrorRE(t, `Get "?http://example.com/testdb/_design/ddoc/_view/view"?: test error`, err)
+	t.Run("standard", func(t *testing.T) {
+		db := newTestDB(nil, errors.New("test error"))
+		_, err := db.Query(context.Background(), "ddoc", "view", nil)
+		testy.ErrorRE(t, `Get "?http://example.com/testdb/_design/ddoc/_view/view"?: test error`, err)
+	})
+	t.Run("partitioned", func(t *testing.T) {
+		db := newTestDB(nil, errors.New("test error"))
+		_, err := db.Query(context.Background(), "ddoc", "view", map[string]interface{}{
+			OptionPartition: "a2",
+		})
+		testy.ErrorRE(t, `Get "?http://example.com/testdb/_partition/a2/_design/ddoc/_view/view"?: test error`, err)
+	})
 }
 
 type Attachment struct {

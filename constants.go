@@ -20,6 +20,13 @@ const (
 	//    row, err := db.Get(ctx, "doc_id", kivik.Options{couchdb.OptionIfNoneMatch: "1-xxx"})
 	OptionIfNoneMatch = "If-None-Match"
 
+	// OptionPartition instructs supporting methods to limit the query to the
+	// specified partition. Supported methods are: Query, AllDocs, Find, and
+	// Explain. Only supported by CouchDB 3.0.0 and newer.
+	//
+	// See https://docs.couchdb.org/en/stable/api/partitioned-dbs.html
+	OptionPartition = "kivik:partition"
+
 	// NoMultipartPut instructs the Put() method not to use CouchDB's
 	// multipart/related upload capabilities. This only affects PUT requests that
 	// also include attachments.

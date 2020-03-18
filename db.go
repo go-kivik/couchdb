@@ -14,6 +14,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path"
 	"reflect"
 	"sort"
 	"strconv"
@@ -31,6 +32,7 @@ type db struct {
 }
 
 var _ driver.DB = &db{}
+var _ driver.OptsFinder = &db{}
 var _ driver.MetaGetter = &db{}
 var _ driver.AttachmentMetaGetter = &db{}
 var _ driver.PartitionedDB = &db{}
@@ -102,7 +104,12 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 
 // AllDocs returns all of the documents in the database.
 func (d *db) AllDocs(ctx context.Context, opts map[string]interface{}) (driver.Rows, error) {
-	return d.rowsQuery(ctx, "_all_docs", opts)
+	reqPath := "_all_docs"
+	if part, ok := opts[OptionPartition].(string); ok {
+		delete(opts, OptionPartition)
+		reqPath = path.Join("_partition", part, reqPath)
+	}
+	return d.rowsQuery(ctx, reqPath, opts)
 }
 
 // DesignDocs returns all of the documents in the database.
@@ -117,7 +124,12 @@ func (d *db) LocalDocs(ctx context.Context, opts map[string]interface{}) (driver
 
 // Query queries a view.
 func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]interface{}) (driver.Rows, error) {
-	return d.rowsQuery(ctx, fmt.Sprintf("_design/%s/_view/%s", chttp.EncodeDocID(ddoc), chttp.EncodeDocID(view)), opts)
+	reqPath := fmt.Sprintf("_design/%s/_view/%s", chttp.EncodeDocID(ddoc), chttp.EncodeDocID(view))
+	if part, ok := opts[OptionPartition].(string); ok {
+		delete(opts, OptionPartition)
+		reqPath = path.Join("_partition", part, reqPath)
+	}
+	return d.rowsQuery(ctx, reqPath, opts)
 }
 
 // Get fetches the requested document.
