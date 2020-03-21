@@ -31,8 +31,8 @@ func registerSuiteCouch30() {
 		"Find/Admin/_duck.status":              http.StatusNotFound,
 		"Find/NoAuth/chicken.status":           http.StatusNotFound,
 		"Find/NoAuth/_duck.status":             http.StatusUnauthorized,
-		"Find/RW/group/Admin/Warning.warning":  "no matching index found, create an index to optimize query time",
-		"Find/RW/group/NoAuth/Warning.warning": "no matching index found, create an index to optimize query time",
+		"Find/RW/group/Admin/Warning.warning":  "No matching index found, create an index to optimize query time.",
+		"Find/RW/group/NoAuth/Warning.warning": "No matching index found, create an index to optimize query time.",
 
 		"Explain.databases":             []string{"chicken", "_duck"},
 		"Explain/Admin/chicken.status":  http.StatusNotFound,
@@ -69,11 +69,11 @@ func registerSuiteCouch30() {
 		"DBExists/Admin/_users.exists":    true,
 		"DBExists/Admin/chicken.exists":   false,
 		"DBExists/Admin/_duck.exists":     false,
-		"DBExists/NoAuth/_users.exists":   true,
+		"DBExists/NoAuth/_users.status":   http.StatusUnauthorized,
 		"DBExists/NoAuth/chicken.exists":  false,
 		"DBExists/NoAuth/_duck.status":    http.StatusUnauthorized,
 		"DBExists/RW/group/Admin.exists":  true,
-		"DBExists/RW/group/NoAuth.exists": true,
+		"DBExists/RW/group/NoAuth.status": http.StatusUnauthorized,
 
 		"Log.skip": true, // This was removed in CouchDB 2.0
 
@@ -84,14 +84,18 @@ func registerSuiteCouch30() {
 		"Get/RW/group/Admin/bogus.status":  http.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": http.StatusNotFound,
 
-		"GetMeta/RW/group/Admin/bogus.status":  http.StatusNotFound,
-		"GetMeta/RW/group/NoAuth/bogus.status": http.StatusNotFound,
+		"GetMeta/RW/group/Admin/bogus.status":        http.StatusNotFound,
+		"GetMeta/RW/group/NoAuth/bogus.status":       http.StatusUnauthorized,
+		"GetMeta/RW/group/NoAuth/_local/foo.status":  http.StatusUnauthorized,
+		"GetMeta/RW/group/NoAuth/_design/foo.status": http.StatusUnauthorized,
+		"GetMeta/RW/group/NoAuth/bob.status":         http.StatusUnauthorized,
 
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/NoAuth/chicken/DoFlush.status": http.StatusNotFound,
 		"Flush/Admin/chicken/DoFlush.status":  http.StatusNotFound,
 		"Flush/Admin/_duck/DoFlush.status":    http.StatusNotFound,
 		"Flush/NoAuth/_duck/DoFlush.status":   http.StatusUnauthorized,
+		"Flush/NoAuth/_users/DoFlush.status":  http.StatusUnauthorized,
 
 		"Delete/RW/Admin/group/MissingDoc.status":        http.StatusNotFound,
 		"Delete/RW/Admin/group/InvalidRevFormat.status":  http.StatusBadRequest,
@@ -135,6 +139,8 @@ func registerSuiteCouch30() {
 		"Stats/Admin/_duck.status":    http.StatusNotFound,
 		"Stats/NoAuth/chicken.status": http.StatusNotFound,
 		"Stats/NoAuth/_duck.status":   http.StatusUnauthorized,
+		"Stats/NoAuth/_users.status":  http.StatusUnauthorized,
+		"Stats/RW/NoAuth.status":      http.StatusUnauthorized,
 
 		"Compact.skip":             false,
 		"Compact/RW/NoAuth.status": http.StatusUnauthorized,
@@ -159,25 +165,35 @@ func registerSuiteCouch30() {
 		"GetAttachment/RW/group/Admin/foo/NotFound.status":  http.StatusNotFound,
 		"GetAttachment/RW/group/NoAuth/foo/NotFound.status": http.StatusNotFound,
 
-		"GetAttachmentMeta/RW/group/Admin/foo/NotFound.status":  http.StatusNotFound,
-		"GetAttachmentMeta/RW/group/NoAuth/foo/NotFound.status": http.StatusNotFound,
+		"GetAttachmentMeta/RW/group/Admin/foo/NotFound.status":         http.StatusNotFound,
+		"GetAttachmentMeta/RW/group/NoAuth/foo/NotFound.status":        http.StatusUnauthorized,
+		"GetAttachmentMeta/RW/group/NoAuth/_design/foo/foo.txt.status": http.StatusUnauthorized,
+		"GetAttachmentMeta/RW/group/NoAuth/foo/foo.txt.status":         http.StatusUnauthorized,
 
 		"PutAttachment/RW/group/Admin/Conflict.status":         http.StatusConflict,
-		"PutAttachment/RW/group/NoAuth/Conflict.status":        http.StatusConflict,
+		"PutAttachment/RW/group/NoAuth/Conflict.status":        http.StatusUnauthorized,
 		"PutAttachment/RW/group/NoAuth/UpdateDesignDoc.status": http.StatusUnauthorized,
 		"PutAttachment/RW/group/NoAuth/CreateDesignDoc.status": http.StatusUnauthorized,
+		"PutAttachment/RW/group/NoAuth/Update.status":          http.StatusUnauthorized,
+		"PutAttachment/RW/group/NoAuth/Create.status":          http.StatusUnauthorized,
 
 		// "DeleteAttachment/RW/group/Admin/NotFound.status":  http.StatusNotFound, // COUCHDB-3362
-		// "DeleteAttachment/RW/group/NoAuth/NotFound.status": http.StatusNotFound, // COUCHDB-3362
+		"DeleteAttachment/RW/group/NoAuth/NotFound.status":  http.StatusUnauthorized,
 		"DeleteAttachment/RW/group/Admin/NoDoc.status":      http.StatusConflict,
-		"DeleteAttachment/RW/group/NoAuth/NoDoc.status":     http.StatusConflict,
+		"DeleteAttachment/RW/group/NoAuth/NoDoc.status":     http.StatusUnauthorized,
 		"DeleteAttachment/RW/group/NoAuth/DesignDoc.status": http.StatusUnauthorized,
+		"DeleteAttachment/RW/group/NoAuth/foo.txt.status":   http.StatusUnauthorized,
 
 		"Put/RW/Admin/group/LeadingUnderscoreInID.status":  http.StatusBadRequest,
 		"Put/RW/Admin/group/Conflict.status":               http.StatusConflict,
-		"Put/RW/NoAuth/group/LeadingUnderscoreInID.status": http.StatusBadRequest,
+		"Put/RW/NoAuth/group/LeadingUnderscoreInID.status": http.StatusUnauthorized,
 		"Put/RW/NoAuth/group/DesignDoc.status":             http.StatusUnauthorized,
-		"Put/RW/NoAuth/group/Conflict.status":              http.StatusConflict,
+		"Put/RW/NoAuth/group/Conflict.status":              http.StatusUnauthorized,
+		"Put/RW/NoAuth/group/HeavilyEscapedID":             http.StatusUnauthorized,
+		"Put/RW/NoAuth/group/Local.status":                 http.StatusUnauthorized,
+		"Put/RW/NoAuth/group/HeavilyEscapedID.status":      http.StatusUnauthorized,
+		"Put/RW/NoAuth/group/SlashInID.status":             http.StatusUnauthorized,
+		"Put/RW/NoAuth/group/Create.status":                http.StatusUnauthorized,
 
 		"CreateIndex/RW/Admin/group/EmptyIndex.status":    http.StatusBadRequest,
 		"CreateIndex/RW/Admin/group/BlankIndex.status":    http.StatusBadRequest,
@@ -202,6 +218,8 @@ func registerSuiteCouch30() {
 		"GetIndexes/NoAuth/_global_changes.status": http.StatusUnauthorized,
 		"GetIndexes/NoAuth/chicken.status":         http.StatusNotFound,
 		"GetIndexes/NoAuth/_duck.status":           http.StatusUnauthorized,
+		"GetIndexes/NoAuth/_replicator.status":     http.StatusUnauthorized,
+		"GetIndexes/NoAuth/_users.status":          http.StatusUnauthorized,
 		"GetIndexes/RW.indexes": []kivik.Index{kt.AllDocsIndex,
 			{
 				DesignDoc: "_design/foo",
@@ -226,7 +244,7 @@ func registerSuiteCouch30() {
 		"Replicate.NotFoundDB":                                  "http://localhost:5984/foo",
 		"Replicate.timeoutSeconds":                              60,
 		"Replicate.prefix":                                      "http://localhost:5984/",
-		"Replicate/RW/NoAuth.status":                            http.StatusForbidden,
+		"Replicate/RW/NoAuth.status":                            http.StatusUnauthorized,
 		"Replicate/RW/Admin/group/MissingSource/Results.status": http.StatusNotFound,
 		"Replicate/RW/Admin/group/MissingTarget/Results.status": http.StatusNotFound,
 
@@ -235,6 +253,8 @@ func registerSuiteCouch30() {
 
 		"ViewCleanup/RW/NoAuth.status": http.StatusUnauthorized,
 
+		"Changes/Continuous/RW/group/NoAuth.status": http.StatusUnauthorized,
+		"Changes/Normal/RW/group/NoAuth.status":     http.StatusUnauthorized,
 		"Changes/Continuous.options": map[string]interface{}{
 			"feed":      "continuous",
 			"since":     "now",
