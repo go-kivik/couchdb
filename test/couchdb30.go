@@ -66,6 +66,7 @@ func registerSuiteCouch30() {
 				"update":          true,
 				"skip":            0,
 				"limit":           25,
+				"partition":       "",
 				"fields":          "all_fields",
 			},
 			Range: nil,
