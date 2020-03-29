@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
@@ -149,4 +150,88 @@ func TestCookie(t *testing.T) {
 			}
 		})
 	}
+}
+
+type dummyJar []*http.Cookie
+
+var _ http.CookieJar = &dummyJar{}
+
+func (j dummyJar) Cookies(_ *url.URL) []*http.Cookie {
+	return []*http.Cookie(j)
+}
+
+func (j *dummyJar) SetCookies(_ *url.URL, cookies []*http.Cookie) {
+	*j = cookies
+}
+
+func Test_shouldAuth(t *testing.T) {
+	type tt struct {
+		a    *CookieAuth
+		req  *http.Request
+		want bool
+	}
+
+	tests := testy.NewTable()
+	tests.Add("no session", tt{
+		a:    &CookieAuth{},
+		req:  httptest.NewRequest("GET", "/", nil),
+		want: true,
+	})
+	tests.Add("authed request", func() interface{} {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.AddCookie(&http.Cookie{Name: kivik.SessionCookieName})
+		return tt{
+			a:    &CookieAuth{},
+			req:  req,
+			want: false,
+		}
+	})
+	tests.Add("valid session", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name:    kivik.SessionCookieName,
+			Expires: time.Now().Add(20 * time.Second),
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: false,
+		}
+	})
+	tests.Add("expired session", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name:    kivik.SessionCookieName,
+			Expires: time.Now().Add(-20 * time.Second),
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: true,
+		}
+	})
+	tests.Add("no expiry time", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name: kivik.SessionCookieName,
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: false,
+		}
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		got := tt.a.shouldAuth(tt.req)
+		if got != tt.want {
+			t.Errorf("Want %t, got %t", tt.want, got)
+		}
+	})
 }
