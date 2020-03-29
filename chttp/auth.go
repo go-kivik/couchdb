@@ -11,12 +11,12 @@ type Authenticator interface {
 	Authenticate(*Client) error
 }
 
-func (a *CookieAuth) setCookieJar(c *Client) {
+func (a *CookieAuth) setCookieJar() {
 	// If a jar is already set, just use it
-	if c.Jar != nil {
+	if a.client.Jar != nil {
 		return
 	}
 	// cookiejar.New never returns an error
 	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	c.Jar = jar
+	a.client.Jar = jar
 }
