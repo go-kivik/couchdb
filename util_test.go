@@ -2,12 +2,10 @@ package couchdb
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
-
-	"github.com/go-kivik/kivik"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestDeJSONify(t *testing.T) {
@@ -41,7 +39,7 @@ func TestDeJSONify(t *testing.T) {
 		{
 			name:   "invalid JSON sring",
 			input:  `{"foo":"\C"}`,
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "invalid character 'C' in string escape code",
 		},
 	}
@@ -49,7 +47,7 @@ func TestDeJSONify(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := deJSONify(test.input)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

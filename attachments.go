@@ -2,12 +2,12 @@ package couchdb
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.Attachment, options map[string]interface{}) (newRev string, err error) {
@@ -48,15 +48,15 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 		FullCommit:  fullCommit,
 		Query:       query,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
+	_, err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
 	if err != nil {
 		return "", err
 	}
 	return response.Rev, nil
 }
 
-func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (*driver.Attachment, error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodHead, docID, rev, filename, options)
+func (d *db) GetAttachmentMeta(ctx context.Context, docID, filename string, options map[string]interface{}) (*driver.Attachment, error) {
+	resp, err := d.fetchAttachment(ctx, http.MethodHead, docID, filename, options)
 	if err != nil {
 		return nil, err
 	}
@@ -64,15 +64,15 @@ func (d *db) GetAttachmentMeta(ctx context.Context, docID, rev, filename string,
 	return att, err
 }
 
-func (d *db) GetAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (*driver.Attachment, error) {
-	resp, err := d.fetchAttachment(ctx, kivik.MethodGet, docID, rev, filename, options)
+func (d *db) GetAttachment(ctx context.Context, docID, filename string, options map[string]interface{}) (*driver.Attachment, error) {
+	resp, err := d.fetchAttachment(ctx, http.MethodGet, docID, filename, options)
 	if err != nil {
 		return nil, err
 	}
 	return decodeAttachment(resp)
 }
 
-func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename string, options map[string]interface{}) (*http.Response, error) {
+func (d *db) fetchAttachment(ctx context.Context, method, docID, filename string, options map[string]interface{}) (*http.Response, error) {
 	if method == "" {
 		return nil, errors.New("method required")
 	}
@@ -91,9 +91,6 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, rev, filename s
 	query, err := optionsToParams(options)
 	if err != nil {
 		return nil, err
-	}
-	if rev != "" {
-		query.Add("rev", rev)
 	}
 	opts := &chttp.Options{
 		IfNoneMatch: inm,
@@ -127,7 +124,7 @@ func decodeAttachment(resp *http.Response) (*driver.Attachment, error) {
 func getContentType(resp *http.Response) (string, error) {
 	ctype := resp.Header.Get("Content-Type")
 	if _, ok := resp.Header["Content-Type"]; !ok {
-		return "", errors.Status(kivik.StatusBadResponse, "no Content-Type in response")
+		return "", &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.New("no Content-Type in response")}
 	}
 	return ctype, nil
 }
@@ -135,7 +132,7 @@ func getContentType(resp *http.Response) (string, error) {
 func getDigest(resp *http.Response) (string, error) {
 	etag, ok := chttp.ETag(resp)
 	if !ok {
-		return "", errors.Status(kivik.StatusBadResponse, "ETag header not found")
+		return "", &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.New("ETag header not found")}
 	}
 	return etag, nil
 }
@@ -169,7 +166,7 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, 
 		FullCommit: fullCommit,
 		Query:      query,
 	}
-	_, err = d.Client.DoJSON(ctx, kivik.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
+	_, err = d.Client.DoJSON(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
 	if err != nil {
 		return "", err
 	}

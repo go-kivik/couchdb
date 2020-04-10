@@ -10,10 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 func TestSession(t *testing.T) {
@@ -41,7 +40,7 @@ func TestSession(t *testing.T) {
 			name:      "invalid response",
 			status:    http.StatusOK,
 			body:      `{"userCtx":"asdf"}`,
-			errStatus: kivik.StatusBadResponse,
+			errStatus: http.StatusBadGateway,
 			err:       "json: cannot unmarshal string into Go ",
 		},
 	}
@@ -58,7 +57,7 @@ func TestSession(t *testing.T) {
 			}
 			session, err := client.Session(context.Background())
 			testy.StatusErrorRE(t, test.err, test.errStatus, err)
-			if d := diff.Interface(test.expected, session); d != nil {
+			if d := testy.DiffInterface(test.expected, session); d != nil {
 				t.Error(d)
 			}
 		})

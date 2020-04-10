@@ -8,10 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"gitlab.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestStats(t *testing.T) {
@@ -25,13 +24,13 @@ func TestStats(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/testdb: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/testdb"?: net error`,
 		},
 		{
 			name: "read error",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body: &mockReadCloser{
 					ReadFunc: func(_ []byte) (int, error) {
 						return 0, errors.New("read error")
@@ -39,31 +38,31 @@ func TestStats(t *testing.T) {
 					CloseFunc: func() error { return nil },
 				},
 			}, nil),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "read error",
 		},
 		{
 			name: "invalid JSON response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`invalid json`)),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "error response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "1.6.1",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 					"Date":           {"Thu, 26 Oct 2017 12:58:14 GMT"},
@@ -86,7 +85,7 @@ func TestStats(t *testing.T) {
 		{
 			name: "2.0.0",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
 					"Date":                {"Thu, 26 Oct 2017 13:01:13 GMT"},
@@ -112,7 +111,7 @@ func TestStats(t *testing.T) {
 		{
 			name: "2.1.1",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
 					"Date":                {"Thu, 26 Oct 2017 13:01:13 GMT"},
@@ -145,8 +144,8 @@ func TestStats(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Stats(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -166,13 +165,13 @@ func TestDbsStats(t *testing.T) {
 			name:    "network error",
 			client:  newTestClient(nil, errors.New("net error")),
 			dbnames: []string{"foo", "bar"},
-			status:  kivik.StatusNetworkError,
-			err:     "Post http://example.com/_dbs_info: net error",
+			status:  http.StatusBadGateway,
+			err:     `Post "?http://example.com/_dbs_info"?: net error`,
 		},
 		{
 			name: "read error",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body: &mockReadCloser{
 					ReadFunc: func(_ []byte) (int, error) {
 						return 0, errors.New("read error")
@@ -180,31 +179,31 @@ func TestDbsStats(t *testing.T) {
 					CloseFunc: func() error { return nil },
 				},
 			}, nil),
-			status: kivik.StatusNetworkError,
+			status: http.StatusBadGateway,
 			err:    "read error",
 		},
 		{
 			name: "invalid JSON response",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`invalid json`)),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "error response",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "2.1.2",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusNotFound,
+				StatusCode: http.StatusNotFound,
 				Header: http.Header{
 					"Server":              {"CouchDB/2.1.2 (Erlang OTP/17)"},
 					"Date":                {"Sat, 01 Sep 2018 15:42:53 GMT"},
@@ -218,12 +217,12 @@ func TestDbsStats(t *testing.T) {
 			}, nil),
 			dbnames: []string{"foo", "bar"},
 			err:     "Not Found",
-			status:  kivik.StatusNotFound,
+			status:  http.StatusNotFound,
 		},
 		{
 			name: "2.2.0",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Header: http.Header{
 					"Server":              {"CouchDB/2.2.0 (Erlang OTP/19)"},
 					"Date":                {"Sat, 01 Sep 2018 15:50:56 GMT"},
@@ -260,8 +259,8 @@ func TestDbsStats(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.DBsStats(context.Background(), test.dbnames)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

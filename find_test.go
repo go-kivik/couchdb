@@ -3,17 +3,16 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestExplain(t *testing.T) {
@@ -29,28 +28,28 @@ func TestExplain(t *testing.T) {
 			name:   "invalid query",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadAPICall,
-			err:    "Post http://example.com/testdb/_explain: json: unsupported type: chan int",
+			status: http.StatusBadRequest,
+			err:    `Post "?http://example.com/testdb/_explain"?: json: unsupported type: chan int`,
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Post http://example.com/testdb/_explain: net error",
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_explain"?: net error`,
 		},
 		{
 			name: "error response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusNotFound,
+				StatusCode: http.StatusNotFound,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "Not Found",
 		},
 		{
 			name: "success",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"dbname":"foo"}`)),
 			}, nil),
 			expected: &driver.QueryPlan{DBName: "foo"},
@@ -61,24 +60,24 @@ func TestExplain(t *testing.T) {
 				defer req.Body.Close() // nolint: errcheck
 				var result interface{}
 				if err := json.NewDecoder(req.Body).Decode(&result); err != nil {
-					return nil, errors.Errorf("decode error: %s", err)
+					return nil, fmt.Errorf("decode error: %s", err)
 				}
 				expected := map[string]interface{}{"_id": "foo"}
-				if d := diff.Interface(expected, result); d != nil {
-					return nil, errors.Errorf("Unexpected result:\n%s\n", d)
+				if d := testy.DiffInterface(expected, result); d != nil {
+					return nil, fmt.Errorf("unexpected result:\n%s", d)
 				}
 				return nil, errors.New("success")
 			}),
 			query:  []byte(`{"_id":"foo"}`),
-			status: kivik.StatusNetworkError,
-			err:    "Post http://example.com/testdb/_explain: success",
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_explain"?: success`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Explain(context.Background(), test.query)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -125,7 +124,7 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 			result := new(queryPlan)
 			err := json.Unmarshal([]byte(test.input), &result)
 			testy.ErrorRE(t, test.err, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -145,21 +144,21 @@ func TestCreateIndex(t *testing.T) {
 			name:   "invalid JSON index",
 			db:     newTestDB(nil, nil),
 			index:  `invalid json`,
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name:   "invalid raw index",
 			db:     newTestDB(nil, nil),
 			index:  map[string]interface{}{"foo": make(chan int)},
-			status: kivik.StatusBadAPICall,
-			err:    "Post http://example.com/testdb/_index: json: unsupported type: chan int",
+			status: http.StatusBadRequest,
+			err:    `Post "?http://example.com/testdb/_index"?: json: unsupported type: chan int`,
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Post http://example.com/testdb/_index: net error",
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_index"?: net error`,
 		},
 		{
 			name: "success 2.1.0",
@@ -181,7 +180,7 @@ func TestCreateIndex(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.db.CreateIndex(context.Background(), test.ddoc, test.indexName, test.index)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -197,8 +196,8 @@ func TestGetIndexes(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/testdb/_index: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/testdb/_index"?: net error`,
 		},
 		{
 			name: "2.1.0",
@@ -240,8 +239,8 @@ func TestGetIndexes(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.GetIndexes(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -258,14 +257,14 @@ func TestDeleteIndex(t *testing.T) {
 	}{
 		{
 			name:   "no ddoc",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			db:     newTestDB(nil, nil),
 			err:    "kivik: ddoc required",
 		},
 		{
 			name:   "no index name",
 			ddoc:   "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			db:     newTestDB(nil, nil),
 			err:    "kivik: name required",
 		},
@@ -274,8 +273,8 @@ func TestDeleteIndex(t *testing.T) {
 			ddoc:      "foo",
 			indexName: "bar",
 			db:        newTestDB(nil, errors.New("net error")),
-			status:    kivik.StatusNetworkError,
-			err:       "^(Delete http://example.com/testdb/_index/foo/json/bar: )?net error",
+			status:    http.StatusBadGateway,
+			err:       `^(Delete "?http://example.com/testdb/_index/foo/json/bar"?: )?net error`,
 		},
 		{
 			name:      "2.1.0 success",
@@ -316,14 +315,14 @@ func TestFind(t *testing.T) {
 			name:   "invalid query json",
 			db:     newTestDB(nil, nil),
 			query:  make(chan int),
-			status: kivik.StatusBadAPICall,
-			err:    "Post http://example.com/testdb/_find: json: unsupported type: chan int",
+			status: http.StatusBadRequest,
+			err:    `Post "?http://example.com/testdb/_find"?: json: unsupported type: chan int`,
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Post http://example.com/testdb/_find: net error",
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_find"?: net error`,
 		},
 		{
 			name: "error response",
@@ -341,7 +340,7 @@ func TestFind(t *testing.T) {
 				ContentLength: 77,
 				Body:          Body(`{"error":"bad_content_type","reason":"Content-Type must be application/json"}`),
 			}, nil),
-			status: kivik.StatusUnsupportedMediaType,
+			status: http.StatusUnsupportedMediaType,
 			err:    "Unsupported Media Type: Content-Type must be application/json",
 		},
 		{
@@ -369,7 +368,7 @@ func TestFind(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.db.Find(context.Background(), test.query)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := result.(*rows); !ok {
 				t.Errorf("Unexpected type returned: %t", result)
 			}

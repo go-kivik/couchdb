@@ -3,14 +3,14 @@ package couchdb
 import (
 	"context"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestChanges(t *testing.T) {
@@ -20,26 +20,40 @@ func TestChanges(t *testing.T) {
 		db      *db
 		status  int
 		err     string
+		etag    string
 	}{
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
+		},
+		{
+			name:    "eventsource",
+			options: map[string]interface{}{"feed": "eventsource"},
+			status:  http.StatusBadRequest,
+			err:     "kivik: eventsource feed not supported, use 'continuous'",
 		},
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/testdb/_changes?feed=continuous&heartbeat=6000&since=now: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/testdb/_changes"?: net error`,
+		},
+		{
+			name:    "continuous",
+			db:      newTestDB(nil, errors.New("net error")),
+			options: map[string]interface{}{"feed": "continuous"},
+			status:  http.StatusBadGateway,
+			err:     `Get "?http://example.com/testdb/_changes\?feed=continuous"?: net error`,
 		},
 		{
 			name: "error response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       Body(""),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
@@ -52,16 +66,24 @@ func TestChanges(t *testing.T) {
 					"Date":              {"Fri, 27 Oct 2017 14:43:57 GMT"},
 					"Content-Type":      {"text/plain; charset=utf-8"},
 					"Cache-Control":     {"must-revalidate"},
+					"ETag":              {`"etag-foo"`},
 				},
 				Body: Body(`{"seq":3,"id":"43734cf3ce6d5a37050c050bb600006b","changes":[{"rev":"2-185ccf92154a9f24a4f4fd12233bf463"}],"deleted":true}
                     `),
 			}, nil),
+			etag: "etag-foo",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := test.db.Changes(context.Background(), test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			ch, err := test.db.Changes(context.Background(), test.options)
+			if ch != nil {
+				defer ch.Close()
+			}
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if etag := ch.ETag(); etag != test.etag {
+				t.Errorf("Unexpected ETag: %s", etag)
+			}
 		})
 	}
 }
@@ -75,19 +97,15 @@ func TestChangesNext(t *testing.T) {
 		expected *driver.Change
 	}{
 		{
-			name: "invalid json",
-			changes: &changesRows{
-				body: Body("invalid json"),
-			},
-			status: kivik.StatusBadResponse,
-			err:    "invalid character 'i' looking for beginning of value",
+			name:    "invalid json",
+			changes: newChangesRows(context.TODO(), "", Body("invalid json"), ""),
+			status:  http.StatusBadGateway,
+			err:     "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "success",
-			changes: &changesRows{
-				body: Body(`{"seq":3,"id":"43734cf3ce6d5a37050c050bb600006b","changes":[{"rev":"2-185ccf92154a9f24a4f4fd12233bf463"}],"deleted":true}
-                `),
-			},
+			changes: newChangesRows(context.TODO(), "", Body(`{"seq":3,"id":"43734cf3ce6d5a37050c050bb600006b","changes":[{"rev":"2-185ccf92154a9f24a4f4fd12233bf463"}],"deleted":true}
+                `), ""),
 			expected: &driver.Change{
 				ID:      "43734cf3ce6d5a37050c050bb600006b",
 				Seq:     "3",
@@ -96,12 +114,17 @@ func TestChangesNext(t *testing.T) {
 			},
 		},
 		{
-			name: "end of input",
-			changes: &changesRows{
-				body: Body(``),
-			},
-			status: 500,
-			err:    "EOF",
+			name:    "read error",
+			changes: newChangesRows(context.TODO(), "", ioutil.NopCloser(testy.ErrorReader("", errors.New("read error"))), ""),
+			status:  http.StatusBadGateway,
+			err:     "read error",
+		},
+		{
+			name:     "end of input",
+			changes:  newChangesRows(context.TODO(), "", Body(``), ""),
+			expected: &driver.Change{},
+			status:   http.StatusInternalServerError,
+			err:      "EOF",
 		},
 	}
 	for _, test := range tests {
@@ -109,7 +132,7 @@ func TestChangesNext(t *testing.T) {
 			row := new(driver.Change)
 			err := test.changes.Next(row)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, row); d != nil {
+			if d := testy.DiffInterface(test.expected, row); d != nil {
 				t.Error(d)
 			}
 		})
@@ -117,10 +140,29 @@ func TestChangesNext(t *testing.T) {
 }
 
 func TestChangesClose(t *testing.T) {
-	body := &closeTracker{ReadCloser: Body("foo")}
-	feed := &changesRows{body: body}
-	_ = feed.Close()
-	if !body.closed {
-		t.Errorf("Failed to close")
-	}
+	t.Run("normal", func(t *testing.T) {
+		body := &closeTracker{ReadCloser: Body("foo")}
+		feed := newChangesRows(context.TODO(), "", body, "")
+		_ = feed.Close()
+		if !body.closed {
+			t.Errorf("Failed to close")
+		}
+	})
+
+	t.Run("next in progress", func(t *testing.T) {
+		body := &closeTracker{ReadCloser: ioutil.NopCloser(testy.NeverReader())}
+		feed := newChangesRows(context.TODO(), "", body, "")
+		row := new(driver.Change)
+		done := make(chan struct{})
+		go func() {
+			_ = feed.Next(row)
+			close(done)
+		}()
+		time.Sleep(50 * time.Millisecond)
+		_ = feed.Close()
+		<-done
+		if !body.closed {
+			t.Errorf("Failed to close")
+		}
+	})
 }

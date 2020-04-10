@@ -3,11 +3,12 @@ package couchdb
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 // Couch represents the parent driver instance.
@@ -15,6 +16,9 @@ type Couch struct {
 	// If provided, UserAgent is appended to the User-Agent header on all
 	// outbound requests.
 	UserAgent string
+
+	// If provided, HTTPClient will be used for requests to the CouchDB server.
+	HTTPClient *http.Client
 }
 
 var _ driver.Driver = &Couch{}
@@ -39,6 +43,7 @@ type client struct {
 }
 
 var _ driver.Client = &client{}
+var _ driver.DBUpdater = &client{}
 
 // NewClient establishes a new connection to a CouchDB server instance. If
 // auth credentials are included in the URL, they are used to authenticate using
@@ -46,7 +51,11 @@ var _ driver.Client = &client{}
 // different auth mechanism, do not specify credentials here, and instead call
 // Authenticate() later.
 func (d *Couch) NewClient(dsn string) (driver.Client, error) {
-	chttpClient, err := chttp.New(dsn)
+	httpClient := d.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
+	chttpClient, err := chttp.NewWithClient(httpClient, dsn)
 	if err != nil {
 		return nil, err
 	}

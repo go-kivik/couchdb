@@ -3,18 +3,17 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestBulkDocs(t *testing.T) {
@@ -29,53 +28,53 @@ func TestBulkDocs(t *testing.T) {
 		{
 			name:   "network error",
 			db:     newTestDB(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Post http://example.com/testdb/_bulk_docs: net error",
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/testdb/_bulk_docs"?: net error`,
 		},
 		{
 			name: "JSON encoding error",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			docs:   []interface{}{make(chan int)},
-			status: kivik.StatusBadAPICall,
-			err:    "Post http://example.com/testdb/_bulk_docs: json: unsupported type: chan int",
+			status: http.StatusBadRequest,
+			err:    `Post "?http://example.com/testdb/_bulk_docs"?: json: unsupported type: chan int`,
 		},
 		{
 			name: "docs rejected",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusExpectationFailed,
+				StatusCode: http.StatusExpectationFailed,
 				Body:       ioutil.NopCloser(strings.NewReader("[]")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
-			status: kivik.StatusExpectationFailed,
+			status: http.StatusExpectationFailed,
 			err:    "Expectation Failed: one or more document was rejected",
 		},
 		{
 			name: "error response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusBadRequest,
+				StatusCode: http.StatusBadRequest,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
 			name: "invalid JSON response",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusCreated,
+				StatusCode: http.StatusCreated,
 				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
-			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: invalid character 'i' looking for beginning of value",
+			status: http.StatusBadGateway,
+			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
 			name: "unexpected response code",
 			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("[]")),
 			}, nil),
 			docs: []interface{}{1, 2, 3},
@@ -95,7 +94,7 @@ func TestBulkDocs(t *testing.T) {
 					return nil, errors.New("`new_edits` not set")
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusCreated,
+					StatusCode: http.StatusCreated,
 					Body:       ioutil.NopCloser(strings.NewReader("[]")),
 				}, nil
 			}),
@@ -116,7 +115,7 @@ func TestBulkDocs(t *testing.T) {
 					return nil, errors.New("X-Couch-Full-Commit not set to true")
 				}
 				return &http.Response{
-					StatusCode: kivik.StatusCreated,
+					StatusCode: http.StatusCreated,
 					Body:       ioutil.NopCloser(strings.NewReader("[]")),
 				}, nil
 			}),
@@ -125,14 +124,14 @@ func TestBulkDocs(t *testing.T) {
 			name:    "invalid full commit type",
 			db:      &db{},
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.db.BulkDocs(context.Background(), test.docs, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -154,7 +153,7 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: 500,
+			status: http.StatusInternalServerError,
 			err:    "EOF",
 		},
 		{
@@ -166,8 +165,8 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			status: http.StatusBadGateway,
+			err:    "EOF",
 		},
 		{
 			name: "invalid doc json",
@@ -178,7 +177,7 @@ func TestBulkNext(t *testing.T) {
 				}
 				return r
 			}(),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'f' looking for beginning of object key string",
 		},
 		{
@@ -206,7 +205,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(kivik.StatusConflict, "annoying conflict"),
+				Error: &kivik.Error{HTTPStatus: http.StatusConflict, FromServer: true, Err: errors.New("annoying conflict")},
 			},
 		},
 		{
@@ -220,8 +219,20 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: errors.Status(kivik.StatusUnknownError, "foo is erroneous"),
+				Error: &kivik.Error{HTTPStatus: http.StatusInternalServerError, FromServer: true, Err: errors.New("foo is erroneous")},
 			},
+		},
+		{
+			name: "read error",
+			results: func() *bulkResults {
+				r, err := newBulkResults(ioutil.NopCloser(testy.ErrorReader("[", errors.New("read error"))))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return r
+			}(),
+			status: http.StatusBadGateway,
+			err:    "read error",
 		},
 	}
 	for _, test := range tests {
@@ -229,7 +240,7 @@ func TestBulkNext(t *testing.T) {
 			result := new(driver.BulkResult)
 			err := test.results.Next(result)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

@@ -6,17 +6,16 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestAllDBs(t *testing.T) {
 	tests := []struct {
 		name     string
 		client   *client
+		options  map[string]interface{}
 		expected []string
 		status   int
 		err      string
@@ -24,8 +23,8 @@ func TestAllDBs(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_all_dbs: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/_all_dbs"?: net error`,
 		},
 		{
 			name: "2.0.0",
@@ -44,12 +43,18 @@ func TestAllDBs(t *testing.T) {
 			}, nil),
 			expected: []string{"_global_changes", "_replicator", "_users"},
 		},
+		{
+			name:    "bad options",
+			options: map[string]interface{}{"foo": func() {}},
+			status:  http.StatusBadRequest,
+			err:     `kivik: invalid type func\(\) for options`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.AllDBs(context.Background(), nil)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			result, err := test.client.AllDBs(context.Background(), test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -67,15 +72,15 @@ func TestDBExists(t *testing.T) {
 	}{
 		{
 			name:   "no db specified",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Head http://example.com/foo: net error",
+			status: http.StatusBadGateway,
+			err:    `Head "?http://example.com/foo"?: net error`,
 		},
 		{
 			name:   "not found, 1.6.1",
@@ -113,7 +118,7 @@ func TestDBExists(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			exists, err := test.client.DBExists(context.Background(), test.dbName, nil)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if exists != test.exists {
 				t.Errorf("Unexpected result: %t", exists)
 			}
@@ -123,23 +128,24 @@ func TestDBExists(t *testing.T) {
 
 func TestCreateDB(t *testing.T) {
 	tests := []struct {
-		name   string
-		dbName string
-		client *client
-		status int
-		err    string
+		name    string
+		dbName  string
+		options map[string]interface{}
+		client  *client
+		status  int
+		err     string
 	}{
 		{
 			name:   "missing dbname",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Put http://example.com/foo: net error",
+			status: http.StatusBadGateway,
+			err:    `Put "?http://example.com/foo"?: net error`,
 		},
 		{
 			name:   "conflict 1.6.1",
@@ -156,14 +162,21 @@ func TestCreateDB(t *testing.T) {
 				ContentLength: 94,
 				Body:          Body(`{"error":"file_exists","reason":"The database could not be created, the file already exists."}`),
 			}, nil),
-			status: kivik.StatusPreconditionFailed,
+			status: http.StatusPreconditionFailed,
 			err:    "Precondition Failed: The database could not be created, the file already exists.",
+		},
+		{
+			name:    "bad options",
+			dbName:  "foo",
+			options: map[string]interface{}{"foo": func() {}},
+			status:  http.StatusBadRequest,
+			err:     `^kivik: invalid type func\(\) for options$`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.client.CreateDB(context.Background(), test.dbName, nil)
-			testy.StatusError(t, test.err, test.status, err)
+			err := test.client.CreateDB(context.Background(), test.dbName, test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -178,15 +191,15 @@ func TestDestroyDB(t *testing.T) {
 	}{
 		{
 			name:   "no db name",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{
 			name:   "network error",
 			dbName: "foo",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "(Delete http://example.com/foo: )?net error",
+			status: http.StatusBadGateway,
+			err:    `(Delete "?http://example.com/foo"?: )?net error`,
 		},
 		{
 			name:   "1.6.1",
@@ -222,8 +235,8 @@ func TestDBUpdates(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_db_updates?feed=continuous&since=now: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/_db_updates\?feed=continuous&since=now"?: net error`,
 		},
 		{
 			name: "error response",
@@ -231,7 +244,7 @@ func TestDBUpdates(t *testing.T) {
 				StatusCode: 400,
 				Body:       Body(""),
 			}, nil),
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "Bad Request",
 		},
 		{
@@ -251,8 +264,8 @@ func TestDBUpdates(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.DBUpdates()
-			testy.StatusError(t, test.err, test.status, err)
+			result, err := test.client.DBUpdates(context.TODO())
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := result.(*couchUpdates); !ok {
 				t.Errorf("Unexpected type returned: %t", result)
 			}
@@ -269,14 +282,15 @@ func TestUpdatesNext(t *testing.T) {
 		expected *driver.DBUpdate
 	}{
 		{
-			name:    "consumed feed",
-			updates: newUpdates(Body("")),
-			status:  500,
-			err:     "EOF",
+			name:     "consumed feed",
+			updates:  newUpdates(context.TODO(), Body("")),
+			expected: &driver.DBUpdate{},
+			status:   http.StatusInternalServerError,
+			err:      "EOF",
 		},
 		{
 			name:    "read feed",
-			updates: newUpdates(Body(`{"db_name":"mailbox","type":"created","seq":"1-g1AAAAFReJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuDOZExFyjAnmJhkWaeaIquGIf2JAUgmWQPMiGRAZcaB5CaePxqEkBq6vGqyWMBkgwNQAqobD4h"},`)),
+			updates: newUpdates(context.TODO(), Body(`{"db_name":"mailbox","type":"created","seq":"1-g1AAAAFReJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuDOZExFyjAnmJhkWaeaIquGIf2JAUgmWQPMiGRAZcaB5CaePxqEkBq6vGqyWMBkgwNQAqobD4h"},`)),
 			expected: &driver.DBUpdate{
 				DBName: "mailbox",
 				Type:   "created",
@@ -289,7 +303,7 @@ func TestUpdatesNext(t *testing.T) {
 			result := new(driver.DBUpdate)
 			err := test.updates.Next(result)
 			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -298,11 +312,71 @@ func TestUpdatesNext(t *testing.T) {
 
 func TestUpdatesClose(t *testing.T) {
 	body := &closeTracker{ReadCloser: Body("")}
-	u := newUpdates(body)
+	u := newUpdates(context.TODO(), body)
 	if err := u.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if !body.closed {
 		t.Errorf("Failed to close")
+	}
+}
+
+func TestPing(t *testing.T) {
+	type pingTest struct {
+		name     string
+		client   *client
+		expected bool
+		status   int
+		err      string
+	}
+
+	tests := []pingTest{
+		{
+			name: "Couch 1.6",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusBadRequest,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header: http.Header{
+					"Server": []string{"CouchDB/1.6.1 (Erlang OTP/17)"},
+				},
+			}, nil),
+			expected: true,
+		},
+		{
+			name: "Couch 2.x offline",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusNotFound,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+			}, nil),
+			expected: false,
+		},
+		{
+			name: "Couch 2.x online",
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+			}, nil),
+			expected: true,
+		},
+		{
+			name:     "network error",
+			client:   newTestClient(nil, errors.New("network error")),
+			expected: false,
+			status:   http.StatusBadGateway,
+			err:      `Head "?http://example.com/_up"?: network error`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := test.client.Ping(context.Background())
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if result != test.expected {
+				t.Errorf("Unexpected result: %t", result)
+			}
+		})
 	}
 }

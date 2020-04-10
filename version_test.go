@@ -8,12 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestVersion2(t *testing.T) {
@@ -27,31 +25,31 @@ func TestVersion2(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/"?: net error`,
 		},
 		{
 			name: "invalid JSON response",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"name":[]}}`)),
 			}, nil),
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "json: cannot unmarshal array into Go ",
 		},
 		{
 			name: "error response",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusInternalServerError,
+				StatusCode: http.StatusInternalServerError,
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			status: kivik.StatusInternalServerError,
+			status: http.StatusInternalServerError,
 			err:    "Internal Server Error",
 		},
 		{
 			name: "CouchDB 1.6.1",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"version":"1.6.1","name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -63,7 +61,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "CouchDB 2.0.0",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -75,7 +73,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "CouchDB 2.1.0",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.1.0","features":["scheduler"],"vendor":{"name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -88,7 +86,7 @@ func TestVersion2(t *testing.T) {
 		{
 			name: "Cloudant 2017-10-23",
 			client: newTestClient(&http.Response{
-				StatusCode: kivik.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"IBM Cloudant","version":"6365","variant":"paas"},"features":["geo","scheduler"]}`)),
 			}, nil),
 			expected: &driver.Version{
@@ -103,7 +101,7 @@ func TestVersion2(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.Version(context.Background())
 			testy.StatusErrorRE(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

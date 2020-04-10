@@ -3,17 +3,16 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestReplicationError(t *testing.T) {
@@ -78,7 +77,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "doc example 1",
 			input: `"db_not_found: could not open http://adm:*****@localhost:5984/missing/"`,
 			expected: &replicationError{
-				status: kivik.StatusNotFound,
+				status: http.StatusNotFound,
 				reason: "db_not_found: could not open http://adm:*****@localhost:5984/missing/",
 			},
 		},
@@ -86,7 +85,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "timeout",
 			input: `"timeout: some timeout occurred"`,
 			expected: &replicationError{
-				status: kivik.StatusRequestTimeout,
+				status: http.StatusRequestTimeout,
 				reason: "timeout: some timeout occurred",
 			},
 		},
@@ -94,7 +93,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "unknown",
 			input: `"unknown error"`,
 			expected: &replicationError{
-				status: kivik.StatusInternalServerError,
+				status: http.StatusInternalServerError,
 				reason: "unknown error",
 			},
 		},
@@ -107,7 +106,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			name:  "Unauthorized",
 			input: `"unauthorized: unauthorized to access or create database foo"`,
 			expected: &replicationError{
-				status: kivik.StatusUnauthorized,
+				status: http.StatusUnauthorized,
 				reason: "unauthorized: unauthorized to access or create database foo",
 			},
 		},
@@ -117,7 +116,7 @@ func TestReplicationErrorUnmarshal(t *testing.T) {
 			repErr := new(replicationError)
 			err := repErr.UnmarshalJSON([]byte(test.input))
 			testy.Error(t, test.err, err)
-			if d := diff.Interface(test.expected, repErr); d != nil {
+			if d := testy.DiffInterface(test.expected, repErr); d != nil {
 				t.Error(d)
 			}
 		})
@@ -135,13 +134,13 @@ func TestReplicate(t *testing.T) {
 	}{
 		{
 			name:   "no target",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: targetDSN required",
 		},
 		{
 			name:   "no source",
 			target: "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: sourceDSN required",
 		},
 		{
@@ -154,20 +153,20 @@ func TestReplicate(t *testing.T) {
 			}(),
 			target: "foo", source: "bar",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
-			err:     "Post http://example.com/_replicator: json: unsupported type: chan int",
+			status:  http.StatusBadRequest,
+			err:     `^Post "?http://example.com/_replicator"?: json: unsupported type: chan int$`,
 		},
 		{
 			name:   "network error",
 			target: "foo", source: "bar",
 			client: func() *client {
-				client := newTestClient(nil, errors.New("net eror"))
+				client := newTestClient(nil, errors.New("net error"))
 				b := false
 				client.schedulerDetected = &b
 				return client
 			}(),
-			status: kivik.StatusNetworkError,
-			err:    "Post http://example.com/_replicator: net eror",
+			status: http.StatusBadGateway,
+			err:    `Post "?http://example.com/_replicator"?: net error`,
 		},
 		{
 			name:   "1.6.1",
@@ -227,7 +226,7 @@ func TestReplicate(t *testing.T) {
 							Body: Body(fmt.Sprintf(`{"database":"_replicator","doc_id":"56d257bd2125c8f15870b3ddd2078b23","id":null,"source":"foo","target":"bar","state":"failed","error_count":1,"info":"Replication %s specified by document %s already started, triggered by document %s from db %s","start_time":"2017-11-18T11:13:58Z","last_updated":"2017-11-18T11:13:58Z"}`, "`c636d089fbdc3a9a937a466acf8f42c3`", "`56d257bd2125c8f15870b3ddd2078b23`", "`56d257bd2125c8f15870b3ddd2074759`", "`_replicator`")),
 						}, nil
 					default:
-						return nil, errors.Errorf("Unexpected path: %s", req.URL.Path)
+						return nil, fmt.Errorf("Unexpected path: %s", req.URL.Path)
 					}
 				})
 				b := true
@@ -239,14 +238,14 @@ func TestReplicate(t *testing.T) {
 			name:   "scheduler detection error",
 			target: "foo", source: "bar",
 			client: newTestClient(nil, errors.New("sched err")),
-			status: kivik.StatusNetworkError,
-			err:    "Head http://example.com/_scheduler/jobs: sched err",
+			status: http.StatusBadGateway,
+			err:    `Head "?http://example.com/_scheduler/jobs"?: sched err`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := test.client.Replicate(context.Background(), test.target, test.source, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if _, ok := resp.(*replication); ok {
 				return
 			}
@@ -270,14 +269,14 @@ func TestLegacyGetReplications(t *testing.T) {
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_replicator/_all_docs?include_docs=true: net error",
+			status: http.StatusBadGateway,
+			err:    `^Get "?http://example.com/_replicator/_all_docs\?include_docs=true"?: net error$`,
 		},
 		{
 			name: "success, 1.6.1",
@@ -312,13 +311,13 @@ func TestLegacyGetReplications(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reps, err := test.client.legacyGetReplications(context.Background(), test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result := make([]*replication, len(reps))
 			for i, rep := range reps {
 				result[i] = rep.(*replication)
 				result[i].db = nil
 			}
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -335,15 +334,15 @@ func TestGetReplications(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Head http://example.com/_scheduler/jobs: net error",
+			status: http.StatusBadGateway,
+			err:    `Head "?http://example.com/_scheduler/jobs"?: net error`,
 		},
 		{
 			name: "no scheduler",
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/_replicator/_all_docs" {
-						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+						return nil, fmt.Errorf("unexpected request path: %s", req.URL.Path)
 					}
 					return &http.Response{
 						StatusCode: 404,
@@ -355,7 +354,7 @@ func TestGetReplications(t *testing.T) {
 				client.schedulerDetected = &b
 				return client
 			}(),
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "Not Found",
 		},
 		{
@@ -363,7 +362,7 @@ func TestGetReplications(t *testing.T) {
 			client: func() *client {
 				client := newCustomClient(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/_scheduler/docs" {
-						return nil, errors.Errorf("Unexpected request path: %s\n", req.URL.Path)
+						return nil, fmt.Errorf("unexpected request path: %s", req.URL.Path)
 					}
 					return &http.Response{
 						StatusCode: 404,
@@ -375,14 +374,14 @@ func TestGetReplications(t *testing.T) {
 				client.schedulerDetected = &b
 				return client
 			}(),
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "Not Found",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := test.client.GetReplications(context.Background(), nil)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 		})
 	}
 }
@@ -401,8 +400,8 @@ func TestReplicationUpdate(t *testing.T) {
 				docID: "4ab99e4d7d4b5a6c5a6df0d0ed01221d",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d"?: net error`,
 		},
 		{
 			name: "no active reps 1.6.1",
@@ -447,8 +446,8 @@ func TestReplicationUpdate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result := new(driver.ReplicationInfo)
 			err := test.rep.Update(context.Background(), result)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -468,8 +467,8 @@ func TestReplicationDelete(t *testing.T) {
 				docID: "foo",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Head http://example.com/testdb/foo: net error",
+			status: http.StatusBadGateway,
+			err:    `Head "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "delete network error",
@@ -493,8 +492,8 @@ func TestReplicationDelete(t *testing.T) {
 					return nil, errors.New("delete error")
 				}),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "^(Delete http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\\?rev=2-6419706e969050d8000efad07259de4f: )?delete error",
+			status: http.StatusBadGateway,
+			err:    `^(Delete "?http://example.com/testdb/4ab99e4d7d4b5a6c5a6df0d0ed01221d\?rev=2-6419706e969050d8000efad07259de4f"?: )?delete error`,
 		},
 		{
 			name: "success, 1.6.1",
@@ -552,8 +551,8 @@ func TestUpdateActiveTasks(t *testing.T) {
 			rep: &replication{
 				db: newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_active_tasks: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/_active_tasks"?: net error`,
 		},
 		{
 			name: "error response",
@@ -564,7 +563,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 					Body:       Body(""),
 				}, nil),
 			},
-			status: kivik.StatusInternalServerError,
+			status: http.StatusInternalServerError,
 			err:    "Internal Server Error",
 		},
 		{
@@ -575,7 +574,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 					Body:       Body("invalid json"),
 				}, nil),
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
 		},
 		{
@@ -587,7 +586,7 @@ func TestUpdateActiveTasks(t *testing.T) {
 					Body:       Body("[]"),
 				}, nil),
 			},
-			status: kivik.StatusNotFound,
+			status: http.StatusNotFound,
 			err:    "task not found",
 		},
 		{
@@ -613,8 +612,8 @@ func TestUpdateActiveTasks(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.rep.updateActiveTasks(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -698,7 +697,7 @@ func TestSetFromReplicatorDoc(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			test.rep.setFromReplicatorDoc(test.doc)
-			if d := diff.Interface(test.expected, test.rep); d != nil {
+			if d := testy.DiffInterface(test.expected, test.rep); d != nil {
 				t.Error(d)
 			}
 		})

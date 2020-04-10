@@ -1,10 +1,15 @@
 package chttp
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 
-	"github.com/flimzy/diff"
+	"gitlab.com/flimzy/testy"
+
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 func TestHTTPErrorError(t *testing.T) {
@@ -16,23 +21,23 @@ func TestHTTPErrorError(t *testing.T) {
 		{
 			name: "No reason",
 			input: &HTTPError{
-				Code: 400,
+				Response: &http.Response{StatusCode: 400},
 			},
 			expected: "Bad Request",
 		},
 		{
 			name: "Reason, HTTP code",
 			input: &HTTPError{
-				Code:   400,
-				Reason: "Bad stuff",
+				Response: &http.Response{StatusCode: 400},
+				Reason:   "Bad stuff",
 			},
 			expected: "Bad Request: Bad stuff",
 		},
 		{
 			name: "Non-HTTP code",
 			input: &HTTPError{
-				Code:   604,
-				Reason: "Bad stuff",
+				Response: &http.Response{StatusCode: 604},
+				Reason:   "Bad stuff",
 			},
 			expected: "Bad stuff",
 		},
@@ -51,6 +56,8 @@ func TestResponseError(t *testing.T) {
 	tests := []struct {
 		name     string
 		resp     *http.Response
+		status   int
+		err      string
 		expected interface{}
 	}{
 		{
@@ -61,16 +68,27 @@ func TestResponseError(t *testing.T) {
 		{
 			name: "HEAD error",
 			resp: &http.Response{
-				StatusCode: 404,
+				StatusCode: http.StatusNotFound,
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			},
-			expected: &HTTPError{Code: 404, exitStatus: ExitNotRetrieved},
+			status: http.StatusNotFound,
+			err:    "Not Found",
+			expected: &kivik.Error{
+				HTTPStatus: http.StatusNotFound,
+				FromServer: true,
+				Err: &HTTPError{
+					Response: &http.Response{
+						StatusCode: http.StatusBadRequest,
+					},
+					exitStatus: ExitNotRetrieved,
+				},
+			},
 		},
 		{
 			name: "2.0.0 error",
 			resp: &http.Response{
-				StatusCode: 400,
+				StatusCode: http.StatusBadRequest,
 				Header: http.Header{
 					"Cache-Control":       {"must-revalidate"},
 					"Content-Length":      {"194"},
@@ -84,16 +102,24 @@ func TestResponseError(t *testing.T) {
 				Body:          Body(`{"error":"illegal_database_name","reason":"Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter."}`),
 				Request:       &http.Request{Method: "PUT"},
 			},
-			expected: &HTTPError{
-				Code:       400,
-				exitStatus: ExitNotRetrieved,
-				Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+			status: http.StatusBadRequest,
+			err:    "Bad Request: Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+			expected: &kivik.Error{
+				HTTPStatus: http.StatusBadRequest,
+				FromServer: true,
+				Err: &HTTPError{
+					Response: &http.Response{
+						StatusCode: http.StatusBadRequest,
+					},
+					exitStatus: ExitNotRetrieved,
+					Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+				},
 			},
 		},
 		{
 			name: "invalid json error",
 			resp: &http.Response{
-				StatusCode: 400,
+				StatusCode: http.StatusBadRequest,
 				Header: http.Header{
 					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
 					"Date":           {"Fri, 27 Oct 2017 15:42:34 GMT"},
@@ -105,15 +131,77 @@ func TestResponseError(t *testing.T) {
 				Body:          Body("invalid json"),
 				Request:       &http.Request{Method: "PUT"},
 			},
-			expected: &HTTPError{Code: 400, exitStatus: ExitNotRetrieved},
+			status: http.StatusBadRequest,
+			err:    "Bad Request",
+			expected: &kivik.Error{
+				HTTPStatus: http.StatusBadRequest,
+				FromServer: true,
+				Err: &HTTPError{
+					Response: &http.Response{
+						StatusCode: http.StatusBadRequest,
+					},
+					exitStatus: ExitNotRetrieved,
+				},
+			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ResponseError(test.resp)
-			if d := diff.Interface(test.expected, err); d != nil {
+			testy.StatusError(t, test.err, test.status, err)
+			if he, ok := err.(*HTTPError); ok {
+				he.Response = nil
+				err = he
+			}
+			if d := testy.DiffInterface(test.expected, err); d != nil {
 				t.Error(d)
 			}
 		})
 	}
+}
+
+func TestFormatError(t *testing.T) {
+	type tst struct {
+		err  error
+		str  string
+		std  string
+		full string
+	}
+	tests := testy.NewTable()
+	tests.Add("standard error", tst{
+		err:  errors.New("foo"),
+		str:  "foo",
+		std:  "foo",
+		full: "foo",
+	})
+	tests.Add("HTTPError", tst{
+		err: &HTTPError{
+			Response: &http.Response{
+				StatusCode:    http.StatusNotFound,
+				ContentLength: 321,
+				Request: &http.Request{
+					Method:        http.MethodPost,
+					URL:           &url.URL{Scheme: "http", Host: "localhost:5984"},
+					ContentLength: 123,
+				},
+			},
+		},
+		str: "Not Found",
+		std: "Not Found",
+		full: `Not Found:
+    REQUEST: POST http://localhost:5984 (123 bytes)
+    RESPONSE: 404 / Not Found (321 bytes)`,
+	})
+
+	tests.Run(t, func(t *testing.T, test tst) {
+		if d := testy.DiffText(test.str, test.err.Error()); d != nil {
+			t.Errorf("Error():\n%s", d)
+		}
+		if d := testy.DiffText(test.std, fmt.Sprintf("%v", test.err)); d != nil {
+			t.Errorf("Standard:\n%s", d)
+		}
+		if d := testy.DiffText(test.full, fmt.Sprintf("%+v", test.err)); d != nil {
+			t.Errorf("Full:\n%s", d)
+		}
+	})
 }

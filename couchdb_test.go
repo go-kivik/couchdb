@@ -2,12 +2,13 @@ package couchdb
 
 import (
 	"context"
+	"net/http"
 	"testing"
+	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 func TestNewClient(t *testing.T) {
@@ -23,8 +24,8 @@ func TestNewClient(t *testing.T) {
 		{
 			name:   "invalid url",
 			dsn:    "foo.com/%xxx",
-			status: kivik.StatusBadAPICall,
-			err:    `parse http://foo.com/%xxx: invalid URL escape "%xx"`,
+			status: http.StatusBadRequest,
+			err:    `parse "?http://foo.com/%xxx"?: invalid URL escape "%xx"`,
 		},
 		{
 			name: "success",
@@ -45,6 +46,7 @@ func TestNewClient(t *testing.T) {
 			},
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			driver := test.driver
@@ -52,16 +54,28 @@ func TestNewClient(t *testing.T) {
 				driver = &Couch{}
 			}
 			result, err := driver.NewClient(test.dsn)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			client, ok := result.(*client)
 			if !ok {
 				t.Errorf("Unexpected type returned: %t", result)
 			}
-			if d := diff.Interface(test.expectedUA, client.Client.UserAgents); d != nil {
+			if d := testy.DiffInterface(test.expectedUA, client.Client.UserAgents); d != nil {
 				t.Error(d)
 			}
 		})
 	}
+	t.Run("custom HTTP client", func(t *testing.T) {
+		custom := &Couch{
+			HTTPClient: &http.Client{Timeout: time.Millisecond},
+		}
+		c, err := custom.NewClient("http://example.com/")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.(*client).Client.Timeout != time.Millisecond {
+			t.Error("Unexpected *http.Client returned")
+		}
+	})
 }
 
 func TestDB(t *testing.T) {
@@ -76,7 +90,7 @@ func TestDB(t *testing.T) {
 	}{
 		{
 			name:   "no dbname",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: dbName required",
 		},
 		{

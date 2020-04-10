@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"reflect"
+	"net/http"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type dbStats struct {
@@ -18,7 +17,7 @@ type dbStats struct {
 		External int64 `json:"external"`
 		Active   int64 `json:"active"`
 	} `json:"sizes"`
-	UpdateSeq json.RawMessage `json:"update_seq"`
+	UpdateSeq json.RawMessage `json:"update_seq"` // nolint: govet
 	rawBody   json.RawMessage
 }
 
@@ -45,18 +44,13 @@ func (s *dbStats) driverStats() *driver.DBStats {
 		stats.ActiveSize = s.Sizes.Active
 	}
 	stats.UpdateSeq = string(bytes.Trim(s.UpdateSeq, `"`))
-	// Reflection is used to preserve backward compatibility with Kivik stable
-	// 1.7.3 and unstable prior to 25 June 2018. The reflection hack can be
-	// removed at some point in the reasonable future.
-	if v := reflect.ValueOf(stats).Elem().FieldByName("RawResponse"); v.CanSet() {
-		v.Set(reflect.ValueOf(s.rawBody))
-	}
+	stats.RawResponse = s.rawBody
 	return stats
 }
 
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	result := dbStats{}
-	if _, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.dbName, nil, &result); err != nil {
+	if _, err := d.Client.DoJSON(ctx, http.MethodGet, d.dbName, nil, &result); err != nil {
 		return nil, err
 	}
 	return result.driverStats(), nil
@@ -74,10 +68,13 @@ type dbsInfoResponse struct {
 
 func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBStats, error) {
 	opts := &chttp.Options{
-		Body: chttp.EncodeBody(dbsInfoRequest{Keys: dbnames}),
+		GetBody: chttp.BodyEncoder(dbsInfoRequest{Keys: dbnames}),
+		Header: http.Header{
+			chttp.HeaderIdempotencyKey: []string{},
+		},
 	}
 	result := []dbsInfoResponse{}
-	_, err := c.DoJSON(context.Background(), kivik.MethodPost, "/_dbs_info", opts, &result)
+	_, err := c.DoJSON(context.Background(), http.MethodPost, "/_dbs_info", opts, &result)
 	if err != nil {
 		return nil, err
 	}

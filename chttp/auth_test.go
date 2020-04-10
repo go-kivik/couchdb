@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/go-kivik/kivik"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 type mockRT struct {
@@ -57,7 +57,7 @@ func TestAuthenticate(t *testing.T) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		if r.URL.Path == "/_session" {
+		if r.URL.Path == "/_session" { // nolint: goconst
 			_, _ = w.Write([]byte(`{"userCtx":{"name":"admin"}}`))
 			return
 		}
@@ -67,7 +67,7 @@ func TestAuthenticate(t *testing.T) {
 	type authTest struct {
 		addr       string
 		jar        http.CookieJar
-		auther     Authenticator
+		auther     Authenticator // nolint: misspell
 		authErr    string
 		authStatus int
 		err        string
@@ -82,7 +82,7 @@ func TestAuthenticate(t *testing.T) {
 	})
 	tests.Add("basic auth", authTest{
 		addr:   s.URL,
-		auther: &BasicAuth{Username: "admin", Password: "abc123"},
+		auther: &BasicAuth{Username: "admin", Password: "abc123"}, // nolint: misspell
 	})
 	tests.Add("cookie auth success", func(t *testing.T) interface{} {
 		sv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,19 +101,19 @@ func TestAuthenticate(t *testing.T) {
 		}))
 		return authTest{
 			addr:   sv.URL,
-			auther: &CookieAuth{Username: "foo", Password: "bar"},
+			auther: &CookieAuth{Username: "foo", Password: "bar"}, // nolint: misspell
 		}
 	})
 	tests.Add("failed basic auth", authTest{
 		addr:   s.URL,
-		auther: &BasicAuth{Username: "foo"},
+		auther: &BasicAuth{Username: "foo"}, // nolint: misspell
 		err:    "Unauthorized",
 		status: http.StatusUnauthorized,
 	})
 	tests.Add("failed cookie auth", authTest{
 		addr:   s.URL,
-		auther: &CookieAuth{Username: "foo"},
-		err:    "Get " + s.URL + "/foo: Unauthorized",
+		auther: &CookieAuth{Username: "foo"}, // nolint: misspell
+		err:    `Get "?` + s.URL + `/foo"?: Unauthorized`,
 		status: http.StatusUnauthorized,
 	})
 	tests.Add("already authenticated with cookie", func() interface{} {
@@ -148,6 +148,6 @@ func TestAuthenticate(t *testing.T) {
 			testy.StatusError(t, test.authErr, test.authStatus, e)
 		}
 		_, err = c.DoError(ctx, "GET", "/foo", nil)
-		testy.StatusError(t, test.err, test.status, err)
+		testy.StatusErrorRE(t, test.err, test.status, err)
 	})
 }

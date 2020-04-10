@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type schedulerDoc struct {
@@ -75,23 +74,24 @@ func (c *client) schedulerSupported(ctx context.Context) (bool, error) {
 	if c.schedulerDetected != nil {
 		return *c.schedulerDetected, nil
 	}
-	resp, err := c.DoReq(ctx, kivik.MethodHead, "_scheduler/jobs", nil)
+	resp, err := c.DoReq(ctx, http.MethodHead, "_scheduler/jobs", nil)
 	if err != nil {
 		return false, err
 	}
 	var supported bool
 	switch resp.StatusCode {
-	case kivik.StatusBadRequest:
+	case http.StatusBadRequest:
 		// 1.6.x, 1.7.x
 		supported = false
-	case kivik.StatusNotFound:
+	case http.StatusNotFound:
 		// 2.0.x
 		supported = false
-	case kivik.StatusOK, kivik.StatusUnauthorized:
+	case http.StatusOK, http.StatusUnauthorized:
 		// 2.1.x +
 		supported = true
 	default:
-		return false, errors.Statusf(kivik.StatusBadResponse, "Unknown response code %d", resp.StatusCode)
+		// Assume not supported
+		supported = false
 	}
 	c.schedulerDetected = &supported
 	return supported, nil
@@ -172,16 +172,29 @@ func (r *schedulerReplication) Delete(ctx context.Context) error {
 	return err
 }
 
+// isBug1000 detects a race condition bug in CouchDB 2.1.x so the attempt can
+// be retried. See https://github.com/apache/couchdb/issues/1000
+func isBug1000(err error) bool {
+	if err == nil {
+		return false
+	}
+	cerr, ok := err.(*chttp.HTTPError)
+	if !ok {
+		// should never happen
+		return false
+	}
+	if cerr.Response.StatusCode != http.StatusInternalServerError {
+		return false
+	}
+	return cerr.Reason == "function_clause"
+}
+
 func (r *schedulerReplication) update(ctx context.Context) error {
 	path := fmt.Sprintf("/_scheduler/docs/%s/%s", r.database, chttp.EncodeDocID(r.docID))
 	var doc schedulerDoc
-	if _, err := r.db.Client.DoJSON(ctx, kivik.MethodGet, path, nil, &doc); err != nil {
-		if cerr, ok := err.(*chttp.HTTPError); ok {
-			if cerr.Code == 500 && cerr.Reason == "function_clause" {
-				// This is a race condition bug in CouchDB 2.1.x. So try again.
-				// See https://github.com/apache/couchdb/issues/1000
-				return r.update(ctx)
-			}
+	if _, err := r.db.Client.DoJSON(ctx, http.MethodGet, path, nil, &doc); err != nil {
+		if isBug1000(err) {
+			return r.update(ctx)
 		}
 		return err
 	}
@@ -201,7 +214,7 @@ func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[s
 	if params != nil {
 		path = path + "?" + params.Encode()
 	}
-	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
+	if _, err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Docs))

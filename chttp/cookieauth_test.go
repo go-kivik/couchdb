@@ -7,11 +7,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
-	"github.com/go-kivik/kivik"
+	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
+
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 func TestCookieAuthAuthenticate(t *testing.T) {
@@ -80,14 +81,14 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 		}
 		_, err = c.DoError(context.Background(), "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
-		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
+		if d := testy.DiffInterface(test.expectedCookie, test.auth.Cookie()); d != nil {
 			t.Error(d)
 		}
 
 		// Do it again; should be idempotent
 		_, err = c.DoError(context.Background(), "GET", "/foo", nil)
 		testy.StatusError(t, test.err, test.status, err)
-		if d := diff.Interface(test.expectedCookie, test.auth.Cookie()); d != nil {
+		if d := testy.DiffInterface(test.expectedCookie, test.auth.Cookie()); d != nil {
 			t.Error(d)
 		}
 	})
@@ -144,9 +145,93 @@ func TestCookie(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := test.auth.Cookie()
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
 	}
+}
+
+type dummyJar []*http.Cookie
+
+var _ http.CookieJar = &dummyJar{}
+
+func (j dummyJar) Cookies(_ *url.URL) []*http.Cookie {
+	return []*http.Cookie(j)
+}
+
+func (j *dummyJar) SetCookies(_ *url.URL, cookies []*http.Cookie) {
+	*j = cookies
+}
+
+func Test_shouldAuth(t *testing.T) {
+	type tt struct {
+		a    *CookieAuth
+		req  *http.Request
+		want bool
+	}
+
+	tests := testy.NewTable()
+	tests.Add("no session", tt{
+		a:    &CookieAuth{},
+		req:  httptest.NewRequest("GET", "/", nil),
+		want: true,
+	})
+	tests.Add("authed request", func() interface{} {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.AddCookie(&http.Cookie{Name: kivik.SessionCookieName})
+		return tt{
+			a:    &CookieAuth{},
+			req:  req,
+			want: false,
+		}
+	})
+	tests.Add("valid session", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name:    kivik.SessionCookieName,
+			Expires: time.Now().Add(20 * time.Second),
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: false,
+		}
+	})
+	tests.Add("expired session", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name:    kivik.SessionCookieName,
+			Expires: time.Now().Add(-20 * time.Second),
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: true,
+		}
+	})
+	tests.Add("no expiry time", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name: kivik.SessionCookieName,
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: false,
+		}
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		got := tt.a.shouldAuth(tt.req)
+		if got != tt.want {
+			t.Errorf("Want %t, got %t", tt.want, got)
+		}
+	})
 }

@@ -56,7 +56,7 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 }
 
 func (t *ClientTrace) httpResponse(r *http.Response) {
-	if t.HTTPResponse == nil {
+	if t.HTTPResponse == nil || r == nil {
 		return
 	}
 	clone := new(http.Response)
@@ -66,7 +66,7 @@ func (t *ClientTrace) httpResponse(r *http.Response) {
 }
 
 func (t *ClientTrace) httpResponseBody(r *http.Response) {
-	if t.HTTPResponseBody == nil {
+	if t.HTTPResponseBody == nil || r == nil {
 		return
 	}
 	clone := new(http.Response)

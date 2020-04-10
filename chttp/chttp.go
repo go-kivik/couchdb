@@ -5,6 +5,7 @@ package chttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,8 +18,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 const (
@@ -50,6 +50,12 @@ type Client struct {
 // use HTTP BasicAuth or some other authentication mechanism, do not specify
 // credentials in the URL, and instead call the Auth() method later.
 func New(dsn string) (*Client, error) {
+	return NewWithClient(&http.Client{}, dsn)
+}
+
+// NewWithClient works the same as New(), but allows providing a custom
+// *http.Client for all network connections.
+func NewWithClient(client *http.Client, dsn string) (*Client, error) {
 	dsnURL, err := parseDSN(dsn)
 	if err != nil {
 		return nil, err
@@ -57,7 +63,7 @@ func New(dsn string) (*Client, error) {
 	user := dsnURL.User
 	dsnURL.User = nil
 	c := &Client{
-		Client: &http.Client{},
+		Client: client,
 		dsn:    dsnURL,
 		rawDSN: dsn,
 	}
@@ -76,14 +82,18 @@ func New(dsn string) (*Client, error) {
 
 func parseDSN(dsn string) (*url.URL, error) {
 	if dsn == "" {
-		return nil, &HTTPError{Code: kivik.StatusBadAPICall, Reason: "no URL specified", exitStatus: ExitFailedToInitialize}
+		return nil, &curlError{
+			httpStatus: http.StatusBadRequest,
+			curlStatus: ExitFailedToInitialize,
+			error:      errors.New("no URL specified"),
+		}
 	}
 	if !strings.HasPrefix(dsn, "http://") && !strings.HasPrefix(dsn, "https://") {
 		dsn = "http://" + dsn
 	}
 	dsnURL, err := url.Parse(dsn)
 	if err != nil {
-		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
+		return nil, fullError(http.StatusBadRequest, ExitStatusURLMalformed, err)
 	}
 	if dsnURL.Path == "" {
 		dsnURL.Path = "/"
@@ -117,8 +127,15 @@ type Options struct {
 	// ContentType sets the requests's Content-Type header. Defaults to "application/json".
 	ContentType string
 
+	// ContentLength, if set, sets the ContentLength of the request
+	ContentLength int64
+
 	// Body sets the body of the request.
 	Body io.ReadCloser
+
+	// GetBody is a function to set the body, and can be used on retries. If
+	// set, Body is ignored.
+	GetBody func() (io.ReadCloser, error)
 
 	// JSON is an arbitrary data type which is marshaled to the request's body.
 	// It an error to set both Body and JSON on the same request. When this is
@@ -135,13 +152,13 @@ type Options struct {
 	// it is not already.
 	IfNoneMatch string
 
-	// Destination is the target ID for COPY
-	Destination string
-
 	// Query is appended to the exiting url, if present. If the passed url
 	// already contains query parameters, the values in Query are appended.
 	// No merging takes place.
 	Query url.Values
+
+	// Header is a list of default headers to be set on the request.
+	Header http.Header
 }
 
 // Response represents a response from a CouchDB server.
@@ -156,13 +173,10 @@ type Response struct {
 // closes the response body.
 func DecodeJSON(r *http.Response, i interface{}) error {
 	defer r.Body.Close() // nolint: errcheck
-	err := json.NewDecoder(r.Body).Decode(i)
-	switch err.(type) {
-	case *json.SyntaxError, *json.UnmarshalFieldError, *json.UnmarshalTypeError:
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
-	default:
-		return errors.WrapStatus(kivik.StatusNetworkError, err)
+	if err := json.NewDecoder(r.Body).Decode(i); err != nil {
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
+	return nil
 }
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
@@ -188,14 +202,14 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	}
 	reqPath, err := url.Parse(fullPath)
 	if err != nil {
-		return nil, fullError(kivik.StatusBadAPICall, ExitStatusURLMalformed, err)
+		return nil, fullError(http.StatusBadRequest, ExitStatusURLMalformed, err)
 	}
 	u := *c.dsn // Make a copy
 	u.Path = reqPath.Path
 	u.RawQuery = reqPath.RawQuery
 	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadAPICall, err)
+		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 	}
 	req.Header.Add("User-Agent", c.userAgent())
 	return req.WithContext(ctx), nil
@@ -206,10 +220,17 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 // or 500, does _not_ cause an error to be returned.
 func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) (*http.Response, error) {
 	if method == "" {
-		return nil, errors.Status(kivik.StatusBadAPICall, "chttp: method required")
+		return nil, errors.New("chttp: method required")
 	}
 	var body io.Reader
 	if opts != nil {
+		if opts.GetBody != nil {
+			var err error
+			opts.Body, err = opts.GetBody()
+			if err != nil {
+				return nil, err
+			}
+		}
 		if opts.Body != nil {
 			body = opts.Body
 			defer opts.Body.Close() // nolint: errcheck
@@ -222,6 +243,9 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 	fixPath(req, path)
 	setHeaders(req, opts)
 	setQuery(req, opts)
+	if opts != nil {
+		req.GetBody = opts.GetBody
+	}
 
 	trace := ContextClientTrace(ctx)
 	if trace != nil {
@@ -245,15 +269,15 @@ func netError(err error) error {
 		// If this error was generated by EncodeBody, it may have an emedded
 		// status code (!= 500), which we should honor.
 		status := kivik.StatusCode(urlErr.Err)
-		if status == kivik.StatusInternalServerError {
-			status = kivik.StatusNetworkError
+		if status == http.StatusInternalServerError {
+			status = http.StatusBadGateway
 		}
 		return fullError(status, curlStatus(err), err)
 	}
-	if status := kivik.StatusCode(err); status != kivik.StatusInternalServerError {
+	if status := kivik.StatusCode(err); status != http.StatusInternalServerError {
 		return err
 	}
-	return fullError(kivik.StatusNetworkError, ExitUnknownFailure, err)
+	return fullError(http.StatusBadGateway, ExitUnknownFailure, err)
 }
 
 var tooManyRecirectsRE = regexp.MustCompile(`stopped after \d+ redirect`)
@@ -293,6 +317,14 @@ func fixPath(req *http.Request, path string) {
 	req.URL.RawPath = "/" + strings.TrimPrefix(parts[0], "/")
 }
 
+// BodyEncoder returns a function which returns the encoded body. It is meant
+// to be used as a http.Request.GetBody value.
+func BodyEncoder(i interface{}) func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
+		return EncodeBody(i), nil
+	}
+}
+
 // EncodeBody JSON encodes i to an io.ReadCloser. If an encoding error
 // occurs, it will be returned on the next read.
 func EncodeBody(i interface{}) io.ReadCloser {
@@ -312,7 +344,7 @@ func EncodeBody(i interface{}) io.ReadCloser {
 			err = json.NewEncoder(w).Encode(i)
 			switch err.(type) {
 			case *json.MarshalerError, *json.UnsupportedTypeError, *json.UnsupportedValueError:
-				err = errors.WrapStatus(kivik.StatusBadAPICall, err)
+				err = &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 			}
 		}
 		_ = w.CloseWithError(err)
@@ -349,12 +381,17 @@ func setHeaders(req *http.Request, opts *Options) {
 		if opts.FullCommit {
 			req.Header.Add("X-Couch-Full-Commit", "true")
 		}
-		if opts.Destination != "" {
-			req.Header.Add("Destination", opts.Destination)
-		}
 		if opts.IfNoneMatch != "" {
 			inm := "\"" + strings.Trim(opts.IfNoneMatch, "\"") + "\""
 			req.Header.Set("If-None-Match", inm)
+		}
+		if opts.ContentLength != 0 {
+			req.ContentLength = opts.ContentLength
+		}
+		for k, v := range opts.Header {
+			if _, ok := req.Header[k]; !ok {
+				req.Header[k] = v
+			}
 		}
 	}
 	req.Header.Add("Accept", accept)
@@ -380,7 +417,9 @@ func (c *Client) DoError(ctx context.Context, method, path string, opts *Options
 	if err != nil {
 		return res, err
 	}
-	defer res.Body.Close() // nolint: errcheck
+	if res.Body != nil {
+		defer res.Body.Close() // nolint: errcheck
+	}
 	err = ResponseError(res)
 	return res, err
 }
@@ -393,7 +432,7 @@ func ETag(resp *http.Response) (string, bool) {
 	}
 	etag, ok := resp.Header["Etag"]
 	if !ok {
-		etag, ok = resp.Header["ETag"]
+		etag, ok = resp.Header["ETag"] // nolint: staticcheck
 	}
 	if !ok {
 		return "", false
@@ -424,7 +463,7 @@ func ExitStatus(err error) int {
 	if err == nil {
 		return 0
 	}
-	if statuser, ok := err.(exitStatuser); ok {
+	if statuser, ok := err.(exitStatuser); ok { // nolint: misspell
 		return statuser.ExitStatus()
 	}
 	return 0

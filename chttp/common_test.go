@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 )
 
 // curlStatusErrorRE is a modified version of testy.StatusError, which handles

@@ -1,10 +1,12 @@
 package couchdb
 
 import (
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
+	"fmt"
+	"net/http"
+
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 func missingArg(arg string) error {
-	return errors.Statusf(kivik.StatusBadRequest, "kivik: %s required", arg)
+	return &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: fmt.Errorf("kivik: %s required", arg)}
 }

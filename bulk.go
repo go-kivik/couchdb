@@ -3,13 +3,13 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
+	"net/http"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type bulkResults struct {
@@ -45,7 +45,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		Reason string `json:"reason"`
 	}
 	if err := r.dec.Decode(&updateResult); err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, err)
+		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	update.ID = updateResult.ID
 	update.Rev = updateResult.Rev
@@ -54,11 +54,11 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		var status int
 		switch updateResult.Error {
 		case "conflict":
-			status = kivik.StatusConflict
+			status = http.StatusConflict
 		default:
-			status = 600 // Unknown error
+			status = http.StatusInternalServerError
 		}
-		update.Error = errors.Status(status, updateResult.Reason)
+		update.Error = &kivik.Error{HTTPStatus: status, FromServer: true, Err: errors.New(updateResult.Reason)}
 	}
 	return nil
 }
@@ -77,25 +77,22 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	}
 	options["docs"] = docs
 	opts := &chttp.Options{
-		Body:       chttp.EncodeBody(options),
+		GetBody:    chttp.BodyEncoder(options),
 		FullCommit: fullCommit,
 	}
-	resp, err := d.Client.DoReq(ctx, kivik.MethodPost, d.path("_bulk_docs"), opts)
+	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_docs"), opts)
 	if err != nil {
 		return nil, err
 	}
 	switch resp.StatusCode {
-	case kivik.StatusCreated:
+	case http.StatusCreated:
 		// Nothing to do
-	case kivik.StatusExpectationFailed:
+	case http.StatusExpectationFailed:
 		err = &chttp.HTTPError{
-			Code:   kivik.StatusExpectationFailed,
-			Reason: "one or more document was rejected",
+			Response: resp,
+			Reason:   "one or more document was rejected",
 		}
 	default:
-		if resp.StatusCode < 400 {
-			fmt.Printf("Unexpected BulkDoc response code: %d\n", resp.StatusCode)
-		}
 		// All other errors can consume the response body and return immediately
 		if e := chttp.ResponseError(resp); e != nil {
 			return nil, e

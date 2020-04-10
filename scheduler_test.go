@@ -8,11 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestSRUpdate(t *testing.T) {
@@ -30,8 +28,8 @@ func TestSRUpdate(t *testing.T) {
 				docID:    "foo",
 				db:       newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator/foo"?: net error`,
 		},
 		{
 			name: "real example",
@@ -60,8 +58,8 @@ func TestSRUpdate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var result driver.ReplicationInfo
 			err := test.rep.Update(context.Background(), &result)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, &result); d != nil {
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, &result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -110,7 +108,7 @@ func TestRepInfoUnmarshalJSON(t *testing.T) {
 			result := new(repInfo)
 			err := json.Unmarshal([]byte(test.input), result)
 			testy.ErrorRE(t, test.err, err)
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -129,13 +127,13 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_scheduler/docs: net error",
+			status: http.StatusBadGateway,
+			err:    `^Get "?http://example\.com/_scheduler/docs"?: net error$`,
 		},
 		{
 			name:    "invalid options",
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -192,13 +190,13 @@ func TestGetReplicationsFromScheduler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reps, err := test.client.getReplicationsFromScheduler(context.Background(), test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result := make([]*schedulerReplication, len(reps))
 			for i, rep := range reps {
 				result[i] = rep.(*schedulerReplication)
 				result[i].db = nil
 			}
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -218,8 +216,8 @@ func TestSchedulerReplicationDelete(t *testing.T) {
 				docID: "foo",
 				db:    newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Head http://example.com/testdb/foo: net error",
+			status: http.StatusBadGateway,
+			err:    `Head "?http://example.com/testdb/foo"?: net error`,
 		},
 		{
 			name: "DELETE network error",
@@ -238,8 +236,8 @@ func TestSchedulerReplicationDelete(t *testing.T) {
 					return nil, errors.New("net error")
 				}),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "(Delete http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92: )?net error",
+			status: http.StatusBadGateway,
+			err:    `(Delete "?http://example.com/testdb/foo?rev=9-b38287cbde7623a328843f830f418c92"?: )?net error`,
 		},
 		{
 			name: "success",
@@ -414,8 +412,8 @@ func TestSchedulerSupported(t *testing.T) {
 			name:          "network error",
 			client:        newTestClient(nil, errors.New("net error")),
 			expectedState: nil,
-			status:        kivik.StatusNetworkError,
-			err:           "Head http://example.com/_scheduler/jobs: net error",
+			status:        http.StatusBadGateway,
+			err:           `Head "?http://example.com/_scheduler/jobs"?: net error`,
 		},
 		{
 			name: "Unexpected response code",
@@ -424,18 +422,17 @@ func TestSchedulerSupported(t *testing.T) {
 				Request:    &http.Request{Method: "HEAD"},
 				Body:       Body(""),
 			}, nil),
-			expectedState: nil,
-			status:        kivik.StatusBadResponse,
-			err:           "Unknown response code 500",
+			expected:      false,
+			expectedState: &unsupported,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.schedulerSupported(context.Background())
-			if d := diff.Interface(test.expectedState, test.client.schedulerDetected); d != nil {
+			if d := testy.DiffInterface(test.expectedState, test.client.schedulerDetected); d != nil {
 				t.Error(d)
 			}
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			if result != test.expected {
 				t.Errorf("Unexpected result: %v", result)
 			}
@@ -458,8 +455,8 @@ func TestSRinnerUpdate(t *testing.T) {
 				docID:    "foo",
 				db:       newTestDB(nil, errors.New("net error")),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_scheduler/docs/_replicator/foo: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator/foo"?: net error`,
 		},
 		{
 			name: "2.1.1 500 bug",
@@ -584,9 +581,9 @@ func TestSRinnerUpdate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.r.update(context.Background())
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			test.r.db = nil
-			if d := diff.Interface(test.expected, test.r); d != nil {
+			if d := testy.DiffInterface(test.expected, test.r); d != nil {
 				t.Error(d)
 			}
 		})
@@ -605,8 +602,8 @@ func TestFetchSchedulerReplication(t *testing.T) {
 		{
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
-			status: kivik.StatusNetworkError,
-			err:    "Get http://example.com/_scheduler/docs/_replicator/: net error",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator/"?: net error`,
 		},
 		{
 			name: "loop wait",
@@ -647,9 +644,9 @@ func TestFetchSchedulerReplication(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := test.client.fetchSchedulerReplication(context.Background(), test.docID)
-			testy.StatusError(t, test.err, test.status, err)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			result.db = nil
-			if d := diff.Interface(test.expected, result); d != nil {
+			if d := testy.DiffInterface(test.expected, result); d != nil {
 				t.Error(d)
 			}
 		})

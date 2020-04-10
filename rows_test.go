@@ -1,15 +1,16 @@
 package couchdb
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 var input = `
@@ -39,7 +40,7 @@ var input = `
 var expectedKeys = []string{`"meatballs"`, `"spaghetti"`, `"tomato sauce"`}
 
 func TestRowsIterator(t *testing.T) {
-	rows := newRows(ioutil.NopCloser(strings.NewReader(input)))
+	rows := newRows(context.TODO(), ioutil.NopCloser(strings.NewReader(input)))
 	var count int
 	for {
 		row := &driver.Row{}
@@ -84,43 +85,43 @@ func TestRowsIteratorErrors(t *testing.T) {
 		{
 			name:   "empty input",
 			input:  "",
-			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			status: http.StatusBadGateway,
+			err:    "EOF",
 		},
 		{
 			name:   "unexpected delimiter",
 			input:  "[]",
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "Unexpected JSON delimiter: [",
 		},
 		{
 			name:   "unexpected input",
 			input:  `"foo"`,
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "Unexpected token string: foo",
 		},
 		{
 			name:   "missing closing delimiter",
 			input:  `{"rows":[{"id":"1","key":"1","value":1}`,
-			status: kivik.StatusBadResponse,
-			err:    "no closing delimiter: EOF",
+			status: http.StatusBadGateway,
+			err:    "EOF",
 		},
 		{
 			name:   "unexpected key",
 			input:  `{"foo":"bar"}`,
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "Unexpected key: foo",
 		},
 		{
 			name:   "unexpected key after valid row",
 			input:  `{"rows":[{"id":"1","key":"1","value":1}],"foo":"bar"}`,
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "Unexpected key: foo",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rows := newRows(ioutil.NopCloser(strings.NewReader(test.input)))
+			rows := newRows(context.TODO(), ioutil.NopCloser(strings.NewReader(test.input)))
 			for i := 0; i < 10; i++ {
 				err := rows.Next(&driver.Row{})
 				if err == nil {
@@ -143,8 +144,14 @@ var findInput = `
 }
 `
 
+type fullRows interface {
+	driver.Rows
+	driver.RowsWarner
+	driver.Bookmarker
+}
+
 func TestFindRowsIterator(t *testing.T) {
-	rows := newRows(ioutil.NopCloser(strings.NewReader(findInput)))
+	rows := newFindRows(context.TODO(), ioutil.NopCloser(strings.NewReader(findInput))).(fullRows)
 	var count int
 	for {
 		row := &driver.Row{}

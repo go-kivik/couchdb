@@ -5,8 +5,8 @@ package test
 import (
 	"testing"
 
-	_ "github.com/go-kivik/couchdb"
-	"github.com/go-kivik/kiviktest"
+	_ "github.com/go-kivik/couchdb/v4"
+	kiviktest "github.com/go-kivik/kiviktest/v4"
 )
 
 func init() {
@@ -31,6 +31,10 @@ func TestCouch21(t *testing.T) {
 
 func TestCouch22(t *testing.T) {
 	kiviktest.DoTest(kiviktest.SuiteCouch22, "KIVIK_TEST_DSN_COUCH22", t)
+}
+
+func TestCouch23(t *testing.T) {
+	kiviktest.DoTest(kiviktest.SuiteCouch23, "KIVIK_TEST_DSN_COUCH23", t)
 }
 
 func TestCloudant(t *testing.T) {

@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-kivik/couchdb/chttp"
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	"github.com/go-kivik/couchdb/v4/chttp"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type replicationError struct {
@@ -32,16 +34,15 @@ func (re *replicationError) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &re.reason); err != nil {
 		return err
 	}
-	parts := strings.SplitN(re.reason, ":", 2)
-	switch string(parts[0]) {
+	switch (strings.SplitN(re.reason, ":", 2))[0] {
 	case "db_not_found":
-		re.status = kivik.StatusNotFound
+		re.status = http.StatusNotFound
 	case "timeout":
-		re.status = kivik.StatusRequestTimeout
+		re.status = http.StatusRequestTimeout
 	case "unauthorized":
-		re.status = kivik.StatusUnauthorized
+		re.status = http.StatusUnauthorized
 	default:
-		re.status = kivik.StatusInternalServerError
+		re.status = http.StatusInternalServerError
 	}
 	return nil
 }
@@ -60,7 +61,7 @@ func (t *replicationStateTime) UnmarshalJSON(data []byte) error {
 		*t = epochTime
 		return nil
 	}
-	return errors.Errorf("kivik: '%s' does not appear to be a valid timestamp", string(data))
+	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("kivik: '%s' does not appear to be a valid timestamp", string(data))}
 }
 
 type replication struct {
@@ -123,7 +124,7 @@ func (r *replication) Update(ctx context.Context, state *driver.ReplicationInfo)
 	}
 	info, err := r.updateActiveTasks(ctx)
 	if err != nil {
-		if kivik.StatusCode(err) == kivik.StatusNotFound {
+		if kivik.StatusCode(err) == http.StatusNotFound {
 			// not listed in _active_tasks (because the replication is done, or
 			// hasn't yet started), but this isn't an error
 			return nil
@@ -146,7 +147,7 @@ type activeTask struct {
 }
 
 func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error) {
-	resp, err := r.client.DoReq(ctx, kivik.MethodGet, "/_active_tasks", nil)
+	resp, err := r.client.DoReq(ctx, http.MethodGet, "/_active_tasks", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +157,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 	defer func() { _ = resp.Body.Close() }()
 	var tasks []*activeTask
 	if err = json.NewDecoder(resp.Body).Decode(&tasks); err != nil {
-		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		return nil, &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 	}
 	for _, task := range tasks {
 		if task.Type != "replication" {
@@ -168,7 +169,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 		}
 		return task, nil
 	}
-	return nil, errors.Status(kivik.StatusNotFound, "task not found")
+	return nil, &kivik.Error{HTTPStatus: http.StatusNotFound, Err: errors.New("task not found")}
 }
 
 // updateMain updates the "main" fields: those stored directly in r.
@@ -264,7 +265,7 @@ func (c *client) legacyGetReplications(ctx context.Context, options map[string]i
 		} `json:"rows"`
 	}
 	path := "/_replicator/_all_docs?" + params.Encode()
-	if _, err = c.DoJSON(ctx, kivik.MethodGet, path, nil, &result); err != nil {
+	if _, err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Rows))
@@ -290,10 +291,10 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	if _, ok := options["target"]; !ok {
 		options["target"] = targetDSN
 	}
-	if t, _ := options["target"]; t == "" {
+	if t := options["target"]; t == "" {
 		return nil, missingArg("targetDSN")
 	}
-	if s, _ := options["source"]; s == "" {
+	if s := options["source"]; s == "" {
 		return nil, missingArg("sourceDSN")
 	}
 
@@ -308,7 +309,7 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	var repStub struct {
 		ID string `json:"id"`
 	}
-	if _, e := c.Client.DoJSON(ctx, kivik.MethodPost, "/_replicator", opts, &repStub); e != nil {
+	if _, e := c.Client.DoJSON(ctx, http.MethodPost, "/_replicator", opts, &repStub); e != nil {
 		return nil, e
 	}
 	if scheduler {

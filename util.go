@@ -2,9 +2,9 @@ package couchdb
 
 import (
 	"encoding/json"
+	"net/http"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/errors"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 // deJSONify unmarshals a string, []byte, or json.RawMessage. All other types
@@ -22,6 +22,8 @@ func deJSONify(i interface{}) (interface{}, error) {
 		return i, nil
 	}
 	var x interface{}
-	err := json.Unmarshal(data, &x)
-	return x, errors.WrapStatus(kivik.StatusBadRequest, err)
+	if err := json.Unmarshal(data, &x); err != nil {
+		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
+	}
+	return x, nil
 }

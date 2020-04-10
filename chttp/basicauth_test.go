@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/diff"
+	"gitlab.com/flimzy/testy"
 )
 
 func TestBasicAuthRoundTrip(t *testing.T) {
@@ -28,7 +28,7 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 					if !ok {
 						t.Error("BasicAuth not set in request")
 					}
-					if u != "foo" || p != "bar" {
+					if u != "foo" || p != "bar" { // nolint: goconst
 						t.Errorf("Unexpected user/password: %s/%s", u, p)
 					}
 					return &http.Response{StatusCode: 200}, nil
@@ -81,7 +81,7 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 			}
 			res.Body = nil
 			res.Request = nil
-			if d := diff.Interface(test.expected, res); d != nil {
+			if d := testy.DiffInterface(test.expected, res); d != nil {
 				t.Error(d)
 			}
 		})

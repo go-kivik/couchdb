@@ -2,6 +2,7 @@ package couchdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,12 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/testy"
+	"gitlab.com/flimzy/testy"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 type closer struct {
@@ -46,14 +44,14 @@ func TestPutAttachment(t *testing.T) {
 	tests := []paoTest{
 		{
 			name:   "missing docID",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "nil attachment",
 			id:     "foo",
 			rev:    "1-xxx",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att required",
 		},
 		{
@@ -61,7 +59,7 @@ func TestPutAttachment(t *testing.T) {
 			id:     "foo",
 			rev:    "1-xxx",
 			att:    &driver.Attachment{},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att.Filename required",
 		},
 		{
@@ -71,7 +69,7 @@ func TestPutAttachment(t *testing.T) {
 			att: &driver.Attachment{
 				Filename: "x.jpg",
 			},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att.ContentType required",
 		},
 		{
@@ -82,7 +80,7 @@ func TestPutAttachment(t *testing.T) {
 				Filename:    "x.jpg",
 				ContentType: "image/jpeg",
 			},
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: att.Content required",
 		},
 		{
@@ -95,8 +93,8 @@ func TestPutAttachment(t *testing.T) {
 				ContentType: "image/jpeg",
 				Content:     Body("x"),
 			},
-			status: kivik.StatusNetworkError,
-			err:    "Put http://example.com/testdb/foo/x.jpg\\?rev=1-xxx: net error",
+			status: http.StatusBadGateway,
+			err:    `Put "?http://example.com/testdb/foo/x.jpg\?rev=1-xxx"?: net error`,
 		},
 		{
 			name: "1.6.1",
@@ -121,7 +119,7 @@ func TestPutAttachment(t *testing.T) {
 					return nil, err
 				}
 				expected := "Hello, World!"
-				if d := diff.Text(expected, string(body)); d != nil {
+				if d := testy.DiffText(expected, string(body)); d != nil {
 					t.Errorf("Unexpected body:\n%s", d)
 				}
 				return &http.Response{
@@ -154,8 +152,8 @@ func TestPutAttachment(t *testing.T) {
 				ContentType: "text/plain",
 				Content:     Body("x"),
 			},
-			status: 601,
-			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
+			status: http.StatusBadGateway,
+			err:    `Put "?http://example.com/testdb/foo/foo.txt"?: ignore this error`,
 		},
 		{
 			name: "with options",
@@ -168,7 +166,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{"foo": "oink"},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "foo=oink",
 		},
 		{
@@ -182,7 +180,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{"foo": make(chan int)},
-			status:  kivik.StatusBadAPICall,
+			status:  http.StatusBadRequest,
 			err:     "kivik: invalid type chan int for options",
 		},
 		{
@@ -191,7 +189,7 @@ func TestPutAttachment(t *testing.T) {
 				if err := consume(req.Body); err != nil {
 					return nil, err
 				}
-				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" { // nolint: goconst
 					return nil, errors.New("X-Couch-Full-Commit not true")
 				}
 				return nil, errors.New("success")
@@ -204,7 +202,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{OptionFullCommit: true},
-			status:  kivik.StatusNetworkError,
+			status:  http.StatusBadGateway,
 			err:     "success",
 		},
 		{
@@ -218,7 +216,7 @@ func TestPutAttachment(t *testing.T) {
 				Content:     Body("x"),
 			},
 			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
+			status:  http.StatusBadRequest,
 			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		func() paoTest {
@@ -242,7 +240,7 @@ func TestPutAttachment(t *testing.T) {
 					Content:     Body("x"),
 				},
 				options: map[string]interface{}{OptionFullCommit: true},
-				status:  kivik.StatusNetworkError,
+				status:  http.StatusBadGateway,
 				err:     "success",
 				final: func(t *testing.T) {
 					if !body.closed {
@@ -268,10 +266,10 @@ func TestPutAttachment(t *testing.T) {
 
 func TestGetAttachmentMeta(t *testing.T) {
 	tests := []struct {
-		name              string
-		db                *db
-		id, rev, filename string
-		options           map[string]interface{}
+		name         string
+		db           *db
+		id, filename string
+		options      map[string]interface{}
 
 		expected *driver.Attachment
 		status   int
@@ -282,8 +280,8 @@ func TestGetAttachmentMeta(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusNetworkError,
-			err:      "Head http://example.com/testdb/foo/foo.txt: net error",
+			status:   http.StatusBadGateway,
+			err:      `^Head "?http://example.com/testdb/foo/foo.txt"?: net error$`,
 		},
 		{
 			name:     "1.6.1",
@@ -311,9 +309,9 @@ func TestGetAttachmentMeta(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename, test.options)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := diff.Interface(test.expected, att); d != nil {
+			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.filename, test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
@@ -331,7 +329,7 @@ func TestGetDigest(t *testing.T) {
 		{
 			name:   "no etag header",
 			resp:   &http.Response{},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "ETag header not found",
 		},
 		{
@@ -362,10 +360,10 @@ func TestGetDigest(t *testing.T) {
 
 func TestGetAttachment(t *testing.T) {
 	tests := []struct {
-		name              string
-		db                *db
-		id, rev, filename string
-		options           map[string]interface{}
+		name         string
+		db           *db
+		id, filename string
+		options      map[string]interface{}
 
 		expected *driver.Attachment
 		content  string
@@ -377,8 +375,8 @@ func TestGetAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusNetworkError,
-			err:      "Get http://example.com/testdb/foo/foo.txt: net error",
+			status:   http.StatusBadGateway,
+			err:      `Get "?http://example.com/testdb/foo/foo.txt"?: net error`,
 		},
 		{
 			name:     "1.6.1",
@@ -408,18 +406,18 @@ func TestGetAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			att, err := test.db.GetAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			att, err := test.db.GetAttachment(context.Background(), test.id, test.filename, test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
 			fileContent, err := ioutil.ReadAll(att.Content)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := diff.Text(test.content, string(fileContent)); d != nil {
+			if d := testy.DiffText(test.content, string(fileContent)); d != nil {
 				t.Errorf("Unexpected content:\n%s", d)
 			}
 			_ = att.Content.Close()
 			att.Content = nil // Determinism
-			if d := diff.Interface(test.expected, att); d != nil {
+			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
@@ -428,10 +426,10 @@ func TestGetAttachment(t *testing.T) {
 
 func TestFetchAttachment(t *testing.T) {
 	tests := []struct {
-		name                      string
-		db                        *db
-		method, id, rev, filename string
-		options                   map[string]interface{}
+		name                 string
+		db                   *db
+		method, id, filename string
+		options              map[string]interface{}
 
 		resp   *http.Response
 		status int
@@ -439,20 +437,20 @@ func TestFetchAttachment(t *testing.T) {
 	}{
 		{
 			name:   "no method",
-			status: kivik.StatusInternalServerError,
+			status: http.StatusInternalServerError,
 			err:    "method required",
 		},
 		{
 			name:   "no docID",
 			method: "GET",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "no filename",
 			method: "GET",
 			id:     "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: filename required",
 		},
 		{
@@ -461,25 +459,14 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   601,
-			err:      "http://example.com/testdb/foo/foo.txt:",
-		},
-		{
-			name:     "with rev",
-			method:   "GET",
-			id:       "foo",
-			filename: "foo.txt",
-			rev:      "1-xxx",
-			db:       newTestDB(nil, errors.New("ignore this error")),
-			status:   601,
-			err:      "http://example.com/testdb/foo/foo.txt\\?rev=1-xxx:",
+			status:   http.StatusBadGateway,
+			err:      "http://example.com/testdb/foo/foo.txt",
 		},
 		{
 			name:     "success",
 			method:   "GET",
 			id:       "foo",
 			filename: "foo.txt",
-			rev:      "1-xxx",
 			db: newTestDB(&http.Response{
 				StatusCode: 200,
 			}, nil),
@@ -494,7 +481,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": "bar"},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "foo=bar",
 		},
 		{
@@ -504,7 +491,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadAPICall,
+			status:   http.StatusBadRequest,
 			err:      "kivik: invalid type chan int for options",
 		},
 		{
@@ -514,7 +501,7 @@ func TestFetchAttachment(t *testing.T) {
 					return nil, err
 				}
 				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
-					return nil, errors.Errorf(`If-None-Match: %s != "foo"`, inm)
+					return nil, fmt.Errorf(`If-None-Match: %s != "foo"`, inm)
 				}
 				return nil, errors.New("success")
 			}),
@@ -522,7 +509,7 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionIfNoneMatch: "foo"},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "success",
 		},
 		{
@@ -532,16 +519,16 @@ func TestFetchAttachment(t *testing.T) {
 			id:       "foo",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionIfNoneMatch: 123},
-			status:   kivik.StatusBadRequest,
+			status:   http.StatusBadRequest,
 			err:      "kivik: option 'If-None-Match' must be string, not int",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.rev, test.filename, test.options)
+			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			resp.Request = nil
-			if d := diff.Interface(test.resp, resp); d != nil {
+			if d := testy.DiffInterface(test.resp, resp); d != nil {
 				t.Error(d)
 			}
 		})
@@ -560,7 +547,7 @@ func TestDecodeAttachment(t *testing.T) {
 		{
 			name:   "no content type",
 			resp:   &http.Response{},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "no Content-Type in response",
 		},
 		{
@@ -568,7 +555,7 @@ func TestDecodeAttachment(t *testing.T) {
 			resp: &http.Response{
 				Header: http.Header{"Content-Type": {"text/plain"}},
 			},
-			status: kivik.StatusBadResponse,
+			status: http.StatusBadGateway,
 			err:    "ETag header not found",
 		},
 		{
@@ -595,12 +582,12 @@ func TestDecodeAttachment(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := diff.Text(test.content, string(fileContent)); d != nil {
+			if d := testy.DiffText(test.content, string(fileContent)); d != nil {
 				t.Errorf("Unexpected content:\n%s", d)
 			}
 			_ = att.Content.Close()
 			att.Content = nil // Determinism
-			if d := diff.Interface(test.expected, att); d != nil {
+			if d := testy.DiffInterface(test.expected, att); d != nil {
 				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
@@ -620,20 +607,20 @@ func TestDeleteAttachment(t *testing.T) {
 	}{
 		{
 			name:   "no doc id",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: docID required",
 		},
 		{
 			name:   "no rev",
 			id:     "foo",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: rev required",
 		},
 		{
 			name:   "no filename",
 			id:     "foo",
 			rev:    "1-xxx",
-			status: kivik.StatusBadRequest,
+			status: http.StatusBadRequest,
 			err:    "kivik: filename required",
 		},
 		{
@@ -642,8 +629,8 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
-			status:   kivik.StatusNetworkError,
-			err:      "(Delete http://example.com/testdb/foo/foo.txt\\?rev=1-xxx: )?net error",
+			status:   http.StatusBadGateway,
+			err:      `(Delete "?http://example.com/testdb/foo/foo.txt\\?rev=1-xxx"?: )?net error`,
 		},
 		{
 			name:     "success 1.6.1",
@@ -671,7 +658,7 @@ func TestDeleteAttachment(t *testing.T) {
 					return nil, err
 				}
 				if foo := req.URL.Query().Get("foo"); foo != "oink" {
-					return nil, errors.Errorf("Unexpected query foo=%s", foo)
+					return nil, fmt.Errorf("Unexpected query foo=%s", foo)
 				}
 				return nil, errors.New("success")
 			}),
@@ -679,7 +666,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": "oink"},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "success",
 		},
 		{
@@ -689,7 +676,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadAPICall,
+			status:   http.StatusBadRequest,
 			err:      "kivik: invalid type chan int for options",
 		},
 		{
@@ -707,7 +694,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionFullCommit: true},
-			status:   kivik.StatusNetworkError,
+			status:   http.StatusBadGateway,
 			err:      "success",
 		},
 		{
@@ -717,7 +704,7 @@ func TestDeleteAttachment(t *testing.T) {
 			rev:      "1-xxx",
 			filename: "foo.txt",
 			options:  map[string]interface{}{OptionFullCommit: 123},
-			status:   kivik.StatusBadRequest,
+			status:   http.StatusBadRequest,
 			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}

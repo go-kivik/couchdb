@@ -3,15 +3,15 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
 // Version returns the server's version info.
 func (c *client) Version(ctx context.Context) (*driver.Version, error) {
 	i := &info{}
-	_, err := c.DoJSON(ctx, kivik.MethodGet, "/", nil, i)
+	_, err := c.DoJSON(ctx, http.MethodGet, "/", nil, i)
 	return &driver.Version{
 		Version:     i.Version,
 		Vendor:      i.Vendor.Name,

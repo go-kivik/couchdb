@@ -1,35 +1,101 @@
 package couchdb
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 
-	"github.com/go-kivik/kivik"
-	"github.com/go-kivik/kivik/driver"
-	"github.com/go-kivik/kivik/errors"
+	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4/driver"
 )
 
-type rows struct {
+type rowsMeta struct {
 	offset    int64
 	totalRows int64
-	updateSeq string
+	updateSeq sequenceID
 	warning   string
 	bookmark  string
-	body      io.ReadCloser
-	dec       *json.Decoder
-	// closed is true after all rows have been processed
-	closed bool
-	// isFindRows is set to true if this result set is from the _find interface.
-	isFindRows bool
+}
+
+type rows struct {
+	*iter
+	*rowsMeta
 }
 
 var _ driver.Rows = &rows{}
 
-func newRows(r io.ReadCloser) *rows {
+type rowsMetaParser struct{}
+
+func (p *rowsMetaParser) parseMeta(i interface{}, dec *json.Decoder, key string) error {
+	meta := i.(*rowsMeta)
+	return meta.parseMeta(key, dec)
+}
+
+type rowParser struct {
+	rowsMetaParser
+}
+
+var _ parser = &rowParser{}
+
+func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	return dec.Decode(i)
+}
+
+func newRows(ctx context.Context, in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
 	return &rows{
-		body: r,
+		iter:     newIter(ctx, meta, "rows", in, &rowParser{}),
+		rowsMeta: meta,
+	}
+}
+
+type findParser struct {
+	rowsMetaParser
+}
+
+var _ parser = &findParser{}
+
+func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Row)
+	return dec.Decode(&row.Doc)
+}
+
+func newFindRows(ctx context.Context, in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
+	return &rows{
+		iter:     newIter(ctx, meta, "docs", in, &findParser{}),
+		rowsMeta: meta,
+	}
+}
+
+type bulkParser struct {
+	rowsMetaParser
+}
+
+var _ parser = &bulkParser{}
+
+func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	row := i.(*driver.Row)
+	var result bulkResult
+	if err := dec.Decode(&result); err != nil {
+		return err
+	}
+	row.ID = result.ID
+	row.Doc = result.Docs[0].Doc
+	row.Error = nil
+	if err := result.Docs[0].Error; err != nil {
+		row.Error = err
+	}
+	return nil
+}
+
+func newBulkGetRows(ctx context.Context, in io.ReadCloser) driver.Rows {
+	meta := &rowsMeta{}
+	return &rows{
+		iter:     newIter(ctx, meta, "results", in, &bulkParser{}),
+		rowsMeta: meta,
 	}
 }
 
@@ -50,139 +116,27 @@ func (r *rows) Bookmark() string {
 }
 
 func (r *rows) UpdateSeq() string {
-	return r.updateSeq
-}
-
-func (r *rows) Close() error {
-	return r.body.Close()
+	return string(r.updateSeq)
 }
 
 func (r *rows) Next(row *driver.Row) error {
-	if r.closed {
-		return io.EOF
-	}
-	if r.dec == nil {
-		// We haven't begun yet
-		r.dec = json.NewDecoder(r.body)
-		// consume the first '{'
-		if err := consumeDelim(r.dec, json.Delim('{')); err != nil {
-			return err
-		}
-		if err := r.begin(); err != nil {
-			return errors.WrapStatus(kivik.StatusBadResponse, err)
-		}
-	}
-
-	err := r.nextRow(row)
-	if err != nil {
-		r.closed = true
-		if err == io.EOF {
-			return r.finish()
-		}
-	}
-	return err
-}
-
-// begin parses the top-level of the result object; until rows
-func (r *rows) begin() error {
-	for {
-		t, err := r.dec.Token()
-		if err != nil {
-			// I can't find a test case to trigger this, so it remains uncovered.
-			return err
-		}
-		key, ok := t.(string)
-		if !ok {
-			// The JSON parser should never permit this
-			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
-		}
-		if key == "rows" || key == "docs" {
-			r.isFindRows = key == "docs"
-			// Consume the first '['
-			return consumeDelim(r.dec, json.Delim('['))
-		}
-		if err := r.parseMeta(key); err != nil {
-			return err
-		}
-	}
-}
-
-func (r *rows) finish() error {
-	for {
-		t, err := r.dec.Token()
-		if err != nil {
-			return err
-		}
-		switch v := t.(type) {
-		case json.Delim:
-			if v != json.Delim('}') {
-				// This should never happen, as the JSON parser should prevent it.
-				return fmt.Errorf("Unexpected JSON delimiter: %c", v)
-			}
-		case string:
-			if err := r.parseMeta(v); err != nil {
-				return err
-			}
-		default:
-			// This should never happen, as the JSON parser would never get
-			// this far.
-			return fmt.Errorf("Unexpected JSON token: (%T) '%s'", t, t)
-		}
-	}
+	row.Error = nil
+	return r.iter.next(row)
 }
 
 // parseMeta parses result metadata
-func (r *rows) parseMeta(key string) error {
+func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 	switch key {
 	case "update_seq":
-		return r.readUpdateSeq()
+		return dec.Decode(&r.updateSeq)
 	case "offset":
-		return r.dec.Decode(&r.offset)
+		return dec.Decode(&r.offset)
 	case "total_rows":
-		return r.dec.Decode(&r.totalRows)
+		return dec.Decode(&r.totalRows)
 	case "warning":
-		return r.dec.Decode(&r.warning)
+		return dec.Decode(&r.warning)
 	case "bookmark":
-		return r.dec.Decode(&r.bookmark)
+		return dec.Decode(&r.bookmark)
 	}
-	return errors.Statusf(kivik.StatusBadResponse, "Unexpected key: %s", key)
-}
-
-func (r *rows) readUpdateSeq() error {
-	var raw json.RawMessage
-	if err := r.dec.Decode(&raw); err != nil {
-		return err
-	}
-	r.updateSeq = string(bytes.Trim(raw, `""`))
-	return nil
-}
-
-func (r *rows) nextRow(row *driver.Row) error {
-	if !r.dec.More() {
-		if err := consumeDelim(r.dec, json.Delim(']')); err != nil {
-			return err
-		}
-		return io.EOF
-	}
-	if r.isFindRows {
-		return r.dec.Decode(&row.Doc)
-	}
-	return r.dec.Decode(row)
-}
-
-// consumeDelim consumes the expected delimiter from the stream, or returns an
-// error if an unexpected token was found.
-func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
-	t, err := dec.Token()
-	if err != nil {
-		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "no closing delimiter"))
-	}
-	d, ok := t.(json.Delim)
-	if !ok {
-		return errors.Statusf(kivik.StatusBadResponse, "Unexpected token %T: %v", t, t)
-	}
-	if d != expectedDelim {
-		return errors.Statusf(kivik.StatusBadResponse, "Unexpected JSON delimiter: %c", d)
-	}
-	return nil
+	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
