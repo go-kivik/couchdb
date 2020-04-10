@@ -15,9 +15,12 @@ func (d *db) BulkGet(ctx context.Context, docs []driver.BulkGetReference, opts m
 	if err != nil {
 		return nil, err
 	}
+	body := map[string]interface{}{
+		"docs": docs,
+	}
 	options := &chttp.Options{
 		Query:   query,
-		GetBody: chttp.BodyEncoder(docs),
+		GetBody: chttp.BodyEncoder(body),
 		Header: http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		},
