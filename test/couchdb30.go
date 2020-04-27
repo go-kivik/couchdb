@@ -266,6 +266,7 @@ func registerSuiteCouch30() {
 		"Replicate.NotFoundDB":                                  "http://localhost:5984/foo",
 		"Replicate.timeoutSeconds":                              60,
 		"Replicate.prefix":                                      "http://localhost:5984/",
+		"Replicate/RW/Admin.prefix":                             "http://admin:abc123@localhost:5984/",
 		"Replicate/RW/NoAuth.status":                            http.StatusUnauthorized,
 		"Replicate/RW/Admin/group/MissingSource/Results.status": http.StatusNotFound,
 		"Replicate/RW/Admin/group/MissingTarget/Results.status": http.StatusNotFound,
