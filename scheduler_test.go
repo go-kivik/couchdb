@@ -102,6 +102,21 @@ func TestRepInfoUnmarshalJSON(t *testing.T) {
 			input: `{"docs_written":"chicken"}`,
 			err:   "^json: cannot unmarshal string into Go ",
 		},
+		{
+			name:  "CouchDB 3.0 error",
+			input: `{"error":"unauthorized: unauthorized to access or create database http://localhost:5984/foo/"}`,
+			expected: &repInfo{
+				Error: &replicationError{
+					status: http.StatusUnauthorized,
+					reason: "unauthorized: unauthorized to access or create database http://localhost:5984/foo/",
+				},
+			},
+		},
+		{
+			name:  "CouchDB 3.0 error bad JSON",
+			input: `{"error":123}`,
+			err:   "cannot unmarshal number into Go struct field .error of type string",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
