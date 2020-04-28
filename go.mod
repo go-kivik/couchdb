@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/go-kivik/kivik/v4 v4.0.0-20200301210331-2becb1a4e42e
-	github.com/go-kivik/kiviktest/v4 v4.0.0-20200228145622-419614d175fb
+	github.com/go-kivik/kiviktest/v4 v4.0.0-20200427193832-9610c732f701
 	github.com/gopherjs/gopherjs v0.0.0-20200209144316-f9cef593def5
 	github.com/pkg/errors v0.9.1
 	gitlab.com/flimzy/testy v0.0.3
