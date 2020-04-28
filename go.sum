@@ -10,8 +10,8 @@ github.com/go-kivik/kivik/v3 v3.0.0 h1:5KHMMQ1oeUPF3IOQlZaj5C/4d/zsT4TuY4g3zsU9y
 github.com/go-kivik/kivik/v3 v3.0.0/go.mod h1:7tmQDvkta/pcijpUjLMsQ9HJUELiKD5zm6jQ3Gb9cxE=
 github.com/go-kivik/kivik/v3 v3.0.2 h1:+tKWFJTAGlUjK1DQhn2rEGQvroYLTUCAO6/Kk8K4uQQ=
 github.com/go-kivik/kivik/v3 v3.0.2/go.mod h1:chqVuHKAU9j2C7qL0cAH2FCO26oL+0B4aIBeCRMnLa8=
-github.com/go-kivik/kiviktest/v3 v3.0.0 h1:xHXdFHx1YVbULTDGi+hzs7rjMzamCl+hf7UbXojZZMM=
-github.com/go-kivik/kiviktest/v3 v3.0.0/go.mod h1:pLjkg/F61+X4Ks1BpbrTgbChjdPcINX2HysR8i7AfBM=
+github.com/go-kivik/kiviktest/v3 v3.0.1 h1:cL1XvG0DZ0oEAsrWa3Tgi8sa/0eNyHYJatFfble3x+4=
+github.com/go-kivik/kiviktest/v3 v3.0.1/go.mod h1:pLjkg/F61+X4Ks1BpbrTgbChjdPcINX2HysR8i7AfBM=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
 github.com/gopherjs/gopherjs v0.0.0-20200209144316-f9cef593def5 h1:On5cS+huOk7mqad9QjklHw+BMGKykSmu6QG32X+C77o=
 github.com/gopherjs/gopherjs v0.0.0-20200209144316-f9cef593def5/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
