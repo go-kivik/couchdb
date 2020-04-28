@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -133,6 +134,26 @@ func TestBulkGet(t *testing.T) {
 			ID:  "test1",
 			Doc: []byte(`{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}`),
 		},
+	})
+	tests.Add("request", func(t *testing.T) interface{} {
+		return tst{
+			db: &db{
+				client: newCustomClient(func(r *http.Request) (*http.Response, error) {
+					defer r.Body.Close() // nolint:errcheck
+					if d := testy.DiffAsJSON(testy.Snapshot(t), r.Body); d != nil {
+						return nil, fmt.Errorf("Unexpected request: %s", d)
+					}
+					return nil, errors.New("success")
+				}),
+				dbName: "xxx",
+			},
+			docs: []driver.BulkGetReference{
+				{ID: "foo"},
+				{ID: "bar"},
+			},
+			status: 502,
+			err:    "success",
+		}
 	})
 
 	tests.Run(t, func(t *testing.T, test tst) {

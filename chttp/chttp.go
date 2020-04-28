@@ -28,7 +28,7 @@ const (
 // The default UserAgent values
 const (
 	UserAgent = "Kivik chttp"
-	Version   = "3.0.2"
+	Version   = "3.0.4"
 )
 
 // Client represents a client connection. It embeds an *http.Client
