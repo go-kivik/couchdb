@@ -1,6 +1,7 @@
 package couchdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -35,6 +36,14 @@ func (i *repInfo) UnmarshalJSON(data []byte) error {
 	switch {
 	case string(data) == "null":
 		return nil
+	case bytes.HasPrefix(data, []byte(`{"error":`)):
+		var e struct {
+			Error *replicationError `json:"error"`
+		}
+		if err := json.Unmarshal(data, &e); err != nil {
+			return err
+		}
+		i.Error = e.Error
 	case data[0] == '{':
 		type repInfoClone repInfo
 		var x repInfoClone
