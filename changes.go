@@ -106,15 +106,24 @@ func (r *changesRows) Next(row *driver.Change) error {
 
 // LastSeq returns the last sequence ID.
 func (r *changesRows) LastSeq() string {
+	if r == nil {
+		return ""
+	}
 	return string(r.lastSeq)
 }
 
 // Pending returns the pending count.
 func (r *changesRows) Pending() int64 {
+	if r == nil {
+		return 0
+	}
 	return r.pending
 }
 
 // ETag returns the unquoted ETag header for the CouchDB response, if any.
 func (r *changesRows) ETag() string {
+	if r == nil {
+		return ""
+	}
 	return r.etag
 }
