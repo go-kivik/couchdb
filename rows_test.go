@@ -13,7 +13,7 @@ import (
 	"github.com/go-kivik/kivik/v4/driver"
 )
 
-var input = `
+const input = `
 {
     "offset": 6,
     "rows": [
@@ -133,7 +133,7 @@ func TestRowsIteratorErrors(t *testing.T) {
 	}
 }
 
-var findInput = `
+const findInput = `
 {"warning":"no matching index found, create an index to optimize query time",
 "docs":[
 {"id":"SpaghettiWithMeatballs","key":"meatballs","value":1},
