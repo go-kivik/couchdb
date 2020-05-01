@@ -228,7 +228,7 @@ func (i *iter) finish() (err error) {
 	if err := consumeDelim(i.dec, json.Delim(']')); err != nil {
 		return err
 	}
-	for {
+	for i.dec.More() {
 		t, err := i.dec.Token()
 		if err != nil {
 			return err
@@ -249,6 +249,8 @@ func (i *iter) finish() (err error) {
 			return fmt.Errorf("Unexpected JSON token: (%T) '%s'", t, t)
 		}
 	}
+	return consumeDelim(i.dec, json.Delim('}'))
+	// return nil
 }
 
 func (i *iter) nextRow(row interface{}) error {
@@ -275,7 +277,20 @@ func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
 	}
 	if d != expectedDelim {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected JSON delimiter: %c", d)}
+		return unexpectedDelim(d)
 	}
 	return nil
+}
+
+// unexpectedDelim is used to indicate to the multiQueriesRows type that the
+// end of input has been reached, while behaving as an unexpected delimter
+// error to all other code.
+type unexpectedDelim byte
+
+func (d unexpectedDelim) Error() string {
+	return fmt.Sprintf("Unexpected JSON delimiter: %c", d)
+}
+
+func (d unexpectedDelim) StatusCode() int {
+	return http.StatusBadGateway
 }

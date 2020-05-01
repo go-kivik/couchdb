@@ -75,6 +75,105 @@ func TestRowsIterator(t *testing.T) {
 	}
 }
 
+const multipleQueries = `{
+    "results" : [
+        {
+            "offset": 0,
+            "rows": [
+                {
+                    "id": "SpaghettiWithMeatballs",
+                    "key": "meatballs",
+                    "value": 1
+                },
+                {
+                    "id": "SpaghettiWithMeatballs",
+                    "key": "spaghetti",
+                    "value": 1
+                },
+                {
+                    "id": "SpaghettiWithMeatballs",
+                    "key": "tomato sauce",
+                    "value": 1
+                }
+            ],
+            "total_rows": 3
+        },
+        {
+            "offset" : 2,
+            "rows" : [
+                {
+                    "id" : "Adukiandorangecasserole-microwave",
+                    "key" : "Aduki and orange casserole - microwave",
+                    "value" : [
+                        null,
+                        "Aduki and orange casserole - microwave"
+                    ]
+                },
+                {
+                    "id" : "Aioli-garlicmayonnaise",
+                    "key" : "Aioli - garlic mayonnaise",
+                    "value" : [
+                        null,
+                        "Aioli - garlic mayonnaise"
+                    ]
+                },
+                {
+                    "id" : "Alabamapeanutchicken",
+                    "key" : "Alabama peanut chicken",
+                    "value" : [
+                        null,
+                        "Alabama peanut chicken"
+                    ]
+                }
+            ],
+            "total_rows" : 2667
+        }
+    ]
+}`
+
+func TestMultiQueriesRowsIterator(t *testing.T) {
+	rows := newMultiQueriesRows(context.TODO(), ioutil.NopCloser(strings.NewReader(multipleQueries)))
+	results := make([]interface{}, 0, 8)
+	rowsQI := rows.(driver.QueryIndexer)
+	for {
+		row := &driver.Row{}
+		err := rows.Next(row)
+		if err == driver.EOQ {
+			results = append(results, map[string]interface{}{
+				"EOQ":        true,
+				"total_rows": rows.TotalRows(),
+				"offset":     rows.Offset(),
+				"QueryIndex": rowsQI.QueryIndex(),
+			})
+			continue
+		}
+		if err == io.EOF {
+			results = append(results, map[string]interface{}{
+				"EOF":        true,
+				"total_rows": rows.TotalRows(),
+				"offset":     rows.Offset(),
+				"QueryIndex": rowsQI.QueryIndex(),
+			})
+			break
+		}
+		if err != nil {
+			t.Fatalf("Next() failed: %s", err)
+		}
+		results = append(results, map[string]interface{}{
+			"key": row.Key,
+		})
+	}
+	if d := testy.DiffInterface(testy.Snapshot(t), results); d != nil {
+		t.Error(d)
+	}
+	if err := rows.Next(&driver.Row{}); err != io.EOF {
+		t.Errorf("Calling Next() after end returned unexpected error: %s", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Errorf("Error closing rows iterator: %s", err)
+	}
+}
+
 func TestRowsIteratorErrors(t *testing.T) {
 	tests := []struct {
 		name   string
