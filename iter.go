@@ -166,15 +166,9 @@ func (i *iter) begin() error {
 		return nil
 	}
 	for {
-		t, err := i.dec.Token()
+		key, err := nextKey(i.dec)
 		if err != nil {
-			// I can't find a test case to trigger this, so it remains uncovered.
 			return err
-		}
-		key, ok := t.(string)
-		if !ok {
-			// The JSON parser should never permit this
-			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
 		}
 		if key == i.expectedKey {
 			// Consume the first '['
@@ -184,6 +178,20 @@ func (i *iter) begin() error {
 			return err
 		}
 	}
+}
+
+func nextKey(dec *json.Decoder) (string, error) {
+	t, err := dec.Token()
+	if err != nil {
+		// I can't find a test case to trigger this, so it remains uncovered.
+		return "", err
+	}
+	key, ok := t.(string)
+	if !ok {
+		// The JSON parser should never permit this
+		return "", fmt.Errorf("Unexpected token: (%T) %v", t, t)
+	}
+	return key, nil
 }
 
 func (i *iter) parseMeta(key string) error {
