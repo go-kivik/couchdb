@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	kivik "github.com/go-kivik/kivik/v4"
 )
@@ -116,8 +117,7 @@ type iter struct {
 	objMode bool
 
 	dec    *json.Decoder
-	mu     sync.RWMutex
-	closed bool
+	closed int32
 }
 
 func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
@@ -130,12 +130,9 @@ func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.
 }
 
 func (i *iter) next(row interface{}) error {
-	i.mu.RLock()
-	if i.closed {
-		i.mu.RUnlock()
+	if atomic.LoadInt32(&i.closed) == 1 {
 		return io.EOF
 	}
-	i.mu.RUnlock()
 	if i.dec == nil {
 		// We haven't begun yet
 		i.dec = json.NewDecoder(i.body)
@@ -254,9 +251,7 @@ func (i *iter) nextRow(row interface{}) error {
 }
 
 func (i *iter) Close() error {
-	i.mu.Lock()
-	i.closed = true
-	i.mu.Unlock()
+	atomic.StoreInt32(&i.closed, 1)
 	return i.body.Close()
 }
 
