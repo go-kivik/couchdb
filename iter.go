@@ -262,6 +262,10 @@ func (i *iter) nextRow(row interface{}) error {
 
 func (i *iter) Close() error {
 	atomic.StoreInt32(&i.closed, 1)
+	// body will be nil if we're iterating over a multi-query resultset.
+	if i.body == nil {
+		return nil
+	}
 	return i.body.Close()
 }
 

@@ -215,6 +215,7 @@ func (r *multiQueriesRows) begin() error {
 			Closer: r.r,
 		}
 		r.rows = newRows(r.ctx, in).(*rows)
+		r.rows.body = nil
 		r.rows.dec = json.NewDecoder(in)
 		return r.rows.begin()
 	}
@@ -223,6 +224,7 @@ func (r *multiQueriesRows) begin() error {
 		return err
 	}
 	r.rows = newRows(r.ctx, r.r).(*rows)
+	r.rows.body = nil
 	r.rows.iter.dec = r.dec
 	return r.rows.iter.begin()
 }
@@ -249,6 +251,7 @@ func (r *multiQueriesRows) nextQuery() error {
 	}
 	r.queryIndex++
 	r.rows = rows
+	r.rows.body = nil
 	return nil
 }
 
