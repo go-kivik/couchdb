@@ -14,6 +14,8 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -31,8 +33,10 @@ type db struct {
 }
 
 var _ driver.DB = &db{}
+var _ driver.OptsFinder = &db{}
 var _ driver.MetaGetter = &db{}
 var _ driver.AttachmentMetaGetter = &db{}
+var _ driver.PartitionedDB = &db{}
 
 func (d *db) path(path string) string {
 	url, err := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
@@ -72,19 +76,32 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 
 // rowsQuery performs a query that returns a rows iterator.
 func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interface{}) (driver.Rows, error) {
-	keys := opts["keys"]
-	delete(opts, "keys")
+	payload := make(map[string]interface{})
+	if keys := opts["keys"]; keys != nil {
+		delete(opts, "keys")
+		payload["keys"] = keys
+	}
+	rowsInit := newRows
+	if queries := opts["queries"]; queries != nil {
+		rowsInit = func(ctx context.Context, r io.ReadCloser) driver.Rows {
+			return newMultiQueriesRows(ctx, r)
+		}
+		delete(opts, "queries")
+		payload["queries"] = queries
+		// Funny that this works even in CouchDB 1.x. It seems 1.x just ignores
+		// extra path elements beyond the view name. So yay for accidental
+		// backward compatibility!
+		path = filepath.Join(path, "queries")
+	}
 	query, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
 	}
 	options := &chttp.Options{Query: query}
 	method := http.MethodGet
-	if keys != nil {
+	if len(payload) > 0 {
 		method = http.MethodPost
-		options.GetBody = chttp.BodyEncoder(map[string]interface{}{
-			"keys": keys,
-		})
+		options.GetBody = chttp.BodyEncoder(payload)
 		options.Header = http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		}
@@ -96,12 +113,17 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newRows(ctx, resp.Body), nil
+	return rowsInit(ctx, resp.Body), nil
 }
 
 // AllDocs returns all of the documents in the database.
 func (d *db) AllDocs(ctx context.Context, opts map[string]interface{}) (driver.Rows, error) {
-	return d.rowsQuery(ctx, "_all_docs", opts)
+	reqPath := "_all_docs"
+	if part, ok := opts[OptionPartition].(string); ok {
+		delete(opts, OptionPartition)
+		reqPath = path.Join("_partition", part, reqPath)
+	}
+	return d.rowsQuery(ctx, reqPath, opts)
 }
 
 // DesignDocs returns all of the documents in the database.
@@ -116,7 +138,12 @@ func (d *db) LocalDocs(ctx context.Context, opts map[string]interface{}) (driver
 
 // Query queries a view.
 func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]interface{}) (driver.Rows, error) {
-	return d.rowsQuery(ctx, fmt.Sprintf("_design/%s/_view/%s", chttp.EncodeDocID(ddoc), chttp.EncodeDocID(view)), opts)
+	reqPath := fmt.Sprintf("_design/%s/_view/%s", chttp.EncodeDocID(ddoc), chttp.EncodeDocID(view))
+	if part, ok := opts[OptionPartition].(string); ok {
+		delete(opts, OptionPartition)
+		reqPath = path.Join("_partition", part, reqPath)
+	}
+	return d.rowsQuery(ctx, reqPath, opts)
 }
 
 // Get fetches the requested document.

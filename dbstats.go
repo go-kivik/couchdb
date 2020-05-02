@@ -86,3 +86,44 @@ func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBSt
 	}
 	return stats, nil
 }
+
+type partitionStats struct {
+	DBName      string `json:"db_name"`
+	DocCount    int64  `json:"doc_count"`
+	DocDelCount int64  `json:"doc_del_count"`
+	Partition   string `json:"partition"`
+	Sizes       struct {
+		Active   int64 `json:"active"`
+		External int64 `json:"external"`
+	}
+	rawBody json.RawMessage
+}
+
+func (s *partitionStats) UnmarshalJSON(p []byte) error {
+	c := struct {
+		partitionStats
+		UnmarshalJSON struct{}
+	}{}
+	if err := json.Unmarshal(p, &c); err != nil {
+		return err
+	}
+	*s = c.partitionStats
+	s.rawBody = p
+	return nil
+}
+
+func (d *db) PartitionStats(ctx context.Context, name string) (*driver.PartitionStats, error) {
+	result := partitionStats{}
+	if _, err := d.Client.DoJSON(ctx, http.MethodGet, d.path("_partition/"+name), nil, &result); err != nil {
+		return nil, err
+	}
+	return &driver.PartitionStats{
+		DBName:          result.DBName,
+		DocCount:        result.DocCount,
+		DeletedDocCount: result.DocDelCount,
+		Partition:       result.Partition,
+		ActiveSize:      result.Sizes.Active,
+		ExternalSize:    result.Sizes.External,
+		RawResponse:     result.rawBody,
+	}, nil
+}
