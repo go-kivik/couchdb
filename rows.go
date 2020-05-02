@@ -1,11 +1,15 @@
 package couchdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"strings"
+	"sync/atomic"
 
 	kivik "github.com/go-kivik/kivik/v4"
 	"github.com/go-kivik/kivik/v4/driver"
@@ -139,4 +143,135 @@ func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 		return dec.Decode(&r.bookmark)
 	}
 	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
+}
+
+func newMultiQueriesRows(ctx context.Context, in io.ReadCloser) driver.Rows {
+	return &multiQueriesRows{
+		ctx: ctx,
+		r:   in,
+	}
+}
+
+type multiQueriesRows struct {
+	*rows
+	ctx        context.Context
+	r          io.ReadCloser
+	dec        *json.Decoder
+	queryIndex int
+	closed     int32
+
+	// legacy indicates this is an old-style iterator, and won't have more than
+	// one resultset.
+	legacy int32
+}
+
+func (r *multiQueriesRows) Next(row *driver.Row) error {
+	if atomic.LoadInt32(&r.closed) == 1 {
+		return io.EOF
+	}
+	if r.rows != nil && atomic.LoadInt32(&r.rows.closed) == 1 {
+		if err := r.nextQuery(); err != nil {
+			return err
+		}
+	}
+	if r.dec == nil {
+		if err := r.begin(); err != nil {
+			return err
+		}
+	}
+	if err := r.rows.Next(row); err != nil {
+		if err == io.EOF && atomic.LoadInt32(&r.legacy) == 0 {
+			return driver.EOQ
+		}
+		return err
+	}
+	return nil
+}
+
+func (r *multiQueriesRows) begin() error {
+	r.dec = json.NewDecoder(r.r)
+	// consume the first '{'
+	if err := consumeDelim(r.dec, json.Delim('{')); err != nil {
+		return err
+	}
+	key, err := nextKey(r.dec)
+	if err != nil {
+		return err
+	}
+	if key != "results" {
+		// These indicate the server does not support multiple queries; probably
+		// an old version.  Fall back to the standard iterator.
+		atomic.StoreInt32(&r.legacy, 1)
+		keyJSON, _ := json.Marshal(key)
+		var in io.ReadCloser = struct {
+			io.Reader
+			io.Closer
+		}{
+			Reader: io.MultiReader(
+				strings.NewReader("{"),
+				bytes.NewReader(keyJSON),
+				r.dec.Buffered(),
+				r.r),
+			Closer: r.r,
+		}
+		r.rows = newRows(r.ctx, in).(*rows)
+		r.rows.body = nil
+		r.rows.dec = json.NewDecoder(in)
+		return r.rows.begin()
+	}
+	// consume the opening '['
+	if err := consumeDelim(r.dec, json.Delim('[')); err != nil {
+		return err
+	}
+	r.rows = newRows(r.ctx, r.r).(*rows)
+	r.rows.body = nil
+	r.rows.iter.dec = r.dec
+	return r.rows.iter.begin()
+}
+
+func (r *multiQueriesRows) nextQuery() error {
+	if atomic.LoadInt32(&r.legacy) == 1 {
+		if err := r.Close(); err != nil {
+			return err
+		}
+		return io.EOF
+	}
+	rows := newRows(r.ctx, r.r).(*rows)
+	rows.iter.dec = r.dec
+	if err := rows.iter.begin(); err != nil {
+		// I'd normally use errors.As, but I want to retain backward
+		// compatibility to at least Go 1.11.
+		if ud, _ := err.(unexpectedDelim); ud == unexpectedDelim(']') {
+			if err := r.Close(); err != nil {
+				return err
+			}
+			return io.EOF
+		}
+		return err
+	}
+	r.queryIndex++
+	r.rows = rows
+	r.rows.body = nil
+	return nil
+}
+
+func (r *multiQueriesRows) Close() error {
+	if atomic.AddInt32(&r.closed, 1) > 1 {
+		return nil
+	}
+	if _, err := ioutil.ReadAll(r.r); err != nil {
+		return err
+	}
+	if err := r.r.Close(); err != nil {
+		return err
+	}
+	r.dec = nil
+	if r.rows == nil {
+		return nil
+	}
+	return r.rows.Close()
+}
+
+func (r *multiQueriesRows) QueryIndex() int {
+	return r.queryIndex
 }

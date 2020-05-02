@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	kivik "github.com/go-kivik/kivik/v4"
 )
@@ -116,8 +117,7 @@ type iter struct {
 	objMode bool
 
 	dec    *json.Decoder
-	mu     sync.RWMutex
-	closed bool
+	closed int32
 }
 
 func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.ReadCloser, parser parser) *iter {
@@ -130,12 +130,9 @@ func newIter(ctx context.Context, meta interface{}, expectedKey string, body io.
 }
 
 func (i *iter) next(row interface{}) error {
-	i.mu.RLock()
-	if i.closed {
-		i.mu.RUnlock()
+	if atomic.LoadInt32(&i.closed) == 1 {
 		return io.EOF
 	}
-	i.mu.RUnlock()
 	if i.dec == nil {
 		// We haven't begun yet
 		i.dec = json.NewDecoder(i.body)
@@ -169,15 +166,9 @@ func (i *iter) begin() error {
 		return nil
 	}
 	for {
-		t, err := i.dec.Token()
+		key, err := nextKey(i.dec)
 		if err != nil {
-			// I can't find a test case to trigger this, so it remains uncovered.
 			return err
-		}
-		key, ok := t.(string)
-		if !ok {
-			// The JSON parser should never permit this
-			return fmt.Errorf("Unexpected token: (%T) %v", t, t)
 		}
 		if key == i.expectedKey {
 			// Consume the first '['
@@ -187,6 +178,20 @@ func (i *iter) begin() error {
 			return err
 		}
 	}
+}
+
+func nextKey(dec *json.Decoder) (string, error) {
+	t, err := dec.Token()
+	if err != nil {
+		// I can't find a test case to trigger this, so it remains uncovered.
+		return "", err
+	}
+	key, ok := t.(string)
+	if !ok {
+		// The JSON parser should never permit this
+		return "", fmt.Errorf("Unexpected token: (%T) %v", t, t)
+	}
+	return key, nil
 }
 
 func (i *iter) parseMeta(key string) error {
@@ -223,7 +228,7 @@ func (i *iter) finish() (err error) {
 	if err := consumeDelim(i.dec, json.Delim(']')); err != nil {
 		return err
 	}
-	for {
+	for i.dec.More() {
 		t, err := i.dec.Token()
 		if err != nil {
 			return err
@@ -244,6 +249,8 @@ func (i *iter) finish() (err error) {
 			return fmt.Errorf("Unexpected JSON token: (%T) '%s'", t, t)
 		}
 	}
+	return consumeDelim(i.dec, json.Delim('}'))
+	// return nil
 }
 
 func (i *iter) nextRow(row interface{}) error {
@@ -254,9 +261,11 @@ func (i *iter) nextRow(row interface{}) error {
 }
 
 func (i *iter) Close() error {
-	i.mu.Lock()
-	i.closed = true
-	i.mu.Unlock()
+	atomic.StoreInt32(&i.closed, 1)
+	// body will be nil if we're iterating over a multi-query resultset.
+	if i.body == nil {
+		return nil
+	}
 	return i.body.Close()
 }
 
@@ -272,7 +281,20 @@ func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
 	}
 	if d != expectedDelim {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected JSON delimiter: %c", d)}
+		return unexpectedDelim(d)
 	}
 	return nil
+}
+
+// unexpectedDelim is used to indicate to the multiQueriesRows type that the
+// end of input has been reached, while behaving as an unexpected delimter
+// error to all other code.
+type unexpectedDelim byte
+
+func (d unexpectedDelim) Error() string {
+	return fmt.Sprintf("Unexpected JSON delimiter: %c", d)
+}
+
+func (d unexpectedDelim) StatusCode() int {
+	return http.StatusBadGateway
 }

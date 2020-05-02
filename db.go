@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -75,19 +76,32 @@ func optionsToParams(opts ...map[string]interface{}) (url.Values, error) {
 
 // rowsQuery performs a query that returns a rows iterator.
 func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interface{}) (driver.Rows, error) {
-	keys := opts["keys"]
-	delete(opts, "keys")
+	payload := make(map[string]interface{})
+	if keys := opts["keys"]; keys != nil {
+		delete(opts, "keys")
+		payload["keys"] = keys
+	}
+	rowsInit := newRows
+	if queries := opts["queries"]; queries != nil {
+		rowsInit = func(ctx context.Context, r io.ReadCloser) driver.Rows {
+			return newMultiQueriesRows(ctx, r)
+		}
+		delete(opts, "queries")
+		payload["queries"] = queries
+		// Funny that this works even in CouchDB 1.x. It seems 1.x just ignores
+		// extra path elements beyond the view name. So yay for accidental
+		// backward compatibility!
+		path = filepath.Join(path, "queries")
+	}
 	query, err := optionsToParams(opts)
 	if err != nil {
 		return nil, err
 	}
 	options := &chttp.Options{Query: query}
 	method := http.MethodGet
-	if keys != nil {
+	if len(payload) > 0 {
 		method = http.MethodPost
-		options.GetBody = chttp.BodyEncoder(map[string]interface{}{
-			"keys": keys,
-		})
+		options.GetBody = chttp.BodyEncoder(payload)
 		options.Header = http.Header{
 			chttp.HeaderIdempotencyKey: []string{},
 		}
@@ -99,7 +113,7 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	return newRows(ctx, resp.Body), nil
+	return rowsInit(ctx, resp.Body), nil
 }
 
 // AllDocs returns all of the documents in the database.
