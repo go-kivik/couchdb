@@ -11,8 +11,8 @@ github.com/go-kivik/kivik/v3 v3.0.0-pre1 h1:9LMdKntRidwO/sou+ICYhAm/u6BvLyRlut2k
 github.com/go-kivik/kivik/v3 v3.0.0-pre1/go.mod h1:+4F5AG/l5+s1DKAu/SVREvNFa/ffVpwlG32gXB8yUng=
 github.com/go-kivik/kivik/v4 v4.0.0-20200214160900-846fe547c809 h1:tHMOmNuZ5G9p7lx0ogfEaaG/RIkVeuKEriFX4llWTEQ=
 github.com/go-kivik/kivik/v4 v4.0.0-20200214160900-846fe547c809/go.mod h1:yZnDIahvQZWysqlj1PZ3xS3uAldJ7LnAeBnCI7i/r20=
-github.com/go-kivik/kivik/v4 v4.0.0-20200428195616-ad16c89fd2be h1:mEn538cbR+6f6ZFYuZ6iQhVLaFKNKDQRGuTOSUYwKpk=
-github.com/go-kivik/kivik/v4 v4.0.0-20200428195616-ad16c89fd2be/go.mod h1:O2fxy5xMXO7vaVr2gQG38sYTj/mHwg5Md/8kP7qUZQk=
+github.com/go-kivik/kivik/v4 v4.0.0-20200502103310-768ee6a43f23 h1:XIEr7Ow0b8hj1ijQ7/b5B117tIoP0i8CQv/LPgPdLdc=
+github.com/go-kivik/kivik/v4 v4.0.0-20200502103310-768ee6a43f23/go.mod h1:O2fxy5xMXO7vaVr2gQG38sYTj/mHwg5Md/8kP7qUZQk=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20200427193832-9610c732f701 h1:+OLB6I7MAesdybQoocudJ63ltcbLKRGbfW/7ViPSIS8=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20200427193832-9610c732f701/go.mod h1:wistIXKheHZ3Ejr81OqUDuHKiFK4nSg0kobDgp1N4us=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
