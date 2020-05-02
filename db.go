@@ -83,7 +83,9 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	}
 	rowsInit := newRows
 	if queries := opts["queries"]; queries != nil {
-		rowsInit = newMultiQueriesRows
+		rowsInit = func(ctx context.Context, r io.ReadCloser) driver.Rows {
+			return newMultiQueriesRows(ctx, r)
+		}
 		delete(opts, "queries")
 		payload["queries"] = queries
 		// Funny that this works even in CouchDB 1.x. It seems 1.x just ignores

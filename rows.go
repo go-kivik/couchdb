@@ -1,12 +1,14 @@
 package couchdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync/atomic"
 
 	kivik "github.com/go-kivik/kivik/v3"
@@ -157,6 +159,10 @@ type multiQueriesRows struct {
 	dec        *json.Decoder
 	queryIndex int
 	closed     int32
+
+	// legacy indicates this is an old-style iterator, and won't have more than
+	// one resultset.
+	legacy int32
 }
 
 func (r *multiQueriesRows) Next(row *driver.Row) error {
@@ -174,7 +180,7 @@ func (r *multiQueriesRows) Next(row *driver.Row) error {
 		}
 	}
 	if err := r.rows.Next(row); err != nil {
-		if err == io.EOF {
+		if err == io.EOF && atomic.LoadInt32(&r.legacy) == 0 {
 			return driver.EOQ
 		}
 		return err
@@ -193,7 +199,24 @@ func (r *multiQueriesRows) begin() error {
 		return err
 	}
 	if key != "results" {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key %v", key)}
+		// These indicate the server does not support multiple queries; probably
+		// an old version.  Fall back to the standard iterator.
+		atomic.StoreInt32(&r.legacy, 1)
+		keyJSON, _ := json.Marshal(key)
+		var in io.ReadCloser = struct {
+			io.Reader
+			io.Closer
+		}{
+			Reader: io.MultiReader(
+				strings.NewReader("{"),
+				bytes.NewReader(keyJSON),
+				r.dec.Buffered(),
+				r.r),
+			Closer: r.r,
+		}
+		r.rows = newRows(r.ctx, in).(*rows)
+		r.rows.dec = json.NewDecoder(in)
+		return r.rows.begin()
 	}
 	// consume the opening '['
 	if err := consumeDelim(r.dec, json.Delim('[')); err != nil {
@@ -201,13 +224,16 @@ func (r *multiQueriesRows) begin() error {
 	}
 	r.rows = newRows(r.ctx, r.r).(*rows)
 	r.rows.iter.dec = r.dec
-	if err := r.rows.iter.begin(); err != nil {
-		return err
-	}
-	return nil
+	return r.rows.iter.begin()
 }
 
 func (r *multiQueriesRows) nextQuery() error {
+	if atomic.LoadInt32(&r.legacy) == 1 {
+		if err := r.Close(); err != nil {
+			return err
+		}
+		return io.EOF
+	}
 	rows := newRows(r.ctx, r.r).(*rows)
 	rows.iter.dec = r.dec
 	if err := rows.iter.begin(); err != nil {
@@ -227,10 +253,9 @@ func (r *multiQueriesRows) nextQuery() error {
 }
 
 func (r *multiQueriesRows) Close() error {
-	if atomic.LoadInt32(&r.closed) == 1 {
+	if atomic.AddInt32(&r.closed, 1) > 1 {
 		return nil
 	}
-	atomic.StoreInt32(&r.closed, 1)
 	if _, err := ioutil.ReadAll(r.r); err != nil {
 		return err
 	}
@@ -238,6 +263,9 @@ func (r *multiQueriesRows) Close() error {
 		return err
 	}
 	r.dec = nil
+	if r.rows == nil {
+		return nil
+	}
 	return r.rows.Close()
 }
 
