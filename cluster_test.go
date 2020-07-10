@@ -11,7 +11,8 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	kivik "github.com/go-kivik/kivik/v3"
+	"github.com/go-kivik/kivik/v3"
+	"github.com/go-kivik/kivik/v3/driver"
 )
 
 const optionEnsureDBsExist = "ensure_dbs_exist"
@@ -171,5 +172,57 @@ func TestClusterSetup(t *testing.T) {
 	tests.Run(t, func(t *testing.T, test tst) {
 		err := test.client.ClusterSetup(context.Background(), test.action)
 		testy.StatusErrorRE(t, test.err, test.status, err)
+	})
+}
+
+func TestMembership(t *testing.T) {
+	type tt struct {
+		client *client
+		want   *driver.ClusterMembership
+		status int
+		err    string
+	}
+
+	tests := testy.NewTable()
+	tests.Add("network error", tt{
+		client: newTestClient(nil, errors.New("network error")),
+		status: http.StatusBadGateway,
+		err:    `Get "?http://example.com/_membership"?: network error`,
+	})
+	tests.Add("success 2.3.1", func(t *testing.T) interface{} {
+		return tt{
+			client: newTestClient(&http.Response{
+				StatusCode: http.StatusOK,
+				Header: http.Header{
+					"Cache-Control":  []string{"must-revalidate"},
+					"Content-Length": []string{"382"},
+					"Content-Type":   []string{"application/json"},
+					"Date":           []string{"Fri, 10 Jul 2020 13:12:10 GMT"},
+					"Server":         []string{"CouchDB/2.3.1 (Erlang OTP/19)"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"all_nodes":["couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local"],"cluster_nodes":["couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local"]}
+				`)),
+			}, nil),
+			want: &driver.ClusterMembership{
+				AllNodes: []string{
+					"couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local",
+					"couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local",
+					"couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local",
+				},
+				ClusterNodes: []string{
+					"couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local",
+					"couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local",
+					"couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local",
+				},
+			},
+		}
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		got, err := tt.client.Membership(context.Background())
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+		if d := testy.DiffInterface(tt.want, got); d != nil {
+			t.Error(d)
+		}
 	})
 }
