@@ -3,6 +3,7 @@ package chttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,7 +19,7 @@ import (
 	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/go-kivik/kivik/v3/errors"
+	"github.com/go-kivik/kivik/v3"
 )
 
 var defaultUA = func() string {
@@ -689,7 +690,7 @@ func TestDoReq(t *testing.T) {
 			name:   "body error",
 			method: "PUT",
 			path:   "foo",
-			client: newTestClient(nil, errors.Status(http.StatusBadRequest, "bad request")),
+			client: newTestClient(nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Message: "bad request"}),
 			status: http.StatusBadRequest,
 			err:    `Put "?http://example.com/foo"?: bad request`,
 		},
@@ -796,7 +797,7 @@ func TestDoReq(t *testing.T) {
 			name: "couchdb mounted below root",
 			client: newCustomClient("http://foo.com/dbroot/", func(r *http.Request) (*http.Response, error) {
 				if r.URL.Path != "/dbroot/foo" {
-					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+					return nil, fmt.Errorf("Unexpected path: %s", r.URL.Path)
 				}
 				return &http.Response{}, nil
 			}),
@@ -807,7 +808,7 @@ func TestDoReq(t *testing.T) {
 			name: "user agent",
 			client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
 				if ua := r.UserAgent(); ua != defaultUA {
-					return nil, errors.Errorf("Unexpected User Agent: %s", ua)
+					return nil, fmt.Errorf("Unexpected User Agent: %s", ua)
 				}
 				return &http.Response{}, nil
 			}),
@@ -971,7 +972,7 @@ func TestNetError(t *testing.T) {
 			input: &url.Error{
 				Op:  "Get",
 				URL: "http://foo.com/",
-				Err: errors.Status(http.StatusBadRequest, "some error"),
+				Err: &kivik.Error{HTTPStatus: http.StatusBadRequest, Message: "some error"},
 			},
 			status: http.StatusBadRequest,
 			err:    `Get "?http://foo.com/"?: some error`,
@@ -985,7 +986,7 @@ func TestNetError(t *testing.T) {
 		},
 		{
 			name:       "other error with embedded status",
-			input:      errors.Status(http.StatusBadRequest, "bad req"),
+			input:      &kivik.Error{HTTPStatus: http.StatusBadRequest, Message: "bad req"},
 			status:     http.StatusBadRequest,
 			curlStatus: 0,
 			err:        "bad req",
