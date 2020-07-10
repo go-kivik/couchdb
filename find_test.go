@@ -119,9 +119,13 @@ func TestUnmarshalQueryPlan(t *testing.T) {
 		{
 			name:  "complex field list",
 			input: `{"dbname":"foo", "fields":[{"foo":"asc"},{"bar":"desc"}]}`,
-			expected: &queryPlan{DBName: "foo",
-				Fields: []interface{}{map[string]interface{}{"foo": "asc"},
-					map[string]interface{}{"bar": "desc"}}},
+			expected: &queryPlan{
+				DBName: "foo",
+				Fields: []interface{}{
+					map[string]interface{}{"foo": "asc"},
+					map[string]interface{}{"bar": "desc"},
+				},
+			},
 		},
 		{
 			name:  "invalid bare string",
@@ -251,7 +255,8 @@ func TestGetIndexes(t *testing.T) {
 					Type:      "json",
 					Definition: map[string]interface{}{
 						"fields": []interface{}{
-							map[string]interface{}{"foo": "asc"}},
+							map[string]interface{}{"foo": "asc"},
+						},
 					},
 				},
 			},

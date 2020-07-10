@@ -111,8 +111,10 @@ type rawCookie struct {
 	next   http.RoundTripper
 }
 
-var _ Authenticator = &rawCookie{}
-var _ http.RoundTripper = &rawCookie{}
+var (
+	_ Authenticator     = &rawCookie{}
+	_ http.RoundTripper = &rawCookie{}
+)
 
 func (a *rawCookie) auth(_ context.Context, c *client) error {
 	if c.Client.Client.Transport != nil {
