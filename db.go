@@ -32,11 +32,13 @@ type db struct {
 	dbName string
 }
 
-var _ driver.DB = &db{}
-var _ driver.OptsFinder = &db{}
-var _ driver.MetaGetter = &db{}
-var _ driver.AttachmentMetaGetter = &db{}
-var _ driver.PartitionedDB = &db{}
+var (
+	_ driver.DB                   = &db{}
+	_ driver.OptsFinder           = &db{}
+	_ driver.MetaGetter           = &db{}
+	_ driver.AttachmentMetaGetter = &db{}
+	_ driver.PartitionedDB        = &db{}
+)
 
 func (d *db) path(path string) string {
 	url, err := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
