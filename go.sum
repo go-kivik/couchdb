@@ -6,8 +6,8 @@ github.com/flimzy/diff v0.1.5/go.mod h1:lFJtC7SPsK0EroDmGTSrdtWKAxOk3rO+q+e04LL0
 github.com/flimzy/testy v0.1.17-0.20190521133342-95b386c3ece6 h1:uw6StVCll2vXdHJMAiKvhfAwcwBYD6d9dgWOIdHMku8=
 github.com/flimzy/testy v0.1.17-0.20190521133342-95b386c3ece6/go.mod h1:3szguN8NXqgq9bt9Gu8TQVj698PJWmyx/VY1frwwKrM=
 github.com/go-kivik/kivik/v3 v3.0.1/go.mod h1:7tmQDvkta/pcijpUjLMsQ9HJUELiKD5zm6jQ3Gb9cxE=
-github.com/go-kivik/kivik/v3 v3.1.1 h1:Rz111JKpj+4hIcQyn2dZvASJWoPQNT2wpSsbN2muwk4=
-github.com/go-kivik/kivik/v3 v3.1.1/go.mod h1:chqVuHKAU9j2C7qL0cAH2FCO26oL+0B4aIBeCRMnLa8=
+github.com/go-kivik/kivik/v3 v3.2.0 h1:YQ6j89DrQwNdMdpWioObEP+pYTSAtF58HomS5ROfKc0=
+github.com/go-kivik/kivik/v3 v3.2.0/go.mod h1:chqVuHKAU9j2C7qL0cAH2FCO26oL+0B4aIBeCRMnLa8=
 github.com/go-kivik/kiviktest/v3 v3.0.2 h1:+n90Nopbrzf/tqoXu4xqAMXk1+191vLrvakBdiz7r3Y=
 github.com/go-kivik/kiviktest/v3 v3.0.2/go.mod h1:sqsz3M2sJxTxAUdOj+2SU21y4phcpYc0FJIn+hbf1D0=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=

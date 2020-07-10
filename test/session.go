@@ -116,68 +116,89 @@ func testCreateSession(ctx *kt.Context, client *chttp.Client) {
 	}
 	tests := []sessionPostTest{
 		{Name: "EmptyJSON", Options: &chttp.Options{ContentType: "application/json"}},
-		{Name: "BadJSON", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body("oink"),
+		{Name: "BadJSON", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body("oink"),
 		}},
-		{Name: "BogusTypeJSON", Creds: true, Options: &chttp.Options{ContentType: "image/gif",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		{Name: "BogusTypeJSON", Creds: true, Options: &chttp.Options{
+			ContentType: "image/gif",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
 		}},
-		{Name: "BogusTypeForm", Creds: true, Options: &chttp.Options{ContentType: "image/gif",
-			Body: kt.Body(`name=%s&password=%s`, name, password),
+		{Name: "BogusTypeForm", Creds: true, Options: &chttp.Options{
+			ContentType: "image/gif",
+			Body:        kt.Body(`name=%s&password=%s`, name, password),
 		}},
 		{Name: "EmptyForm", Options: &chttp.Options{ContentType: "application/x-www-form-urlencoded"}},
-		{Name: "BadForm", Options: &chttp.Options{ContentType: "application/x-www-form-urlencoded",
-			Body: kt.Body("o\\ink"),
+		{Name: "BadForm", Options: &chttp.Options{
+			ContentType: "application/x-www-form-urlencoded",
+			Body:        kt.Body("o\\ink"),
 		}},
-		{Name: "MeaninglessJSON", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"ok":true}`),
+		{Name: "MeaninglessJSON", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"ok":true}`),
 		}},
-		{Name: "MeaninglessForm", Options: &chttp.Options{ContentType: "application/x-www-form-urlencoded",
-			Body: kt.Body("ok=true"),
+		{Name: "MeaninglessForm", Options: &chttp.Options{
+			ContentType: "application/x-www-form-urlencoded",
+			Body:        kt.Body("ok=true"),
 		}},
-		{Name: "GoodJSON", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"bob","password":"abc123"}`),
+		{Name: "GoodJSON", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"bob","password":"abc123"}`),
 		}},
-		{Name: "BadQueryParam", Query: "foobarbaz!", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"bob","password":"abc123"}`),
+		{Name: "BadQueryParam", Query: "foobarbaz!", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"bob","password":"abc123"}`),
 		}},
-		{Name: "GoodCredsJSON", Creds: true, Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(fmt.Sprintf(`{"name":"%s","password":"%s"}`, name, password)),
+		{Name: "GoodCredsJSON", Creds: true, Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(fmt.Sprintf(`{"name":"%s","password":"%s"}`, name, password)),
 		}},
-		{Name: "GoodCredsForm", Creds: true, Options: &chttp.Options{ContentType: "application/x-www-form-urlencoded",
-			Body: kt.Body(fmt.Sprintf(`name=%s&password=%s`, name, password)),
+		{Name: "GoodCredsForm", Creds: true, Options: &chttp.Options{
+			ContentType: "application/x-www-form-urlencoded",
+			Body:        kt.Body(fmt.Sprintf(`name=%s&password=%s`, name, password)),
 		}},
-		{Name: "BadCredsJSON", Creds: true, Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(fmt.Sprintf(`{"name":"%s","password":"%sxxx"}`, name, password)),
+		{Name: "BadCredsJSON", Creds: true, Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(fmt.Sprintf(`{"name":"%s","password":"%sxxx"}`, name, password)),
 		}},
-		{Name: "BadCredsForm", Creds: true, Options: &chttp.Options{ContentType: "application/x-www-form-urlencoded",
-			Body: kt.Body(`name=%s&password=%sxxx`, name, password),
+		{Name: "BadCredsForm", Creds: true, Options: &chttp.Options{
+			ContentType: "application/x-www-form-urlencoded",
+			Body:        kt.Body(`name=%s&password=%sxxx`, name, password),
 		}},
-		{Name: "GoodCredsJSONRedirEmpty", Creds: true, Query: "next=", Options: &chttp.Options{ContentType: "application/json",
+		{Name: "GoodCredsJSONRedirEmpty", Creds: true, Query: "next=", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "GoodCredsJSONRedirRelative", Creds: true, Query: "next=/_session", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "GoodCredsJSONRedirSchemaless", Creds: true, Query: "next=//_session", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "GoodCredsJSONRedirRelativeNoSlash", Creds: true, Query: "next=foobar", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "GoodCredsJSONRemoteRedirAbsolute", Creds: true, Query: "next=http://google.com/", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "GoodCredsJSONRemoteRedirInvalidURL", Creds: true, Query: "next=/session%25%26%26", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "GoodCredsJSONRemoteRedirHeaderInjection", Creds: true, Query: "next=/foo\nX-Injected: oink", Options: &chttp.Options{
+			ContentType: "application/json",
+			Body:        kt.Body(`{"name":"%s","password":"%s"}`, name, password),
+		}},
+		{Name: "AcceptPlain", Creds: true, Options: &chttp.Options{
+			ContentType: "application/json", Accept: "text/plain",
 			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
 		}},
-		{Name: "GoodCredsJSONRedirRelative", Creds: true, Query: "next=/_session", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "GoodCredsJSONRedirSchemaless", Creds: true, Query: "next=//_session", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "GoodCredsJSONRedirRelativeNoSlash", Creds: true, Query: "next=foobar", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "GoodCredsJSONRemoteRedirAbsolute", Creds: true, Query: "next=http://google.com/", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "GoodCredsJSONRemoteRedirInvalidURL", Creds: true, Query: "next=/session%25%26%26", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "GoodCredsJSONRemoteRedirHeaderInjection", Creds: true, Query: "next=/foo\nX-Injected: oink", Options: &chttp.Options{ContentType: "application/json",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "AcceptPlain", Creds: true, Options: &chttp.Options{ContentType: "application/json", Accept: "text/plain",
-			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
-		}},
-		{Name: "AcceptImage", Creds: true, Options: &chttp.Options{ContentType: "application/json", Accept: "image/gif",
+		{Name: "AcceptImage", Creds: true, Options: &chttp.Options{
+			ContentType: "application/json", Accept: "image/gif",
 			Body: kt.Body(`{"name":"%s","password":"%s"}`, name, password),
 		}},
 	}
@@ -297,7 +318,6 @@ func testDeleteSession(ctx *kt.Context, client *chttp.Client) {
 				}
 			}
 		}
-
 	}
 	tests := []deleteSessionTest{
 		{Name: "ValidSession", Creds: true, Cookie: cookie},

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-kivik/couchdb/v3/chttp"
+	"github.com/go-kivik/kivik/v3/driver"
 )
 
 func (c *client) ClusterStatus(ctx context.Context, opts map[string]interface{}) (string, error) {
@@ -25,4 +26,10 @@ func (c *client) ClusterSetup(ctx context.Context, action interface{}) error {
 	}
 	_, err := c.DoError(ctx, http.MethodPost, "/_cluster_setup", options)
 	return err
+}
+
+func (c *client) Membership(ctx context.Context) (*driver.ClusterMembership, error) {
+	result := new(driver.ClusterMembership)
+	_, err := c.DoJSON(ctx, http.MethodGet, "/_membership", nil, &result)
+	return result, err
 }

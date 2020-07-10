@@ -42,8 +42,10 @@ type client struct {
 	sdMU              sync.Mutex
 }
 
-var _ driver.Client = &client{}
-var _ driver.DBUpdater = &client{}
+var (
+	_ driver.Client    = &client{}
+	_ driver.DBUpdater = &client{}
+)
 
 // NewClient establishes a new connection to a CouchDB server instance. If
 // auth credentials are included in the URL, they are used to authenticate using
