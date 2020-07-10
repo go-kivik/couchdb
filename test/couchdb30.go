@@ -241,7 +241,8 @@ func registerSuiteCouch30() {
 		"GetIndexes/NoAuth/_duck.status":           http.StatusUnauthorized,
 		"GetIndexes/NoAuth/_replicator.status":     http.StatusUnauthorized,
 		"GetIndexes/NoAuth/_users.status":          http.StatusUnauthorized,
-		"GetIndexes/RW.indexes": []kivik.Index{kt.AllDocsIndex,
+		"GetIndexes/RW.indexes": []kivik.Index{
+			kt.AllDocsIndex,
 			{
 				DesignDoc: "_design/foo",
 				Name:      "bar",
