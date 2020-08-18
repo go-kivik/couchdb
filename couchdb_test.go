@@ -13,7 +13,6 @@
 package couchdb
 
 import (
-	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -115,7 +114,7 @@ func TestDB(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.client.DB(context.Background(), test.dbName, test.options)
+			result, err := test.client.DB(test.dbName, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if _, ok := result.(*db); !ok {
 				t.Errorf("Unexpected result type: %T", result)
