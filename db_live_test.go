@@ -32,7 +32,7 @@ func TestQueries_1_x(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db := client.DB(context.Background(), "_users")
+	db := client.DB("_users")
 	rows, err := db.AllDocs(context.Background(), map[string]interface{}{
 		"queries": []map[string]interface{}{
 			{},
@@ -78,7 +78,7 @@ func TestQueries_2_x(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db := client.DB(context.Background(), "_users")
+	db := client.DB("_users")
 	rows, err := db.AllDocs(context.Background(), map[string]interface{}{
 		"queries": []map[string]interface{}{
 			{},
@@ -121,7 +121,7 @@ func TestQueries_3_x(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db := client.DB(context.Background(), "_users")
+	db := client.DB("_users")
 	rows, err := db.AllDocs(context.Background(), map[string]interface{}{
 		"queries": []map[string]interface{}{
 			{},
