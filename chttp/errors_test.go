@@ -88,7 +88,6 @@ func TestResponseError(t *testing.T) {
 			err:    "Not Found",
 			expected: &kivik.Error{
 				HTTPStatus: http.StatusNotFound,
-				FromServer: true,
 				Err: &HTTPError{
 					Response: &http.Response{
 						StatusCode: http.StatusBadRequest,
@@ -118,7 +117,6 @@ func TestResponseError(t *testing.T) {
 			err:    "Bad Request: Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
 			expected: &kivik.Error{
 				HTTPStatus: http.StatusBadRequest,
-				FromServer: true,
 				Err: &HTTPError{
 					Response: &http.Response{
 						StatusCode: http.StatusBadRequest,
@@ -147,7 +145,6 @@ func TestResponseError(t *testing.T) {
 			err:    "Bad Request",
 			expected: &kivik.Error{
 				HTTPStatus: http.StatusBadRequest,
-				FromServer: true,
 				Err: &HTTPError{
 					Response: &http.Response{
 						StatusCode: http.StatusBadRequest,

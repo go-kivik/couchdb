@@ -217,7 +217,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: &kivik.Error{HTTPStatus: http.StatusConflict, FromServer: true, Err: errors.New("annoying conflict")},
+				Error: &kivik.Error{HTTPStatus: http.StatusConflict, Err: errors.New("annoying conflict")},
 			},
 		},
 		{
@@ -231,7 +231,7 @@ func TestBulkNext(t *testing.T) {
 			}(),
 			expected: &driver.BulkResult{
 				ID:    "foo",
-				Error: &kivik.Error{HTTPStatus: http.StatusInternalServerError, FromServer: true, Err: errors.New("foo is erroneous")},
+				Error: &kivik.Error{HTTPStatus: http.StatusInternalServerError, Err: errors.New("foo is erroneous")},
 			},
 		},
 		{
