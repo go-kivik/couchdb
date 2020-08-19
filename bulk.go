@@ -70,7 +70,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		default:
 			status = http.StatusInternalServerError
 		}
-		update.Error = &kivik.Error{HTTPStatus: status, FromServer: true, Err: errors.New(updateResult.Reason)}
+		update.Error = &kivik.Error{HTTPStatus: status, Err: errors.New(updateResult.Reason)}
 	}
 	return nil
 }
