@@ -97,9 +97,7 @@ func (d *db) rowsQuery(ctx context.Context, path string, opts map[string]interfa
 	}
 	rowsInit := newRows
 	if queries := opts["queries"]; queries != nil {
-		rowsInit = func(ctx context.Context, r io.ReadCloser) driver.Rows {
-			return newMultiQueriesRows(ctx, r)
-		}
+		rowsInit = newMultiQueriesRows
 		delete(opts, "queries")
 		payload["queries"] = queries
 		// Funny that this works even in CouchDB 1.x. It seems 1.x just ignores
@@ -475,10 +473,8 @@ func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (boundary
 	}
 	if info, e := tmp.Stat(); e == nil {
 		size = info.Size()
-	} else {
-		if err == nil {
-			err = e
-		}
+	} else if err == nil {
+		err = e
 	}
 	if _, e := tmp.Seek(0, 0); e != nil && err == nil {
 		err = e

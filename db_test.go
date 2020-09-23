@@ -2002,7 +2002,7 @@ test content
 			result, _ := ioutil.ReadAll(body)
 			expected := fmt.Sprintf(test.expected, boundary)
 			expected = strings.TrimPrefix(expected, "\n")
-			result = bytes.Replace(result, []byte("\r\n"), []byte("\n"), -1)
+			result = bytes.ReplaceAll(result, []byte("\r\n"), []byte("\n"))
 			if d := testy.DiffText(expected, string(result)); d != nil {
 				t.Error(d)
 			}
