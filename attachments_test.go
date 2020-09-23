@@ -527,7 +527,15 @@ func TestFetchAttachment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := test.db.fetchAttachment(context.Background(), test.method, test.id, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
+
+			if d := testy.DiffJSON(test.resp.Body, resp.Body); d != nil {
+				t.Errorf("Response body: %s", d)
+			}
+			// Normalize the response for diffing
 			resp.Request = nil
+			resp.Body = nil
+			test.resp.Body = nil
+
 			if d := testy.DiffInterface(test.resp, resp); d != nil {
 				t.Error(d)
 			}
