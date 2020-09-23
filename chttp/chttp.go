@@ -31,17 +31,15 @@ import (
 	"sync"
 	"syscall"
 
-	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4"
 )
 
-const (
-	typeJSON = "application/json"
-)
+const typeJSON = "application/json"
 
 // The default UserAgent values
 const (
 	UserAgent = "Kivik chttp"
-	Version   = "2.0.0-prerelease"
+	Version   = "4.0.0-prerelease"
 )
 
 // Client represents a client connection. It embeds an *http.Client
