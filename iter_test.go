@@ -88,7 +88,7 @@ func TestCancelableReadCloser(t *testing.T) {
 			context.Background(),
 			ioutil.NopCloser(testy.NeverReader()),
 		)
-		rc.Close()
+		_ = rc.Close()
 		result, err := ioutil.ReadAll(rc)
 		testy.Error(t, "iterator closed", err)
 		if string(result) != "" {

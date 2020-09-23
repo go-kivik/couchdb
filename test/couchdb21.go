@@ -20,6 +20,7 @@ import (
 	"github.com/go-kivik/kiviktest/v4/kt"
 )
 
+// nolint:gomnd
 func registerSuiteCouch21() {
 	kiviktest.RegisterSuite(kiviktest.SuiteCouch21, kt.SuiteConfig{
 		"AllDBs.expected": []string{"_global_changes", "_replicator", "_users"},

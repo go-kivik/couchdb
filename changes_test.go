@@ -90,7 +90,7 @@ func TestChanges(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ch, err := test.db.Changes(context.Background(), test.options)
 			if ch != nil {
-				defer ch.Close()
+				defer ch.Close() // nolint:errcheck
 			}
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if etag := ch.ETag(); etag != test.etag {

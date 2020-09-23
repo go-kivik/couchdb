@@ -20,6 +20,7 @@ import (
 	"github.com/go-kivik/kiviktest/v4/kt"
 )
 
+// nolint:gomnd
 func registerSuiteCloudant() {
 	kiviktest.RegisterSuite(kiviktest.SuiteCloudant, kt.SuiteConfig{
 		"AllDBs.expected":               []string{"_replicator", "_users"},

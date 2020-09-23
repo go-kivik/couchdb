@@ -5,5 +5,6 @@ format = "colored-line-number"
 enable = [
     "gocyclo", "unconvert", "goimports", "unused", "varcheck",
     "vetshadow", "misspell", "nakedret", "errcheck", "golint", "ineffassign",
-    "deadcode", "goconst", "vet", "unparam", "gofmt"
+    "deadcode", "goconst", "vet", "unparam", "gofumpt", "prealloc", "gomnd",
+    "gocritic"
 ]

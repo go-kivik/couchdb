@@ -74,7 +74,7 @@ func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
 
 func Body(str string) io.ReadCloser {
 	if !strings.HasSuffix(str, "\n") {
-		str = str + "\n"
+		str += "\n"
 	}
 	return ioutil.NopCloser(strings.NewReader(str))
 }

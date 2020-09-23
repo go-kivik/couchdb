@@ -71,7 +71,7 @@ func (e *HTTPError) FormatError(p printer) error {
 
 // ResponseError returns an error from an *http.Response.
 func ResponseError(resp *http.Response) error {
-	if resp.StatusCode < 400 {
+	if resp.StatusCode < 400 { // nolint:gomnd
 		return nil
 	}
 	if resp.Body != nil {

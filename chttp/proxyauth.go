@@ -20,6 +20,7 @@ import (
 	"strings"
 )
 
+// ProxyAuth provides support for CouchDB proxy authentication.
 type ProxyAuth struct {
 	Username string
 	Secret   string
@@ -54,6 +55,7 @@ func (a *ProxyAuth) genToken() string {
 	return a.token
 }
 
+// RoundTrip implements the http.RoundTripper interface.
 func (a *ProxyAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	if token := a.genToken(); token != "" {
 		req.Header.Set(a.header("X-Auth-CouchDB-Token"), token)
@@ -65,6 +67,7 @@ func (a *ProxyAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	return a.transport.RoundTrip(req)
 }
 
+// Authenticate allows authentication via ProxyAuth.
 func (a *ProxyAuth) Authenticate(c *Client) error {
 	a.transport = c.Transport
 	if a.transport == nil {
