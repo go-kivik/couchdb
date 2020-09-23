@@ -447,7 +447,7 @@ func TestGetRev(t *testing.T) {
 				Request:    &http.Request{Method: "POST"},
 				Body:       ioutil.NopCloser(strings.NewReader("")),
 			},
-			err: "no ETag header found",
+			err: "unable to determine document revision: EOF",
 		},
 		{
 			name: "normalized Etag header",
@@ -1035,4 +1035,127 @@ func TestUserAgent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_extractRev(t *testing.T) {
+	type tt struct {
+		resp *http.Response
+		rev  string
+		err  string
+	}
+
+	tests := testy.NewTable()
+	tests.Add("HEAD request", tt{
+		resp: &http.Response{
+			Request: &http.Request{
+				Method: http.MethodHead,
+			},
+		},
+		rev: "",
+		err: "unable to determine document revision",
+	})
+	tests.Add("empty body", tt{
+		resp: &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader("")),
+		},
+		rev: "",
+		err: "unable to determine document revision: EOF",
+	})
+	tests.Add("invalid JSON", tt{
+		resp: &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(`bogus`)),
+		},
+		err: `unable to determine document revision: invalid character 'b' looking for beginning of value`,
+	})
+	tests.Add("rev found", tt{
+		resp: &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(`{"_rev":"1-xyz"}`)),
+		},
+		rev: "1-xyz",
+	})
+	tests.Add("rev found in middle", tt{
+		resp: &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(`{
+				"_id":"foo",
+				"_rev":"1-xyz",
+				"asdf":"qwerty",
+				"number":12345
+			}`)),
+		},
+		rev: "1-xyz",
+	})
+	tests.Add("rev not found middle", tt{
+		resp: &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(`{
+				"_id":"foo",
+				"asdf":"qwerty",
+				"number":12345
+			}`)),
+		},
+		err: "unable to determine document revision: _rev key not found in response body",
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		if tt.resp.Request == nil {
+			tt.resp.Request = &http.Request{}
+		}
+		rev, err := extractRev(tt.resp)
+		testy.Error(t, tt.err, err)
+		if tt.rev != rev {
+			t.Errorf("Expected %s, got %s", tt.rev, rev)
+		}
+		if d := testy.DiffJSON(testy.Snapshot(t), tt.resp.Body); d != nil {
+			t.Error(d)
+		}
+	})
+}
+
+func Test_readRev(t *testing.T) {
+	type tt struct {
+		input string
+		rev   string
+		err   string
+	}
+
+	tests := testy.NewTable()
+	tests.Add("empty body", tt{
+		input: "",
+		err:   "EOF",
+	})
+	tests.Add("invalid JSON", tt{
+		input: "bogus",
+		err:   `invalid character 'b' looking for beginning of value`,
+	})
+	tests.Add("non-object", tt{
+		input: "[]",
+		err:   `Expected '{' token, found "["`,
+	})
+	tests.Add("_rev missing", tt{
+		input: "{}",
+		err:   "_rev key not found in response body",
+	})
+	tests.Add("invalid key", tt{
+		input: "{asdf",
+		err:   `invalid character 'a'`,
+	})
+	tests.Add("invalid value", tt{
+		input: `{"_rev":xyz}`,
+		err:   `invalid character 'x' looking for beginning of value`,
+	})
+	tests.Add("non-string rev", tt{
+		input: `{"_rev":[]}`,
+		err:   `found "[" in place of _rev value`,
+	})
+	tests.Add("success", tt{
+		input: `{"_rev":"1-xyz"}`,
+		rev:   "1-xyz",
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		rev, err := readRev(strings.NewReader(tt.input))
+		testy.Error(t, tt.err, err)
+		if rev != tt.rev {
+			t.Errorf("Wanted %s, got %s", tt.rev, rev)
+		}
+	})
 }

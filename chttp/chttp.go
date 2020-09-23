@@ -3,6 +3,7 @@
 package chttp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -446,10 +447,70 @@ func GetRev(resp *http.Response) (rev string, err error) {
 		return "", err
 	}
 	rev, ok := ETag(resp)
-	if !ok {
-		return "", errors.New("no ETag header found")
+	if ok {
+		return rev, nil
+	}
+	return extractRev(resp)
+}
+
+// When the ETag header is missing, which can happen, for example, when doing
+// a request with revs_info=true.  This means we need to look through the
+// body of the request for the revision. Fortunately, CouchDB tends to send
+// the _id and _rev fields first, so we shouldn't need to parse the entire
+// body. The important thing is that resp.Body must be restored, so that the
+// normal document scanning can take place as usual.
+func extractRev(resp *http.Response) (string, error) {
+	if resp.Request.Method == http.MethodHead {
+		return "", errors.New("unable to determine document revision")
+	}
+	buf := &bytes.Buffer{}
+	r := io.TeeReader(resp.Body, buf)
+	defer func() {
+		// Restore the original resp.Body
+		resp.Body = struct {
+			io.Reader
+			io.Closer
+		}{
+			Reader: io.MultiReader(buf, resp.Body),
+			Closer: resp.Body,
+		}
+	}()
+	rev, err := readRev(r)
+	if err != nil {
+		return "", fmt.Errorf("unable to determine document revision: %s", err)
 	}
 	return rev, nil
+}
+
+// readRev searches r for a `_rev` field, and returns its value without reading
+// the rest of the JSON stream.
+func readRev(r io.Reader) (string, error) {
+	dec := json.NewDecoder(r)
+	tk, err := dec.Token()
+	if err != nil {
+		return "", err
+	}
+	if tk != json.Delim('{') {
+		return "", fmt.Errorf("Expected %q token, found %q", '{', tk)
+	}
+	for dec.More() {
+		tk, err = dec.Token()
+		if err != nil {
+			return "", err
+		}
+		if tk == "_rev" {
+			tk, err = dec.Token()
+			if err != nil {
+				return "", err
+			}
+			if value, ok := tk.(string); ok {
+				return value, nil
+			}
+			return "", fmt.Errorf("found %q in place of _rev value", tk)
+		}
+	}
+
+	return "", errors.New("_rev key not found in response body")
 }
 
 type exitStatuser interface {

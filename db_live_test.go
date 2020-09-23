@@ -159,7 +159,7 @@ func Test_bug509(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db := client.DB("bug509")
+	db := client.DB(context.Background(), "bug509")
 	if _, err := db.Put(context.Background(), "x", map[string]string{
 		"_id": "x",
 	}); err != nil {
