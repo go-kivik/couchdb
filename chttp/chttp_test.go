@@ -1128,7 +1128,7 @@ func Test_readRev(t *testing.T) {
 	})
 	tests.Add("non-object", tt{
 		input: "[]",
-		err:   `Expected '{' token, found "["`,
+		err:   `Expected '{' token, found "\["`,
 	})
 	tests.Add("_rev missing", tt{
 		input: "{}",
@@ -1136,7 +1136,7 @@ func Test_readRev(t *testing.T) {
 	})
 	tests.Add("invalid key", tt{
 		input: "{asdf",
-		err:   `invalid character 'a'`,
+		err:   `invalid character 'a' ?`,
 	})
 	tests.Add("invalid value", tt{
 		input: `{"_rev":xyz}`,
@@ -1144,7 +1144,7 @@ func Test_readRev(t *testing.T) {
 	})
 	tests.Add("non-string rev", tt{
 		input: `{"_rev":[]}`,
-		err:   `found "[" in place of _rev value`,
+		err:   `found "\[" in place of _rev value`,
 	})
 	tests.Add("success", tt{
 		input: `{"_rev":"1-xyz"}`,
@@ -1153,7 +1153,7 @@ func Test_readRev(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, tt tt) {
 		rev, err := readRev(strings.NewReader(tt.input))
-		testy.Error(t, tt.err, err)
+		testy.ErrorRE(t, tt.err, err)
 		if rev != tt.rev {
 			t.Errorf("Wanted %s, got %s", tt.rev, rev)
 		}
