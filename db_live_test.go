@@ -152,3 +152,36 @@ func TestQueries_3_x(t *testing.T) {
 		t.Error(d)
 	}
 }
+
+// https://github.com/go-kivik/kivik/issues/509
+func Test_bug509(t *testing.T) {
+	dsn := os.Getenv("KIVIK_TEST_DSN_COUCH23")
+	if dsn == "" {
+		t.Skip("KIVIK_TEST_DSN_COUCH23 not configured")
+	}
+
+	client, err := kivik.New("couch", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close(context.Background())               // nolint:errcheck
+	defer client.DestroyDB(context.Background(), "bug509") // nolint:errcheck
+	if err := client.CreateDB(context.Background(), "bug509"); err != nil {
+		t.Fatal(err)
+	}
+
+	db := client.DB("bug509")
+	if _, err := db.Put(context.Background(), "x", map[string]string{
+		"_id": "x",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	row := db.Get(context.Background(), "x", kivik.Options{
+		"revs_info": true,
+	})
+
+	var doc map[string]interface{}
+	if err := row.ScanDoc(&doc); err != nil {
+		t.Fatal(err)
+	}
+}
