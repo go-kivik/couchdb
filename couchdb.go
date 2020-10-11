@@ -22,13 +22,13 @@ import (
 	"github.com/go-kivik/kivik/v4/driver"
 )
 
-// Couch represents the parent driver instance.
-type Couch struct{}
+// couch represents the parent driver instance.
+type couch struct{}
 
-var _ driver.Driver = &Couch{}
+var _ driver.Driver = &couch{}
 
 func init() {
-	kivik.Register("couch", &Couch{})
+	kivik.Register("couch", &couch{})
 }
 
 // Known vendor strings
@@ -51,15 +51,7 @@ var (
 	_ driver.DBUpdater = &client{}
 )
 
-// NewClient establishes a new connection to a CouchDB server instance. If
-// auth credentials are included in the URL, they are used to authenticate using
-// CookieAuth (or BasicAuth if compiled with GopherJS). If you wish to use a
-// different auth mechanism, do not specify credentials here, and instead call
-// Authenticate() later.
-//
-// The options argument understands two keys: OptionUserAgent and
-// OptionHTTPClient.
-func (d *Couch) NewClient(dsn string, options map[string]interface{}) (driver.Client, error) {
+func (d *couch) NewClient(dsn string, options map[string]interface{}) (driver.Client, error) {
 	var httpClient *http.Client
 	if c, ok := options[OptionHTTPClient]; ok {
 		if httpClient, ok = c.(*http.Client); !ok {

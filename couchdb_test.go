@@ -25,7 +25,6 @@ import (
 func TestNewClient(t *testing.T) {
 	type ncTest struct {
 		name       string
-		driver     *Couch
 		dsn        string
 		options    map[string]interface{}
 		expectedUA []string
@@ -48,9 +47,8 @@ func TestNewClient(t *testing.T) {
 			},
 		},
 		{
-			name:   "User Agent",
-			dsn:    "http://foo.com/",
-			driver: &Couch{},
+			name: "User Agent",
+			dsn:  "http://foo.com/",
 			options: map[string]interface{}{
 				OptionUserAgent: "test/foo",
 			},
@@ -61,9 +59,8 @@ func TestNewClient(t *testing.T) {
 			},
 		},
 		{
-			name:   "invalid HTTP client",
-			dsn:    "http://foo.com/",
-			driver: &Couch{},
+			name: "invalid HTTP client",
+			dsn:  "http://foo.com/",
 			options: map[string]interface{}{
 				OptionHTTPClient: "string",
 			},
@@ -71,9 +68,8 @@ func TestNewClient(t *testing.T) {
 			err:    `OptionHTTPClient is string, must be \*http.Client`,
 		},
 		{
-			name:   "invalid UserAgent",
-			dsn:    "http://foo.com/",
-			driver: &Couch{},
+			name: "invalid UserAgent",
+			dsn:  "http://foo.com/",
 			options: map[string]interface{}{
 				OptionUserAgent: 123,
 			},
@@ -84,10 +80,7 @@ func TestNewClient(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			driver := test.driver
-			if driver == nil {
-				driver = &Couch{}
-			}
+			driver := &couch{}
 			result, err := driver.NewClient(test.dsn, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			client, ok := result.(*client)
@@ -103,8 +96,8 @@ func TestNewClient(t *testing.T) {
 		opts := map[string]interface{}{
 			OptionHTTPClient: &http.Client{Timeout: time.Millisecond},
 		}
-		couch := &Couch{}
-		c, err := couch.NewClient("http://example.com/", opts)
+		driver := &couch{}
+		c, err := driver.NewClient("http://example.com/", opts)
 		if err != nil {
 			t.Fatal(err)
 		}

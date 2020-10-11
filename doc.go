@@ -58,13 +58,26 @@ credentials in your connection DSN:
 
     client, _ := kivik.New("couch", "http://user:password@localhost:5984/")
 
-This will use Cookie authentication by default.
+This will use Cookie authentication by default (or BasicAuth if compiled with
+GopherJS).
 
 To use one of the explicit authentication mechanisms, you'll need to use kivik's
 Authenticate method.  For example:
 
     client, _ := kivik.New("couch", "http://localhost:5984/")
     err := client.Authenticate(ctx, couchdb.BasicAuth("bob", "abc123"))
+
+Connection Options
+
+Calls to kivik.New may include options.  OptionUserAgent and OptionHTTPClient
+are the only options honored. Example:
+
+    client, _ := kivik.New("couch", "http://localhost:5984/", kivik.Options{
+        couchdb.OptionUserAgent: "My Custom User Agent String",
+        couchdb.OptionHTTPClient: &http.Client{
+            Timeout: 15, // A shorter request timeout
+        },
+    })
 
 Multipart PUT
 

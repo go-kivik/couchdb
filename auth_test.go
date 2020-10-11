@@ -212,7 +212,7 @@ func TestAuthentication(t *testing.T) {
 		authErr:    "kivik: HTTP client transport already set",
 	})
 
-	driver := &Couch{}
+	driver := &couch{}
 	tests.Run(t, func(t *testing.T, test tst) {
 		s := httptest.NewServer(test.handler(t))
 		defer s.Close()
