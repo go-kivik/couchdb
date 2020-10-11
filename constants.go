@@ -16,6 +16,14 @@ package couchdb
 const Version = "4.0.0-prerelease"
 
 const (
+	// OptionUserAgent may be passed as an option when creating a client object,
+	// to override the default User-Agent header sent on all requests.
+	OptionUserAgent = "User-Agent"
+
+	// OptionUserAgent may be passed as an option when creating a client object,
+	// to specify an *http.Client.
+	OptionHTTPClient = "kivik:httpClient"
+
 	// OptionFullCommit is the option key used to set the `X-Couch-Full-Commit`
 	// header in the request when set to true.
 	//
