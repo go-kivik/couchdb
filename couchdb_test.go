@@ -64,7 +64,7 @@ func TestNewClient(t *testing.T) {
 			if driver == nil {
 				driver = &Couch{}
 			}
-			result, err := driver.NewClient(test.dsn)
+			result, err := driver.NewClient(test.dsn, nil)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			client, ok := result.(*client)
 			if !ok {
@@ -79,7 +79,7 @@ func TestNewClient(t *testing.T) {
 		custom := &Couch{
 			HTTPClient: &http.Client{Timeout: time.Millisecond},
 		}
-		c, err := custom.NewClient("http://example.com/")
+		c, err := custom.NewClient("http://example.com/", nil)
 		if err != nil {
 			t.Fatal(err)
 		}

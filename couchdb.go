@@ -63,7 +63,7 @@ var (
 // CookieAuth (or BasicAuth if compiled with GopherJS). If you wish to use a
 // different auth mechanism, do not specify credentials here, and instead call
 // Authenticate() later.
-func (d *Couch) NewClient(dsn string) (driver.Client, error) {
+func (d *Couch) NewClient(dsn string, options map[string]interface{}) (driver.Client, error) {
 	httpClient := d.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{}

@@ -216,7 +216,7 @@ func TestAuthentication(t *testing.T) {
 	tests.Run(t, func(t *testing.T, test tst) {
 		s := httptest.NewServer(test.handler(t))
 		defer s.Close()
-		driverClient, err := driver.NewClient(s.URL)
+		driverClient, err := driver.NewClient(s.URL, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
