@@ -22,20 +22,13 @@ import (
 	"github.com/go-kivik/kivik/v4/driver"
 )
 
-// Couch represents the parent driver instance.
-type Couch struct {
-	// If provided, UserAgent is appended to the User-Agent header on all
-	// outbound requests.
-	UserAgent string
+// couch represents the parent driver instance.
+type couch struct{}
 
-	// If provided, HTTPClient will be used for requests to the CouchDB server.
-	HTTPClient *http.Client
-}
-
-var _ driver.Driver = &Couch{}
+var _ driver.Driver = &couch{}
 
 func init() {
-	kivik.Register("couch", &Couch{})
+	kivik.Register("couch", &couch{})
 }
 
 // Known vendor strings
@@ -58,15 +51,21 @@ var (
 	_ driver.DBUpdater = &client{}
 )
 
-// NewClient establishes a new connection to a CouchDB server instance. If
-// auth credentials are included in the URL, they are used to authenticate using
-// CookieAuth (or BasicAuth if compiled with GopherJS). If you wish to use a
-// different auth mechanism, do not specify credentials here, and instead call
-// Authenticate() later.
-func (d *Couch) NewClient(dsn string) (driver.Client, error) {
-	httpClient := d.HTTPClient
+func (d *couch) NewClient(dsn string, options map[string]interface{}) (driver.Client, error) {
+	var httpClient *http.Client
+	if c, ok := options[OptionHTTPClient]; ok {
+		if httpClient, ok = c.(*http.Client); !ok {
+			return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("OptionHTTPClient is %T, must be *http.Client", c)}
+		}
+	}
 	if httpClient == nil {
 		httpClient = &http.Client{}
+	}
+	var userAgent string
+	if ua, ok := options[OptionUserAgent]; ok {
+		if userAgent, ok = ua.(string); !ok {
+			return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("OptionUserAgent is %T, must be string", ua)}
+		}
 	}
 	chttpClient, err := chttp.NewWithClient(httpClient, dsn)
 	if err != nil {
@@ -76,8 +75,8 @@ func (d *Couch) NewClient(dsn string) (driver.Client, error) {
 		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
 		fmt.Sprintf("Kivik CouchDB driver/%s", Version),
 	}
-	if d.UserAgent != "" {
-		chttpClient.UserAgents = append(chttpClient.UserAgents, d.UserAgent)
+	if userAgent != "" {
+		chttpClient.UserAgents = append(chttpClient.UserAgents, userAgent)
 	}
 	return &client{
 		Client: chttpClient,

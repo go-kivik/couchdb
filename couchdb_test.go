@@ -25,8 +25,8 @@ import (
 func TestNewClient(t *testing.T) {
 	type ncTest struct {
 		name       string
-		driver     *Couch
 		dsn        string
+		options    map[string]interface{}
 		expectedUA []string
 		status     int
 		err        string
@@ -47,24 +47,41 @@ func TestNewClient(t *testing.T) {
 			},
 		},
 		{
-			name:   "User Agent",
-			dsn:    "http://foo.com/",
-			driver: &Couch{UserAgent: "test/foo"},
+			name: "User Agent",
+			dsn:  "http://foo.com/",
+			options: map[string]interface{}{
+				OptionUserAgent: "test/foo",
+			},
 			expectedUA: []string{
 				"Kivik/" + kivik.KivikVersion,
 				"Kivik CouchDB driver/" + Version,
 				"test/foo",
 			},
 		},
+		{
+			name: "invalid HTTP client",
+			dsn:  "http://foo.com/",
+			options: map[string]interface{}{
+				OptionHTTPClient: "string",
+			},
+			status: http.StatusBadRequest,
+			err:    `OptionHTTPClient is string, must be \*http.Client`,
+		},
+		{
+			name: "invalid UserAgent",
+			dsn:  "http://foo.com/",
+			options: map[string]interface{}{
+				OptionUserAgent: 123,
+			},
+			status: http.StatusBadRequest,
+			err:    "OptionUserAgent is int, must be string",
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			driver := test.driver
-			if driver == nil {
-				driver = &Couch{}
-			}
-			result, err := driver.NewClient(test.dsn)
+			driver := &couch{}
+			result, err := driver.NewClient(test.dsn, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			client, ok := result.(*client)
 			if !ok {
@@ -76,10 +93,11 @@ func TestNewClient(t *testing.T) {
 		})
 	}
 	t.Run("custom HTTP client", func(t *testing.T) {
-		custom := &Couch{
-			HTTPClient: &http.Client{Timeout: time.Millisecond},
+		opts := map[string]interface{}{
+			OptionHTTPClient: &http.Client{Timeout: time.Millisecond},
 		}
-		c, err := custom.NewClient("http://example.com/")
+		driver := &couch{}
+		c, err := driver.NewClient("http://example.com/", opts)
 		if err != nil {
 			t.Fatal(err)
 		}

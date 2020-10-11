@@ -3,8 +3,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-kivik/kivik/v4 v4.0.0-20200818182325-bd69ec6a93ff h1:TJHdUwkjzFiIJo7TMYVeaTS3tlipZxnREkluVBUur6U=
 github.com/go-kivik/kivik/v4 v4.0.0-20200818182325-bd69ec6a93ff/go.mod h1:O2fxy5xMXO7vaVr2gQG38sYTj/mHwg5Md/8kP7qUZQk=
-github.com/go-kivik/kivik/v4 v4.0.0-20200819180609-55185ce82baf h1:Leqhz4QoAS04og5gJtJcW/Ky4uUj+bi2Puf6sl0hkwA=
-github.com/go-kivik/kivik/v4 v4.0.0-20200819180609-55185ce82baf/go.mod h1:O2fxy5xMXO7vaVr2gQG38sYTj/mHwg5Md/8kP7qUZQk=
+github.com/go-kivik/kivik/v4 v4.0.0-20201011094523-ab1764d67e62 h1:BHpOPeyQQnx9SvGJDipUls95YTO5FTPFV/qik0NSfeo=
+github.com/go-kivik/kivik/v4 v4.0.0-20201011094523-ab1764d67e62/go.mod h1:O2fxy5xMXO7vaVr2gQG38sYTj/mHwg5Md/8kP7qUZQk=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20200818183706-ea0963c26090 h1:yRNmZ4AYqrS0K7n74nkSDH9147RJgGJc3KaymMtzF6A=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20200818183706-ea0963c26090/go.mod h1:GLTRT1U0HT8a031sZDxLV7R5pzB9FvS2XWEv0Ptgg3I=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=

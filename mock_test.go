@@ -127,8 +127,8 @@ func realDB(t *testing.T) *db {
 }
 
 func realDBConnect(t *testing.T) (*db, error) {
-	driver := &Couch{}
-	c, err := driver.NewClient(kt.DSN(t))
+	driver := &couch{}
+	c, err := driver.NewClient(kt.DSN(t), nil)
 	if err != nil {
 		return nil, err
 	}
