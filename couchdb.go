@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/go-kivik/couchdb/v3/chttp"
@@ -76,6 +77,9 @@ func (d *Couch) NewClient(dsn string) (driver.Client, error) {
 func (c *client) DB(_ context.Context, dbName string, _ map[string]interface{}) (driver.DB, error) {
 	if dbName == "" {
 		return nil, missingArg("dbName")
+	}
+	if _, err := url.PathUnescape(dbName); err != nil {
+		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
 	}
 	return &db{
 		client: c,

@@ -100,6 +100,12 @@ func TestDB(t *testing.T) {
 				dbName: "foo",
 			},
 		},
+		{
+			name:   "invalid dbname",
+			dbName: "%xxx",
+			status: http.StatusBadRequest,
+			err:    `invalid URL escape "%xx"`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
