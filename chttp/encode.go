@@ -18,8 +18,8 @@ const (
 func EncodeDocID(docID string) string {
 	for _, prefix := range []string{prefixDesign, prefixLocal} {
 		if strings.HasPrefix(docID, prefix) {
-			return prefix + url.QueryEscape(strings.TrimPrefix(docID, prefix))
+			return prefix + url.PathEscape(strings.TrimPrefix(docID, prefix))
 		}
 	}
-	return url.QueryEscape(docID)
+	return url.PathEscape(docID)
 }
