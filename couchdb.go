@@ -88,11 +88,8 @@ func (c *client) DB(dbName string, _ map[string]interface{}) (driver.DB, error) 
 	if dbName == "" {
 		return nil, missingArg("dbName")
 	}
-	if _, err := url.PathUnescape(dbName); err != nil {
-		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
-	}
 	return &db{
 		client: c,
-		dbName: dbName,
+		dbName: url.PathEscape(dbName),
 	}, nil
 }
