@@ -645,203 +645,190 @@ func TestNewRequest(t *testing.T) {
 }
 
 func TestDoReq(t *testing.T) {
-	tests := []struct {
-		name               string
+	type tt struct {
 		trace              func(t *testing.T, success *bool) *ClientTrace
 		method, path       string
 		opts               *Options
 		client             *Client
 		status, curlStatus int
 		err                string
-	}{
-		{
-			name:       "no method",
-			status:     500,
-			curlStatus: 0,
-			err:        "chttp: method required",
-		},
-		{
-			name:       "invalid url",
-			method:     "GET",
-			path:       "%xx",
-			client:     newTestClient(nil, nil),
-			status:     http.StatusBadRequest,
-			curlStatus: ExitStatusURLMalformed,
-			err:        `parse "?%xx"?: invalid URL escape "%xx"`,
-		},
-		{
-			name:   "network error",
-			method: "GET",
-			path:   "foo",
-			client: newTestClient(nil, errors.New("net error")),
-			status: http.StatusBadGateway,
-			err:    `Get "?http://example.com/foo"?: net error`,
-		},
-		{
-			name:   "error response",
-			method: "GET",
-			path:   "foo",
-			client: newTestClient(&http.Response{
-				StatusCode: 400,
-				Body:       Body(""),
-			}, nil),
-			// No error here
-		},
-		{
-			name:   "success",
-			method: "GET",
-			path:   "foo",
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Body:       Body(""),
-			}, nil),
-			// success!
-		},
-		{
-			name:   "body error",
-			method: "PUT",
-			path:   "foo",
-			client: newTestClient(nil, errors.Status(http.StatusBadRequest, "bad request")),
-			status: http.StatusBadRequest,
-			err:    `Put "?http://example.com/foo"?: bad request`,
-		},
-		{
-			name: "response trace",
-			trace: func(t *testing.T, success *bool) *ClientTrace {
-				return &ClientTrace{
-					HTTPResponse: func(r *http.Response) {
-						*success = true
-						expected := &http.Response{StatusCode: 200}
-						if d := testy.DiffHTTPResponse(expected, r); d != nil {
-							t.Error(d)
-						}
-					},
-				}
-			},
-			method: "GET",
-			path:   "foo",
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Body:       Body(""),
-			}, nil),
-			// response body trace
-		},
-		{
-			name: "response body trace",
-			trace: func(t *testing.T, success *bool) *ClientTrace {
-				return &ClientTrace{
-					HTTPResponseBody: func(r *http.Response) {
-						*success = true
-						expected := &http.Response{
-							StatusCode: 200,
-							Body:       Body("foo"),
-						}
-						if d := testy.DiffHTTPResponse(expected, r); d != nil {
-							t.Error(d)
-						}
-					},
-				}
-			},
-			method: "PUT",
-			path:   "foo",
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Body:       Body("foo"),
-			}, nil),
-			// response trace
-		},
-		{
-			name: "request trace",
-			trace: func(t *testing.T, success *bool) *ClientTrace {
-				return &ClientTrace{
-					HTTPRequest: func(r *http.Request) {
-						*success = true
-						expected := httptest.NewRequest("PUT", "/foo", nil)
-						expected.Header.Add("Accept", "application/json")
-						expected.Header.Add("Content-Type", "application/json")
-						expected.Header.Add("User-Agent", defaultUA)
-						if d := testy.DiffHTTPRequest(expected, r); d != nil {
-							t.Error(d)
-						}
-					},
-				}
-			},
-			method: "PUT",
-			path:   "/foo",
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Body:       Body("foo"),
-			}, nil),
-			opts: &Options{
-				Body: Body("bar"),
-			},
-			// request trace
-		},
-		{
-			name: "request body trace",
-			trace: func(t *testing.T, success *bool) *ClientTrace {
-				return &ClientTrace{
-					HTTPRequestBody: func(r *http.Request) {
-						*success = true
-						expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
-						expected.Header.Add("Accept", "application/json")
-						expected.Header.Add("Content-Type", "application/json")
-						expected.Header.Add("User-Agent", defaultUA)
-						if d := testy.DiffHTTPRequest(expected, r); d != nil {
-							t.Error(d)
-						}
-					},
-				}
-			},
-			method: "PUT",
-			path:   "/foo",
-			client: newTestClient(&http.Response{
-				StatusCode: 200,
-				Body:       Body("foo"),
-			}, nil),
-			opts: &Options{
-				Body: Body("bar"),
-			},
-			// request body trace
-		},
-		{
-			name: "couchdb mounted below root",
-			client: newCustomClient("http://foo.com/dbroot/", func(r *http.Request) (*http.Response, error) {
-				if r.URL.Path != "/dbroot/foo" {
-					return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
-				}
-				return &http.Response{}, nil
-			}),
-			method: "GET",
-			path:   "/foo",
-		},
-		{
-			name: "user agent",
-			client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
-				if ua := r.UserAgent(); ua != defaultUA {
-					return nil, errors.Errorf("Unexpected User Agent: %s", ua)
-				}
-				return &http.Response{}, nil
-			}),
-			method: "GET",
-			path:   "/foo",
-		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
-			traceSuccess := true
-			if test.trace != nil {
-				traceSuccess = false
-				ctx = WithClientTrace(ctx, test.trace(t, &traceSuccess))
+
+	tests := testy.NewTable()
+	tests.Add("no method", tt{
+		status:     500,
+		curlStatus: 0,
+		err:        "chttp: method required",
+	})
+	tests.Add("invalid url", tt{
+		method:     "GET",
+		path:       "%xx",
+		client:     newTestClient(nil, nil),
+		status:     http.StatusBadRequest,
+		curlStatus: ExitStatusURLMalformed,
+		err:        `parse "?%xx"?: invalid URL escape "%xx"`,
+	})
+	tests.Add("network error", tt{
+		method: "GET",
+		path:   "foo",
+		client: newTestClient(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    `Get "?http://example.com/foo"?: net error`,
+	})
+	tests.Add("error response", tt{
+		method: "GET",
+		path:   "foo",
+		client: newTestClient(&http.Response{
+			StatusCode: 400,
+			Body:       Body(""),
+		}, nil),
+		// No error here
+	})
+	tests.Add("success", tt{
+		method: "GET",
+		path:   "foo",
+		client: newTestClient(&http.Response{
+			StatusCode: 200,
+			Body:       Body(""),
+		}, nil),
+		// success!
+	})
+	tests.Add("body error", tt{
+		method: "PUT",
+		path:   "foo",
+		client: newTestClient(nil, errors.Status(http.StatusBadRequest, "bad request")),
+		status: http.StatusBadRequest,
+		err:    `Put "?http://example.com/foo"?: bad request`,
+	})
+	tests.Add("response trace", tt{
+		trace: func(t *testing.T, success *bool) *ClientTrace {
+			return &ClientTrace{
+				HTTPResponse: func(r *http.Response) {
+					*success = true
+					expected := &http.Response{StatusCode: 200}
+					if d := testy.DiffHTTPResponse(expected, r); d != nil {
+						t.Error(d)
+					}
+				},
 			}
-			_, err := test.client.DoReq(ctx, test.method, test.path, test.opts)
-			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
-			if !traceSuccess {
-				t.Error("Trace failed")
+		},
+		method: "GET",
+		path:   "foo",
+		client: newTestClient(&http.Response{
+			StatusCode: 200,
+			Body:       Body(""),
+		}, nil),
+		// response body trace
+	})
+	tests.Add("response body trace", tt{
+		trace: func(t *testing.T, success *bool) *ClientTrace {
+			return &ClientTrace{
+				HTTPResponseBody: func(r *http.Response) {
+					*success = true
+					expected := &http.Response{
+						StatusCode: 200,
+						Body:       Body("foo"),
+					}
+					if d := testy.DiffHTTPResponse(expected, r); d != nil {
+						t.Error(d)
+					}
+				},
 			}
-		})
-	}
+		},
+		method: "PUT",
+		path:   "foo",
+		client: newTestClient(&http.Response{
+			StatusCode: 200,
+			Body:       Body("foo"),
+		}, nil),
+		// response trace
+	})
+	tests.Add("request trace", tt{
+		trace: func(t *testing.T, success *bool) *ClientTrace {
+			return &ClientTrace{
+				HTTPRequest: func(r *http.Request) {
+					*success = true
+					expected := httptest.NewRequest("PUT", "/foo", nil)
+					expected.Header.Add("Accept", "application/json")
+					expected.Header.Add("Content-Type", "application/json")
+					expected.Header.Add("User-Agent", defaultUA)
+					if d := testy.DiffHTTPRequest(expected, r); d != nil {
+						t.Error(d)
+					}
+				},
+			}
+		},
+		method: "PUT",
+		path:   "/foo",
+		client: newTestClient(&http.Response{
+			StatusCode: 200,
+			Body:       Body("foo"),
+		}, nil),
+		opts: &Options{
+			Body: Body("bar"),
+		},
+		// request trace
+	})
+	tests.Add("request body trace", tt{
+		trace: func(t *testing.T, success *bool) *ClientTrace {
+			return &ClientTrace{
+				HTTPRequestBody: func(r *http.Request) {
+					*success = true
+					expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
+					expected.Header.Add("Accept", "application/json")
+					expected.Header.Add("Content-Type", "application/json")
+					expected.Header.Add("User-Agent", defaultUA)
+					if d := testy.DiffHTTPRequest(expected, r); d != nil {
+						t.Error(d)
+					}
+				},
+			}
+		},
+		method: "PUT",
+		path:   "/foo",
+		client: newTestClient(&http.Response{
+			StatusCode: 200,
+			Body:       Body("foo"),
+		}, nil),
+		opts: &Options{
+			Body: Body("bar"),
+		},
+		// request body trace
+	})
+	tests.Add("couchdb mounted below root", tt{
+		client: newCustomClient("http://foo.com/dbroot/", func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path != "/dbroot/foo" {
+				return nil, errors.Errorf("Unexpected path: %s", r.URL.Path)
+			}
+			return &http.Response{}, nil
+		}),
+		method: "GET",
+		path:   "/foo",
+	})
+	tests.Add("user agent", tt{
+		client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+			if ua := r.UserAgent(); ua != defaultUA {
+				return nil, errors.Errorf("Unexpected User Agent: %s", ua)
+			}
+			return &http.Response{}, nil
+		}),
+		method: "GET",
+		path:   "/foo",
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		ctx := context.Background()
+		traceSuccess := true
+		if tt.trace != nil {
+			traceSuccess = false
+			ctx = WithClientTrace(ctx, tt.trace(t, &traceSuccess))
+		}
+		_, err := tt.client.DoReq(ctx, tt.method, tt.path, tt.opts)
+		curlStatusErrorRE(t, tt.err, tt.status, tt.curlStatus, err)
+		if !traceSuccess {
+			t.Error("Trace failed")
+		}
+	})
 }
 
 func TestDoError(t *testing.T) {
