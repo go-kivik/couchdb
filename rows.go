@@ -16,14 +16,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"strings"
 	"sync/atomic"
 
-	kivik "github.com/go-kivik/kivik/v4"
 	"github.com/go-kivik/kivik/v4/driver"
 )
 
@@ -153,8 +150,11 @@ func (r *rowsMeta) parseMeta(key string, dec *json.Decoder) error {
 		return dec.Decode(&r.warning)
 	case "bookmark":
 		return dec.Decode(&r.bookmark)
+	default:
+		// Just consume the value, since we don't know what it means.
+		var discard json.RawMessage
+		return dec.Decode(&discard)
 	}
-	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
 func newMultiQueriesRows(ctx context.Context, in io.ReadCloser) driver.Rows {

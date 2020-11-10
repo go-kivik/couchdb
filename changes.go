@@ -16,7 +16,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -83,8 +82,11 @@ func (m *changesMeta) parseMeta(key string, dec *json.Decoder) error {
 		return dec.Decode(&m.lastSeq)
 	case "pending":
 		return dec.Decode(&m.pending)
+	default:
+		// Just consume the value, since we don't know what it means.
+		var discard json.RawMessage
+		return dec.Decode(&discard)
 	}
-	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected key: %s", key)}
 }
 
 type changesRows struct {
