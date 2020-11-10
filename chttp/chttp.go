@@ -470,7 +470,7 @@ func GetRev(resp *http.Response) (rev string, err error) {
 // body. The important thing is that resp.Body must be restored, so that the
 // normal document scanning can take place as usual.
 func extractRev(resp *http.Response) (string, error) {
-	if resp.Request.Method == http.MethodHead {
+	if resp == nil || resp.Request == nil || resp.Request.Method == http.MethodHead {
 		return "", errors.New("unable to determine document revision")
 	}
 	buf := &bytes.Buffer{}
