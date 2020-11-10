@@ -13,6 +13,37 @@ import (
 	"github.com/go-kivik/kivik/v3/driver"
 )
 
+func TestChanges_metadata(t *testing.T) {
+	db := newTestDB(&http.Response{
+		StatusCode: 200,
+		Header:     http.Header{},
+		Body: Body(`{"results":[
+			{"seq":"1-g1AAAABteJzLYWBgYMpgTmHgzcvPy09JdcjLz8gvLskBCScyJNX___8_K4M5kTEXKMBuZmKebGSehK4Yh_Y8FiDJ0ACk_oNMSWTIAgDjASHc","id":"56d164e9566e12cb9dff87d455000f3d","changes":[{"rev":"1-967a00dff5e02add41819138abb3284d"}]},
+			{"seq":"2-g1AAAACLeJzLYWBgYMpgTmHgzcvPy09JdcjLz8gvLskBCScyJNX___8_K4M5kTEXKMBuZmKebGSehK4Yh_Y8FiDJ0ACk_qOYYm5qYGBklIquJwsAO5gqIA","id":"56d164e9566e12cb9dff87d455001b58","changes":[{"rev":"1-967a00dff5e02add41819138abb3284d"}]},
+			{"seq":"3-g1AAAACLeJzLYWBgYMpgTmHgzcvPy09JdcjLz8gvLskBCScyJNX___8_K4M5kSkXKMBuZmKebGSehK4Yh_Y8FiDJ0ACk_kNNYQSbYm5qYGBklIquJwsAO_wqIQ","id":"56d164e9566e12cb9dff87d455002462","changes":[{"rev":"1-967a00dff5e02add41819138abb3284d"}]},
+			{"seq":"4-g1AAAACLeJzLYWBgYMpgTmHgzcvPy09JdcjLz8gvLskBCScyJNX___8_K4M5kSkXKMBuZmKebGSehK4Yh_Y8FiDJ0ACk_qOYYm5qYGBklIquJwsAPBoqIg","id":"56d164e9566e12cb9dff87d455004150","changes":[{"rev":"1-967a00dff5e02add41819138abb3284d"}]},
+			{"seq":"5-g1AAAACLeJzLYWBgYMpgTmHgzcvPy09JdcjLz8gvLskBCScyJNX___8_K4M5kTkXKMBuZmKebGSehK4Yh_Y8FiDJ0ACk_kNNYQKbYm5qYGBklIquJwsAPH4qIw","id":"56d164e9566e12cb9dff87d455003421","changes":[{"rev":"1-967a00dff5e02add41819138abb3284d"}]}
+			],
+			"last_seq":"5-g1AAAACLeJzLYWBgYMpgTmHgzcvPy09JdcjLz8gvLskBCScyJNX___8_K4M5kTkXKMBuZmKebGSehK4Yh_Y8FiDJ0ACk_kNNYQKbYm5qYGBklIquJwsAPH4qIw","pending":10}
+		`),
+	}, nil)
+
+	changes, err := db.Changes(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch := &driver.Change{}
+	for {
+		if changes.Next(ch) != nil {
+			break
+		}
+	}
+	want := int64(10)
+	if got := changes.Pending(); want != got {
+		t.Errorf("want: %d, got: %d", want, got)
+	}
+}
+
 func TestChanges(t *testing.T) {
 	tests := []struct {
 		name    string
