@@ -91,7 +91,6 @@ func (m *changesMeta) parseMeta(key string, dec *json.Decoder) error {
 
 type changesRows struct {
 	*iter
-	*changesMeta
 	etag string
 }
 
@@ -120,12 +119,12 @@ func (r *changesRows) Next(row *driver.Change) error {
 
 // LastSeq returns the last sequence ID.
 func (r *changesRows) LastSeq() string {
-	return string(r.lastSeq)
+	return string(r.iter.meta.(*changesMeta).lastSeq)
 }
 
 // Pending returns the pending count.
 func (r *changesRows) Pending() int64 {
-	return r.pending
+	return r.iter.meta.(*changesMeta).pending
 }
 
 // ETag returns the unquoted ETag header for the CouchDB response, if any.
