@@ -19,7 +19,7 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	kivik "github.com/go-kivik/kivik/v4"
+	"github.com/go-kivik/kivik/v4"
 )
 
 func TestNewClient(t *testing.T) {
@@ -128,12 +128,6 @@ func TestDB(t *testing.T) {
 			expected: &db{
 				dbName: "foo",
 			},
-		},
-		{
-			name:   "invalid dbname",
-			dbName: "%xxx",
-			status: http.StatusBadRequest,
-			err:    `invalid URL escape "%xx"`,
 		},
 	}
 	for _, test := range tests {

@@ -160,7 +160,7 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 
 // Get fetches the requested document.
 func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (*driver.Document, error) {
-	resp, rev, err := d.get(ctx, http.MethodGet, docID, options)
+	resp, rev, err := d.get(ctx, http.MethodGet, chttp.EncodeDocID(docID), options)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/go-kivik/couchdb/v4/chttp"
@@ -53,7 +54,7 @@ func (c *client) CreateDB(ctx context.Context, dbName string, opts map[string]in
 	if err != nil {
 		return err
 	}
-	_, err = c.DoError(ctx, http.MethodPut, dbName, &chttp.Options{Query: query})
+	_, err = c.DoError(ctx, http.MethodPut, url.PathEscape(dbName), &chttp.Options{Query: query})
 	return err
 }
 
@@ -61,7 +62,7 @@ func (c *client) DestroyDB(ctx context.Context, dbName string, _ map[string]inte
 	if dbName == "" {
 		return missingArg("dbName")
 	}
-	_, err := c.DoError(ctx, http.MethodDelete, dbName, nil)
+	_, err := c.DoError(ctx, http.MethodDelete, url.PathEscape(dbName), nil)
 	return err
 }
 
