@@ -81,7 +81,7 @@ func ResponseError(resp *http.Response) error {
 		Response:   resp,
 		exitStatus: ExitNotRetrieved,
 	}
-	if resp.Request.Method != "HEAD" && resp.ContentLength != 0 {
+	if resp != nil && resp.Request != nil && resp.Request.Method != "HEAD" && resp.ContentLength != 0 {
 		if ct, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ct == typeJSON {
 			_ = json.NewDecoder(resp.Body).Decode(httpErr)
 		}
