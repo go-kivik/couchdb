@@ -8,7 +8,7 @@ import (
 
 	"gitlab.com/flimzy/testy"
 
-	kivik "github.com/go-kivik/kivik/v3"
+	"github.com/go-kivik/kivik/v3"
 )
 
 func TestNewClient(t *testing.T) {

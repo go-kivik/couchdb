@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/go-kivik/couchdb/v3/chttp"
@@ -79,6 +80,6 @@ func (c *client) DB(_ context.Context, dbName string, _ map[string]interface{}) 
 	}
 	return &db{
 		client: c,
-		dbName: dbName,
+		dbName: url.PathEscape(dbName),
 	}, nil
 }
