@@ -271,13 +271,17 @@ func (r *multiQueriesRows) Close() error {
 	if atomic.AddInt32(&r.closed, 1) > 1 {
 		return nil
 	}
+	r.dec = nil
+	if r.rows != nil {
+		defer r.rows.Close() // nolint:errcheck
+	}
+	defer r.r.Close() // nolint:errcheck
 	if _, err := ioutil.ReadAll(r.r); err != nil {
 		return err
 	}
 	if err := r.r.Close(); err != nil {
 		return err
 	}
-	r.dec = nil
 	if r.rows == nil {
 		return nil
 	}
