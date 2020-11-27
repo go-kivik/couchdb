@@ -741,6 +741,9 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 	if docID == "" {
 		return "", missingArg("docID")
 	}
+	if rv, ok := options["rev"].(string); ok && rv != "" {
+		rev = rv
+	}
 	if rev == "" {
 		return "", missingArg("rev")
 	}

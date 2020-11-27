@@ -915,6 +915,14 @@ func TestDelete(t *testing.T) {
 			err:    "kivik: rev required",
 		},
 		{
+			name:    "rev in options",
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-xxx"},
+			db:      newTestDB(nil, errors.New("working")),
+			status:  http.StatusBadGateway,
+			err:     `(Delete "?http://example.com/testdb/foo?rev=1-xxx"?: )?working`,
+		},
+		{
 			name:   "network error",
 			id:     "foo",
 			rev:    "1-xxx",
