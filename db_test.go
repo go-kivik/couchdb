@@ -894,132 +894,130 @@ func TestPut(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	tests := []struct {
-		name    string
+	type tt struct {
 		db      *db
 		id, rev string
 		options map[string]interface{}
 		newrev  string
 		status  int
 		err     string
-	}{
-		{
-			name:   "no doc id",
-			status: http.StatusBadRequest,
-			err:    "kivik: docID required",
-		},
-		{
-			name:   "no rev",
-			id:     "foo",
-			status: http.StatusBadRequest,
-			err:    "kivik: rev required",
-		},
-		{
-			name:   "network error",
-			id:     "foo",
-			rev:    "1-xxx",
-			db:     newTestDB(nil, errors.New("net error")),
-			status: http.StatusBadGateway,
-			err:    `(Delete "?http://example.com/testdb/foo?rev="?: )?net error`,
-		},
-		{
-			name: "1.6.1 conflict",
-			id:   "43734cf3ce6d5a37050c050bb600006b",
-			rev:  "1-xxx",
-			db: newTestDB(&http.Response{
-				StatusCode: 409,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Thu, 26 Oct 2017 13:29:06 GMT"},
-					"Content-Type":   {"text/plain; charset=utf-8"},
-					"Content-Length": {"58"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"error":"conflict","reason":"Document update conflict."}`)),
-			}, nil),
-			status: http.StatusConflict,
-			err:    "Conflict",
-		},
-		{
-			name: "1.6.1 success",
-			id:   "43734cf3ce6d5a37050c050bb600006b",
-			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
-			db: newTestDB(&http.Response{
-				StatusCode: 200,
-				Header: http.Header{
-					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-					"Date":           {"Thu, 26 Oct 2017 13:29:06 GMT"},
-					"Content-Type":   {"text/plain; charset=utf-8"},
-					"ETag":           {`"2-185ccf92154a9f24a4f4fd12233bf463"`},
-					"Content-Length": {"95"},
-					"Cache-Control":  {"must-revalidate"},
-				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"2-185ccf92154a9f24a4f4fd12233bf463"}`)),
-			}, nil),
-			newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
-		},
-		{
-			name: "batch mode",
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if err := consume(req.Body); err != nil {
-					return nil, err
-				}
-				if batch := req.URL.Query().Get("batch"); batch != "ok" {
-					return nil, fmt.Errorf("Unexpected query batch=%s", batch)
-				}
-				return nil, errors.New("success")
-			}),
-			id:      "foo",
-			rev:     "1-xxx",
-			options: map[string]interface{}{"batch": "ok"},
-			status:  http.StatusBadGateway,
-			err:     "success",
-		},
-		{
-			name:    "invalid options",
-			db:      &db{},
-			id:      "foo",
-			rev:     "1-xxx",
-			options: map[string]interface{}{"foo": make(chan int)},
-			status:  http.StatusBadRequest,
-			err:     "kivik: invalid type chan int for options",
-		},
-		{
-			name: "full commit",
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if err := consume(req.Body); err != nil {
-					return nil, err
-				}
-				if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
-					return nil, errors.New("X-Couch-Full-Commit not true")
-				}
-				return nil, errors.New("success")
-			}),
-			id:      "foo",
-			rev:     "1-xxx",
-			options: map[string]interface{}{OptionFullCommit: true},
-			status:  http.StatusBadGateway,
-			err:     "success",
-		},
-		{
-			name:    "invalid full commit type",
-			db:      &db{},
-			id:      "foo",
-			rev:     "1-xxx",
-			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  http.StatusBadRequest,
-			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
-		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			newrev, err := test.db.Delete(context.Background(), test.id, test.rev, test.options)
-			testy.StatusErrorRE(t, test.err, test.status, err)
-			if newrev != test.newrev {
-				t.Errorf("Unexpected new rev: %s", newrev)
+
+	tests := testy.NewTable()
+	tests.Add("no doc id", tt{
+		status: http.StatusBadRequest,
+		err:    "kivik: docID required",
+	})
+	tests.Add("no rev", tt{
+		id:     "foo",
+		status: http.StatusBadRequest,
+		err:    "kivik: rev required",
+	})
+	tests.Add("duplicate rev", tt{
+		id:      "foo",
+		rev:     "loser",
+		options: map[string]interface{}{"rev": "winner"},
+		db:      newTestDB(nil, errors.New("expected")),
+		status:  http.StatusBadGateway,
+		err:     `\?rev=winner[":]`,
+	})
+	tests.Add("network error", tt{
+		id:     "foo",
+		rev:    "1-xxx",
+		db:     newTestDB(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    `(Delete "?http://example.com/testdb/foo\?rev="?: )?net error`,
+	})
+	tests.Add("1.6.1 conflict", tt{
+		id:  "43734cf3ce6d5a37050c050bb600006b",
+		rev: "1-xxx",
+		db: newTestDB(&http.Response{
+			StatusCode: 409,
+			Header: http.Header{
+				"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+				"Date":           {"Thu, 26 Oct 2017 13:29:06 GMT"},
+				"Content-Type":   {"text/plain; charset=utf-8"},
+				"Content-Length": {"58"},
+				"Cache-Control":  {"must-revalidate"},
+			},
+			Body: ioutil.NopCloser(strings.NewReader(`{"error":"conflict","reason":"Document update conflict."}`)),
+		}, nil),
+		status: http.StatusConflict,
+		err:    "Conflict",
+	})
+	tests.Add("1.6.1 success", tt{
+		id:  "43734cf3ce6d5a37050c050bb600006b",
+		rev: "1-4c6114c65e295552ab1019e2b046b10e",
+		db: newTestDB(&http.Response{
+			StatusCode: 200,
+			Header: http.Header{
+				"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+				"Date":           {"Thu, 26 Oct 2017 13:29:06 GMT"},
+				"Content-Type":   {"text/plain; charset=utf-8"},
+				"ETag":           {`"2-185ccf92154a9f24a4f4fd12233bf463"`},
+				"Content-Length": {"95"},
+				"Cache-Control":  {"must-revalidate"},
+			},
+			Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"2-185ccf92154a9f24a4f4fd12233bf463"}`)),
+		}, nil),
+		newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
+	})
+	tests.Add("batch mode", tt{
+		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+			if err := consume(req.Body); err != nil {
+				return nil, err
 			}
-		})
-	}
+			if batch := req.URL.Query().Get("batch"); batch != "ok" {
+				return nil, fmt.Errorf("Unexpected query batch=%s", batch)
+			}
+			return nil, errors.New("success")
+		}),
+		id:      "foo",
+		rev:     "1-xxx",
+		options: map[string]interface{}{"batch": "ok"},
+		status:  http.StatusBadGateway,
+		err:     "success",
+	})
+	tests.Add("invalid options", tt{
+		db:      &db{},
+		id:      "foo",
+		rev:     "1-xxx",
+		options: map[string]interface{}{"foo": make(chan int)},
+		status:  http.StatusBadRequest,
+		err:     "kivik: invalid type chan int for options",
+	})
+	tests.Add("full commit", tt{
+		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+			if err := consume(req.Body); err != nil {
+				return nil, err
+			}
+			if fullCommit := req.Header.Get("X-Couch-Full-Commit"); fullCommit != "true" {
+				return nil, errors.New("X-Couch-Full-Commit not true")
+			}
+			return nil, errors.New("success")
+		}),
+		id:      "foo",
+		rev:     "1-xxx",
+		options: map[string]interface{}{OptionFullCommit: true},
+		status:  http.StatusBadGateway,
+		err:     "success",
+	})
+	tests.Add("invalid full commit type", tt{
+		db:      &db{},
+		id:      "foo",
+		rev:     "1-xxx",
+		options: map[string]interface{}{OptionFullCommit: 123},
+		status:  http.StatusBadRequest,
+		err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		newrev, err := tt.db.Delete(context.Background(), tt.id, tt.rev, tt.options)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+		if newrev != tt.newrev {
+			t.Errorf("Unexpected new rev: %s", newrev)
+		}
+	})
 }
 
 func TestFlush(t *testing.T) {
