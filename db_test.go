@@ -913,12 +913,20 @@ func TestDelete(t *testing.T) {
 		status: http.StatusBadRequest,
 		err:    "kivik: rev required",
 	})
+	tests.Add("duplicate rev", tt{
+		id:      "foo",
+		rev:     "loser",
+		options: map[string]interface{}{"rev": "winner"},
+		db:      newTestDB(nil, errors.New("expected")),
+		status:  http.StatusBadGateway,
+		err:     `\?rev=winner[":]`,
+	})
 	tests.Add("network error", tt{
 		id:     "foo",
 		rev:    "1-xxx",
 		db:     newTestDB(nil, errors.New("net error")),
 		status: http.StatusBadGateway,
-		err:    `(Delete "?http://example.com/testdb/foo?rev="?: )?net error`,
+		err:    `(Delete "?http://example.com/testdb/foo\?rev="?: )?net error`,
 	})
 	tests.Add("1.6.1 conflict", tt{
 		id:  "43734cf3ce6d5a37050c050bb600006b",
