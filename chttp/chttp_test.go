@@ -28,94 +28,88 @@ var defaultUA = func() string {
 }()
 
 func TestNew(t *testing.T) {
-	type newTest struct {
-		name       string
+	type tt struct {
 		dsn        string
 		expected   *Client
 		status     int
 		curlStatus int
 		err        string
 	}
-	tests := []newTest{
-		{
-			name:       "invalid url",
-			dsn:        "http://foo.com/%xx",
-			status:     http.StatusBadRequest,
-			curlStatus: ExitStatusURLMalformed,
-			err:        `parse "?http://foo.com/%xx"?: invalid URL escape "%xx"`,
-		},
-		{
-			name:       "no url",
-			dsn:        "",
-			status:     http.StatusBadRequest,
-			curlStatus: ExitFailedToInitialize,
-			err:        "no URL specified",
-		},
-		{
-			name: "no auth",
-			dsn:  "http://foo.com/",
-			expected: &Client{
-				Client: &http.Client{},
-				rawDSN: "http://foo.com/",
-				dsn: &url.URL{
-					Scheme: "http",
-					Host:   "foo.com",
-					Path:   "/",
-				},
+
+	tests := testy.NewTable()
+	tests.Add("invalid url", tt{
+		dsn:        "http://foo.com/%xx",
+		status:     http.StatusBadRequest,
+		curlStatus: ExitStatusURLMalformed,
+		err:        `parse "?http://foo.com/%xx"?: invalid URL escape "%xx"`,
+	})
+	tests.Add("no url", tt{
+		dsn:        "",
+		status:     http.StatusBadRequest,
+		curlStatus: ExitFailedToInitialize,
+		err:        "no URL specified",
+	})
+	tests.Add("no auth", tt{
+		dsn: "http://foo.com/",
+		expected: &Client{
+			Client: &http.Client{},
+			rawDSN: "http://foo.com/",
+			dsn: &url.URL{
+				Scheme: "http",
+				Host:   "foo.com",
+				Path:   "/",
 			},
 		},
-		func() newTest {
-			h := func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`) // nolint: errcheck
-			}
-			s := httptest.NewServer(http.HandlerFunc(h))
-			authDSN, _ := url.Parse(s.URL)
-			dsn, _ := url.Parse(s.URL + "/")
-			authDSN.User = url.UserPassword("user", "password")
-			jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-			c := &Client{
-				Client: &http.Client{Jar: jar},
-				rawDSN: authDSN.String(),
-				dsn:    dsn,
-			}
-			auth := &CookieAuth{
-				Username:  "user",
-				Password:  "password",
-				client:    c,
-				transport: http.DefaultTransport,
-			}
-			c.auth = auth
-			c.Client.Transport = auth
-			return newTest{
-				name:     "auth success",
-				dsn:      authDSN.String(),
-				expected: c,
-			}
-		}(),
-		{
-			name: "default url scheme",
-			dsn:  "foo.com",
-			expected: &Client{
-				Client: &http.Client{},
-				rawDSN: "foo.com",
-				dsn: &url.URL{
-					Scheme: "http",
-					Host:   "foo.com",
-					Path:   "/",
-				},
+	})
+	tests.Add("auth success", func(t *testing.T) interface{} {
+		h := func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `{"userCtx":{"name":"user"}}`) // nolint: errcheck
+		}
+		s := httptest.NewServer(http.HandlerFunc(h))
+		authDSN, _ := url.Parse(s.URL)
+		dsn, _ := url.Parse(s.URL + "/")
+		authDSN.User = url.UserPassword("user", "password")
+		jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+		c := &Client{
+			Client: &http.Client{Jar: jar},
+			rawDSN: authDSN.String(),
+			dsn:    dsn,
+		}
+		auth := &CookieAuth{
+			Username:  "user",
+			Password:  "password",
+			client:    c,
+			transport: http.DefaultTransport,
+		}
+		c.auth = auth
+		c.Client.Transport = auth
+
+		return tt{
+			dsn:      authDSN.String(),
+			expected: c,
+		}
+	})
+	tests.Add("default url scheme", tt{
+		dsn: "foo.com",
+		expected: &Client{
+			Client: &http.Client{},
+			rawDSN: "foo.com",
+			dsn: &url.URL{
+				Scheme: "http",
+				Host:   "foo.com",
+				Path:   "/",
 			},
 		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result, err := New(test.dsn)
-			curlStatusErrorRE(t, test.err, test.status, test.curlStatus, err)
-			if d := testy.DiffInterface(test.expected, result); d != nil {
-				t.Error(d)
-			}
-		})
-	}
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		result, err := New(tt.dsn)
+		curlStatusErrorRE(t, tt.err, tt.status, tt.curlStatus, err)
+		if d := testy.DiffInterface(tt.expected, result); d != nil {
+			t.Error(d)
+		}
+	})
 }
 
 func TestParseDSN(t *testing.T) {
