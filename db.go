@@ -746,7 +746,9 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 	if err != nil {
 		return "", err
 	}
-	query.Add("rev", rev)
+	if query.Get("rev") == "" {
+		query.Set("rev", rev)
+	}
 	opts := &chttp.Options{
 		FullCommit: fullCommit,
 		Query:      query,
