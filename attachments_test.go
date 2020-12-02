@@ -75,16 +75,6 @@ func TestPutAttachment(t *testing.T) {
 			err:    "kivik: att.Filename required",
 		},
 		{
-			name: "missing content type",
-			id:   "foo",
-			rev:  "1-xxx",
-			att: &driver.Attachment{
-				Filename: "x.jpg",
-			},
-			status: http.StatusBadRequest,
-			err:    "kivik: att.ContentType required",
-		},
-		{
 			name: "no body",
 			id:   "foo",
 			rev:  "1-xxx",
