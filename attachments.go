@@ -32,9 +32,6 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 	if att.Filename == "" {
 		return "", missingArg("att.Filename")
 	}
-	if att.ContentType == "" {
-		return "", missingArg("att.ContentType")
-	}
 	if att.Content == nil {
 		return "", missingArg("att.Content")
 	}
