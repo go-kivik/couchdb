@@ -362,6 +362,16 @@ Content-Length: 86
 			},
 		},
 	})
+	tests.Add("bug268 - complex id", func(t *testing.T) interface{} {
+		return tt{
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				return nil, errors.New("success")
+			}),
+			id:     "http://example.com/",
+			status: http.StatusBadGateway,
+			err:    `Get "?http://example.com/testdb/http:%2F%2Fexample.com%2F"?: success`,
+		}
+	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
 		doc, err := tt.db.Get(context.Background(), tt.id, tt.options)
