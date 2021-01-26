@@ -75,8 +75,7 @@ type Attachment struct {
 }
 
 func TestGet(t *testing.T) {
-	tests := []struct {
-		name        string
+	type tt struct {
 		db          *db
 		id          string
 		options     map[string]interface{}
@@ -85,202 +84,188 @@ func TestGet(t *testing.T) {
 		attachments []*Attachment
 		status      int
 		err         string
-	}{
-		{
-			name:   "missing doc ID",
-			status: http.StatusBadRequest,
-			err:    "kivik: docID required",
-		},
-		{
-			name:    "invalid options",
-			id:      "foo",
-			options: map[string]interface{}{"foo": make(chan int)},
-			status:  http.StatusBadRequest,
-			err:     "kivik: invalid type chan int for options",
-		},
-		{
-			name:   "network failure",
-			id:     "foo",
-			db:     newTestDB(nil, errors.New("net error")),
-			status: http.StatusBadGateway,
-			err:    `Get "?http://example.com/testdb/foo"?: net error`,
-		},
-		{
-			name: "error response",
-			id:   "foo",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusBadRequest,
-				Body:       Body(""),
-			}, nil),
-			status: http.StatusBadRequest,
-			err:    "Bad Request",
-		},
-		{
-			name: "status OK",
-			id:   "foo",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Type": {typeJSON},
-					"ETag":         {`"12-xxx"`},
-				},
-				ContentLength: 13,
-				Body:          Body("some response"),
-			}, nil),
-			doc: &driver.Document{
-				ContentLength: 13,
-				Rev:           "12-xxx",
+	}
+	tests := testy.NewTable()
+	tests.Add("missing doc ID", tt{
+		status: http.StatusBadRequest,
+		err:    "kivik: docID required",
+	})
+	tests.Add("invalid options", tt{
+		id:      "foo",
+		options: map[string]interface{}{"foo": make(chan int)},
+		status:  http.StatusBadRequest,
+		err:     "kivik: invalid type chan int for options",
+	})
+	tests.Add("network failure", tt{
+		id:     "foo",
+		db:     newTestDB(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    `Get "?http://example.com/testdb/foo"?: net error`,
+	})
+	tests.Add("error response", tt{
+		id: "foo",
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       Body(""),
+		}, nil),
+		status: http.StatusBadRequest,
+		err:    "Bad Request",
+	})
+	tests.Add("status OK", tt{
+		id: "foo",
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": {typeJSON},
+				"ETag":         {`"12-xxx"`},
 			},
-			expected: "some response\n",
+			ContentLength: 13,
+			Body:          Body("some response"),
+		}, nil),
+		doc: &driver.Document{
+			ContentLength: 13,
+			Rev:           "12-xxx",
 		},
-		{
-			name: "If-None-Match",
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if err := consume(req.Body); err != nil {
-					return nil, err
-				}
-				if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
-					return nil, fmt.Errorf(`If-None-Match: %s != "foo"`, inm)
-				}
-				return nil, errors.New("success")
-			}),
-			id:      "foo",
-			options: map[string]interface{}{OptionIfNoneMatch: "foo"},
-			status:  http.StatusBadGateway,
-			err:     `Get "?http://example.com/testdb/foo"?: success`,
-		},
-		{
-			name:    "invalid If-None-Match value",
-			id:      "foo",
-			options: map[string]interface{}{OptionIfNoneMatch: 123},
-			status:  http.StatusBadRequest,
-			err:     "kivik: option 'If-None-Match' must be string, not int",
-		},
-		{
-			name: "invalid content type in response",
-			id:   "foo",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Type": {"image/jpeg"},
-					"ETag":         {`"12-xxx"`},
-				},
-				ContentLength: 13,
-				Body:          Body("some response"),
-			}, nil),
-			status: http.StatusBadGateway,
-			err:    "kivik: invalid content type in response: image/jpeg",
-		},
-		{
-			name: "invalid content type header",
-			id:   "foo",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Type": {"cow; =moo"},
-					"ETag":         {`"12-xxx"`},
-				},
-				ContentLength: 13,
-				Body:          Body("some response"),
-			}, nil),
-			status: http.StatusBadGateway,
-			err:    "mime: invalid media parameter",
-		},
-		{
-			name: "missing multipart boundary",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Type": {typeMPRelated},
-					"ETag":         {`"12-xxx"`},
-				},
-				ContentLength: 13,
-				Body:          Body("some response"),
-			}, nil),
-			id:     "foo",
-			status: http.StatusBadGateway,
-			err:    "kivik: boundary missing for multipart/related response",
-		},
-		{
-			name: "no multipart data",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Length": {"538"},
-					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
-					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
-					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
-					"ServeR":         {"CouchDB (Erlang OTP)"},
-				},
-				ContentLength: 538,
-				Body:          Body(`bogus data`),
-			}, nil),
-			id:      "foo",
-			options: map[string]interface{}{"include_docs": true},
-			status:  http.StatusBadGateway,
-			err:     "multipart: NextPart: EOF",
-		},
-		{
-			name: "incomplete multipart data",
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Length": {"538"},
-					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
-					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
-					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
-					"ServeR":         {"CouchDB (Erlang OTP)"},
-				},
-				ContentLength: 538,
-				Body: Body(`--e89b3e29388aef23453450d10e5aaed0
+		expected: "some response\n",
+	})
+	tests.Add("If-None-Match", tt{
+		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+			if err := consume(req.Body); err != nil {
+				return nil, err
+			}
+			if inm := req.Header.Get("If-None-Match"); inm != `"foo"` {
+				return nil, fmt.Errorf(`If-None-Match: %s != "foo"`, inm)
+			}
+			return nil, errors.New("success")
+		}),
+		id:      "foo",
+		options: map[string]interface{}{OptionIfNoneMatch: "foo"},
+		status:  http.StatusBadGateway,
+		err:     `Get "?http://example.com/testdb/foo"?: success`,
+	})
+	tests.Add("invalid If-None-Match value", tt{
+		id:      "foo",
+		options: map[string]interface{}{OptionIfNoneMatch: 123},
+		status:  http.StatusBadRequest,
+		err:     "kivik: option 'If-None-Match' must be string, not int",
+	})
+	tests.Add("invalid content type in response", tt{
+		id: "foo",
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": {"image/jpeg"},
+				"ETag":         {`"12-xxx"`},
+			},
+			ContentLength: 13,
+			Body:          Body("some response"),
+		}, nil),
+		status: http.StatusBadGateway,
+		err:    "kivik: invalid content type in response: image/jpeg",
+	})
+	tests.Add("invalid content type header", tt{
+		id: "foo",
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": {"cow; =moo"},
+				"ETag":         {`"12-xxx"`},
+			},
+			ContentLength: 13,
+			Body:          Body("some response"),
+		}, nil),
+		status: http.StatusBadGateway,
+		err:    "mime: invalid media parameter",
+	})
+	tests.Add("missing multipart boundary", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": {typeMPRelated},
+				"ETag":         {`"12-xxx"`},
+			},
+			ContentLength: 13,
+			Body:          Body("some response"),
+		}, nil),
+		id:     "foo",
+		status: http.StatusBadGateway,
+		err:    "kivik: boundary missing for multipart/related response",
+	})
+	tests.Add("no multipart data", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Length": {"538"},
+				"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+				"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+				"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+				"ServeR":         {"CouchDB (Erlang OTP)"},
+			},
+			ContentLength: 538,
+			Body:          Body(`bogus data`),
+		}, nil),
+		id:      "foo",
+		options: map[string]interface{}{"include_docs": true},
+		status:  http.StatusBadGateway,
+		err:     "multipart: NextPart: EOF",
+	})
+	tests.Add("incomplete multipart data", tt{
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Length": {"538"},
+				"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+				"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+				"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+				"ServeR":         {"CouchDB (Erlang OTP)"},
+			},
+			ContentLength: 538,
+			Body: Body(`--e89b3e29388aef23453450d10e5aaed0
 				bogus data`),
-			}, nil),
-			id:      "foo",
-			options: map[string]interface{}{"include_docs": true},
-			status:  http.StatusBadGateway,
-			err:     "malformed MIME header (initial )?line:.*bogus data",
-		},
-		{
-			name: "multipart accept header",
-			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
-				expected := "multipart/related,application/json"
-				if accept := r.Header.Get("Accept"); accept != expected {
-					return nil, fmt.Errorf("Unexpected Accept header: %s", accept)
-				}
-				return nil, errors.New("not an error")
-			}),
-			id:     "foo",
-			status: http.StatusBadGateway,
-			err:    "not an error",
-		},
-		{
-			name: "disable multipart accept header",
-			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
-				expected := "application/json"
-				if accept := r.Header.Get("Accept"); accept != expected {
-					return nil, fmt.Errorf("Unexpected Accept header: %s", accept)
-				}
-				return nil, errors.New("not an error")
-			}),
-			options: map[string]interface{}{NoMultipartGet: true},
-			id:      "foo",
-			status:  http.StatusBadGateway,
-			err:     "not an error",
-		},
-		{
-			name: "multipart attachments",
-			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Length": {"538"},
-					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
-					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
-					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
-					"ServeR":         {"CouchDB (Erlang OTP)"},
-				},
-				ContentLength: 538,
-				Body: Body(`--e89b3e29388aef23453450d10e5aaed0
+		}, nil),
+		id:      "foo",
+		options: map[string]interface{}{"include_docs": true},
+		status:  http.StatusBadGateway,
+		err:     "malformed MIME header (initial )?line:.*bogus data",
+	})
+	tests.Add("multipart accept header", tt{
+		db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+			expected := "multipart/related,application/json"
+			if accept := r.Header.Get("Accept"); accept != expected {
+				return nil, fmt.Errorf("Unexpected Accept header: %s", accept)
+			}
+			return nil, errors.New("not an error")
+		}),
+		id:     "foo",
+		status: http.StatusBadGateway,
+		err:    "not an error",
+	})
+	tests.Add("disable multipart accept header", tt{
+		db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+			expected := "application/json"
+			if accept := r.Header.Get("Accept"); accept != expected {
+				return nil, fmt.Errorf("Unexpected Accept header: %s", accept)
+			}
+			return nil, errors.New("not an error")
+		}),
+		options: map[string]interface{}{NoMultipartGet: true},
+		id:      "foo",
+		status:  http.StatusBadGateway,
+		err:     "not an error",
+	})
+	tests.Add("multipart attachments", tt{
+		// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Length": {"538"},
+				"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+				"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+				"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+				"ServeR":         {"CouchDB (Erlang OTP)"},
+			},
+			ContentLength: 538,
+			Body: Body(`--e89b3e29388aef23453450d10e5aaed0
 Content-Type: application/json
 
 {"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}
@@ -296,46 +281,45 @@ Content-Length: 86
 5. Serve with X
 
 --e89b3e29388aef23453450d10e5aaed0--`),
-			}, nil),
-			id:      "foo",
-			options: map[string]interface{}{"include_docs": true},
-			doc: &driver.Document{
-				ContentLength: -1,
-				Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
-				Attachments: &multipartAttachments{
-					meta: map[string]attMeta{
-						"recipe.txt": {
-							Follows:     true,
-							ContentType: "text/plain",
-							Size:        func() *int64 { x := int64(86); return &x }(),
-						},
+		}, nil),
+		id:      "foo",
+		options: map[string]interface{}{"include_docs": true},
+		doc: &driver.Document{
+			ContentLength: -1,
+			Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
+			Attachments: &multipartAttachments{
+				meta: map[string]attMeta{
+					"recipe.txt": {
+						Follows:     true,
+						ContentType: "text/plain",
+						Size:        func() *int64 { x := int64(86); return &x }(),
 					},
 				},
 			},
-			expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
-			attachments: []*Attachment{
-				{
-					Filename:    "recipe.txt",
-					Size:        86,
-					ContentType: "text/plain",
-					Content:     "1. Take R\n2. Take E\n3. Mix with L\n4. Add some A\n5. Serve with X\n",
-				},
+		},
+		expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
+		attachments: []*Attachment{
+			{
+				Filename:    "recipe.txt",
+				Size:        86,
+				ContentType: "text/plain",
+				Content:     "1. Take R\n2. Take E\n3. Mix with L\n4. Add some A\n5. Serve with X\n",
 			},
 		},
-		{
-			name: "multipart attachments, doc content length",
-			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
-			db: newTestDB(&http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Length": {"558"},
-					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
-					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
-					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
-					"ServeR":         {"CouchDB (Erlang OTP)"},
-				},
-				ContentLength: 558,
-				Body: Body(`--e89b3e29388aef23453450d10e5aaed0
+	})
+	tests.Add("multipart attachments, doc content length", tt{
+		// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
+		db: newTestDB(&http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Length": {"558"},
+				"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+				"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+				"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+				"ServeR":         {"CouchDB (Erlang OTP)"},
+			},
+			ContentLength: 558,
+			Body: Body(`--e89b3e29388aef23453450d10e5aaed0
 Content-Type: application/json
 Content-Length: 199
 
@@ -352,77 +336,76 @@ Content-Length: 86
 5. Serve with X
 
 --e89b3e29388aef23453450d10e5aaed0--`),
-			}, nil),
-			id:      "foo",
-			options: map[string]interface{}{"include_docs": true},
-			doc: &driver.Document{
-				ContentLength: 199,
-				Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
-				Attachments: &multipartAttachments{
-					meta: map[string]attMeta{
-						"recipe.txt": {
-							Follows:     true,
-							ContentType: "text/plain",
-							Size:        func() *int64 { x := int64(86); return &x }(),
-						},
+		}, nil),
+		id:      "foo",
+		options: map[string]interface{}{"include_docs": true},
+		doc: &driver.Document{
+			ContentLength: 199,
+			Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
+			Attachments: &multipartAttachments{
+				meta: map[string]attMeta{
+					"recipe.txt": {
+						Follows:     true,
+						ContentType: "text/plain",
+						Size:        func() *int64 { x := int64(86); return &x }(),
 					},
 				},
 			},
-			expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
-			attachments: []*Attachment{
-				{
-					Filename:    "recipe.txt",
-					Size:        86,
-					ContentType: "text/plain",
-					Content:     "1. Take R\n2. Take E\n3. Mix with L\n4. Add some A\n5. Serve with X\n",
-				},
+		},
+		expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
+		attachments: []*Attachment{
+			{
+				Filename:    "recipe.txt",
+				Size:        86,
+				ContentType: "text/plain",
+				Content:     "1. Take R\n2. Take E\n3. Mix with L\n4. Add some A\n5. Serve with X\n",
 			},
 		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			doc, err := test.db.Get(context.Background(), test.id, test.options)
-			testy.StatusErrorRE(t, test.err, test.status, err)
-			result, err := ioutil.ReadAll(doc.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(result) != test.expected {
-				t.Errorf("Unexpected result: %s", string(result))
-			}
-			var attachments []*Attachment
-			if doc.Attachments != nil {
-				att := new(driver.Attachment)
-				for {
-					if err := doc.Attachments.Next(att); err != nil {
-						if err != io.EOF {
-							t.Fatal(err)
-						}
-						break
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		doc, err := tt.db.Get(context.Background(), tt.id, tt.options)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+		result, err := ioutil.ReadAll(doc.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(result) != tt.expected {
+			t.Errorf("Unexpected result: %s", string(result))
+		}
+		var attachments []*Attachment
+		if doc.Attachments != nil {
+			att := new(driver.Attachment)
+			for {
+				if err := doc.Attachments.Next(att); err != nil {
+					if err != io.EOF {
+						t.Fatal(err)
 					}
-					content, e := ioutil.ReadAll(att.Content)
-					if e != nil {
-						t.Fatal(e)
-					}
-					attachments = append(attachments, &Attachment{
-						Filename:    att.Filename,
-						ContentType: att.ContentType,
-						Size:        att.Size,
-						Content:     string(content),
-					})
+					break
 				}
-				doc.Attachments.(*multipartAttachments).content = nil // Determinism
-				doc.Attachments.(*multipartAttachments).mpReader = nil
+				content, e := ioutil.ReadAll(att.Content)
+				if e != nil {
+					t.Fatal(e)
+				}
+				attachments = append(attachments, &Attachment{
+					Filename:    att.Filename,
+					ContentType: att.ContentType,
+					Size:        att.Size,
+					Content:     string(content),
+				})
 			}
-			doc.Body = nil // Determinism
-			if d := testy.DiffInterface(test.doc, doc); d != nil {
-				t.Errorf("Unexpected doc:\n%s", d)
-			}
-			if d := testy.DiffInterface(test.attachments, attachments); d != nil {
-				t.Errorf("Unexpected attachments:\n%s", d)
-			}
-		})
-	}
+			doc.Attachments.(*multipartAttachments).content = nil // Determinism
+			doc.Attachments.(*multipartAttachments).mpReader = nil
+		}
+		doc.Body = nil // Determinism
+		if d := testy.DiffInterface(tt.doc, doc); d != nil {
+			t.Errorf("Unexpected doc:\n%s", d)
+		}
+		if d := testy.DiffInterface(tt.attachments, attachments); d != nil {
+			t.Errorf("Unexpected attachments:\n%s", d)
+		}
+	})
+
 }
 
 func TestCreateDoc(t *testing.T) {
