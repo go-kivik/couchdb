@@ -17,8 +17,9 @@ import (
 	"os"
 	"testing"
 
-	kivik "github.com/go-kivik/kivik/v4"
 	"gitlab.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik/v4"
 )
 
 func TestQueries_1_x(t *testing.T) {
