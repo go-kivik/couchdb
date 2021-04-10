@@ -1,7 +1,7 @@
 package couchdb
 
 // Version is the current version of this package.
-const Version = "3.2.5"
+const Version = "3.2.7"
 
 const (
 	// OptionFullCommit is the option key used to set the `X-Couch-Full-Commit`
