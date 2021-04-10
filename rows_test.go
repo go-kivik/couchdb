@@ -207,15 +207,15 @@ func TestRowsIteratorErrors(t *testing.T) {
 		},
 		{
 			name:   "unexpected key",
-			input:  `{"foo":"bar"}`,
-			status: http.StatusBadGateway,
-			err:    "Unexpected key: foo",
+			input:  `{"foo":"bar","rows":[]}`,
+			status: http.StatusInternalServerError,
+			err:    "EOF",
 		},
 		{
 			name:   "unexpected key after valid row",
 			input:  `{"rows":[{"id":"1","key":"1","value":1}],"foo":"bar"}`,
-			status: http.StatusBadGateway,
-			err:    "Unexpected key: foo",
+			status: http.StatusInternalServerError,
+			err:    "EOF",
 		},
 	}
 	for _, test := range tests {
