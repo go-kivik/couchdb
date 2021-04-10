@@ -8,8 +8,8 @@ github.com/flimzy/testy v0.1.17-0.20190521133342-95b386c3ece6/go.mod h1:3szguN8N
 github.com/go-kivik/kivik/v3 v3.0.1/go.mod h1:7tmQDvkta/pcijpUjLMsQ9HJUELiKD5zm6jQ3Gb9cxE=
 github.com/go-kivik/kivik/v3 v3.2.0 h1:YQ6j89DrQwNdMdpWioObEP+pYTSAtF58HomS5ROfKc0=
 github.com/go-kivik/kivik/v3 v3.2.0/go.mod h1:chqVuHKAU9j2C7qL0cAH2FCO26oL+0B4aIBeCRMnLa8=
-github.com/go-kivik/kiviktest/v3 v3.0.3 h1:4zX1F1eLTbIvyKiylzdWDgPqofJWiuQzQhKwZwUXMB0=
-github.com/go-kivik/kiviktest/v3 v3.0.3/go.mod h1:sqsz3M2sJxTxAUdOj+2SU21y4phcpYc0FJIn+hbf1D0=
+github.com/go-kivik/kiviktest/v3 v3.0.4 h1:mHX/9gpz5VdSOOOs7sN0/6iLK6jQcLiYbteEd33cKNo=
+github.com/go-kivik/kiviktest/v3 v3.0.4/go.mod h1:sqsz3M2sJxTxAUdOj+2SU21y4phcpYc0FJIn+hbf1D0=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
 github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 h1:l5lAOZEym3oK3SQ2HBHWsJUfbNBiTXJDeW2QDxw9AQ0=
 github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
