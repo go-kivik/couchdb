@@ -1663,6 +1663,35 @@ func TestCopy(t *testing.T) {
 		}),
 		rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
 	})
+	tests.Add("target rev", tt{
+		source: "foo",
+		target: "bar?rev=1-xxx",
+		options: map[string]interface{}{
+			OptionFullCommit: true,
+		},
+		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+			if dest := req.Header.Get("Destination"); dest != "bar?rev=1-xxx" {
+				return nil, fmt.Errorf("Unexpected destination: %s", dest)
+			}
+			if fc := req.Header.Get("X-Couch-Full-Commit"); fc != "true" {
+				return nil, fmt.Errorf("X-Couch-Full-Commit: %s", fc)
+			}
+			return &http.Response{
+				StatusCode: 201,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Location":       {"http://example.com/foo/bar"},
+					"ETag":           {`"2-yyy"`},
+					"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"66"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true,"id":"bar","rev":"2-yyy"}`),
+			}, nil
+		}),
+		rev: "2-yyy",
+	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
 		rev, err := tt.db.Copy(context.Background(), tt.target, tt.source, tt.options)
