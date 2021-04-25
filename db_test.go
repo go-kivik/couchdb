@@ -1569,116 +1569,108 @@ func TestGetMeta(t *testing.T) {
 }
 
 func TestCopy(t *testing.T) {
-	tests := []struct {
-		name           string
+	type tt struct {
 		target, source string
 		options        map[string]interface{}
 		db             *db
 		rev            string
 		status         int
 		err            string
-	}{
-		{
-			name:   "missing source",
-			status: http.StatusBadRequest,
-			err:    "kivik: sourceID required",
-		},
-		{
-			name:   "missing target",
-			source: "foo",
-			status: http.StatusBadRequest,
-			err:    "kivik: targetID required",
-		},
-		{
-			name:   "network error",
-			source: "foo",
-			target: "bar",
-			db:     newTestDB(nil, errors.New("net error")),
-			status: http.StatusBadGateway,
-			err:    "(Copy http://example.com/testdb/foo: )?net error",
-		},
-		{
-			name:    "invalid options",
-			db:      &db{},
-			source:  "foo",
-			target:  "bar",
-			options: map[string]interface{}{"foo": make(chan int)},
-			status:  http.StatusBadRequest,
-			err:     "kivik: invalid type chan int for options",
-		},
-		{
-			name:    "invalid full commit type",
-			db:      &db{},
-			source:  "foo",
-			target:  "bar",
-			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  http.StatusBadRequest,
-			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
-		},
-		{
-			name:   "create 1.6.1",
-			source: "foo",
-			target: "bar",
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if req.Header.Get("Destination") != "bar" {
-					return nil, errors.New("Unexpected destination")
-				}
-				return &http.Response{
-					StatusCode: 201,
-					Header: http.Header{
-						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-						"Location":       {"http://example.com/foo/bar"},
-						"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
-						"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
-						"Content-Type":   {"text/plain; charset=utf-8"},
-						"Content-Length": {"66"},
-						"Cache-Control":  {"must-revalidate"},
-					},
-					Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
-				}, nil
-			}),
-			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
-		},
-		{
-			name:   "full commit 1.6.1",
-			source: "foo",
-			target: "bar",
-			options: map[string]interface{}{
-				OptionFullCommit: true,
-			},
-			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
-				if dest := req.Header.Get("Destination"); dest != "bar" {
-					return nil, fmt.Errorf("Unexpected destination: %s", dest)
-				}
-				if fc := req.Header.Get("X-Couch-Full-Commit"); fc != "true" {
-					return nil, fmt.Errorf("X-Couch-Full-Commit: %s", fc)
-				}
-				return &http.Response{
-					StatusCode: 201,
-					Header: http.Header{
-						"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
-						"Location":       {"http://example.com/foo/bar"},
-						"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
-						"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
-						"Content-Type":   {"text/plain; charset=utf-8"},
-						"Content-Length": {"66"},
-						"Cache-Control":  {"must-revalidate"},
-					},
-					Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
-				}, nil
-			}),
-			rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
-		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Copy(context.Background(), test.target, test.source, test.options)
-			testy.StatusErrorRE(t, test.err, test.status, err)
-			if rev != test.rev {
-				t.Errorf("Got %s, expected %s", rev, test.rev)
+
+	tests := testy.NewTable()
+	tests.Add("missing source", tt{
+		status: http.StatusBadRequest,
+		err:    "kivik: sourceID required",
+	})
+	tests.Add("missing target", tt{
+		source: "foo",
+		status: http.StatusBadRequest,
+		err:    "kivik: targetID required",
+	})
+	tests.Add("network error", tt{
+		source: "foo",
+		target: "bar",
+		db:     newTestDB(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    "(Copy http://example.com/testdb/foo: )?net error",
+	})
+	tests.Add("invalid options", tt{
+		db:      &db{},
+		source:  "foo",
+		target:  "bar",
+		options: map[string]interface{}{"foo": make(chan int)},
+		status:  http.StatusBadRequest,
+		err:     "kivik: invalid type chan int for options",
+	})
+	tests.Add("invalid full commit type", tt{
+		db:      &db{},
+		source:  "foo",
+		target:  "bar",
+		options: map[string]interface{}{OptionFullCommit: 123},
+		status:  http.StatusBadRequest,
+		err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+	})
+	tests.Add("create 1.6.1", tt{
+		source: "foo",
+		target: "bar",
+		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+			if req.Header.Get("Destination") != "bar" {
+				return nil, errors.New("Unexpected destination")
 			}
-		})
-	}
+			return &http.Response{
+				StatusCode: 201,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Location":       {"http://example.com/foo/bar"},
+					"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
+					"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"66"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
+			}, nil
+		}),
+		rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
+	})
+	tests.Add("full commit 1.6.1", tt{
+		source: "foo",
+		target: "bar",
+		options: map[string]interface{}{
+			OptionFullCommit: true,
+		},
+		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+			if dest := req.Header.Get("Destination"); dest != "bar" {
+				return nil, fmt.Errorf("Unexpected destination: %s", dest)
+			}
+			if fc := req.Header.Get("X-Couch-Full-Commit"); fc != "true" {
+				return nil, fmt.Errorf("X-Couch-Full-Commit: %s", fc)
+			}
+			return &http.Response{
+				StatusCode: 201,
+				Header: http.Header{
+					"Server":         {"CouchDB/1.6.1 (Erlang OTP/17)"},
+					"Location":       {"http://example.com/foo/bar"},
+					"ETag":           {`"1-f81c8a795b0c6f9e9f699f64c6b82256"`},
+					"Date":           {"Thu, 26 Oct 2017 15:45:57 GMT"},
+					"Content-Type":   {"text/plain; charset=utf-8"},
+					"Content-Length": {"66"},
+					"Cache-Control":  {"must-revalidate"},
+				},
+				Body: Body(`{"ok":true,"id":"bar","rev":"1-f81c8a795b0c6f9e9f699f64c6b82256"}`),
+			}, nil
+		}),
+		rev: "1-f81c8a795b0c6f9e9f699f64c6b82256",
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		rev, err := tt.db.Copy(context.Background(), tt.target, tt.source, tt.options)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+		if rev != tt.rev {
+			t.Errorf("Got %s, expected %s", rev, tt.rev)
+		}
+	})
 }
 
 func TestMultipartAttachmentsNext(t *testing.T) {
