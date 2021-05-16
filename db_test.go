@@ -382,13 +382,28 @@ Content-Length: 86
 			}),
 			id:     "http://example.com/",
 			status: http.StatusBadGateway,
-			err:    `Get "?http://example.com/testdb/http:%2F%2Fexample.com%2F"?: success`,
+			err:    `Get "?http://example.com/testdb/http%3A%2F%2Fexample\.com%2F"?: success`,
+		}
+	})
+	tests.Add("plus sign", func(t *testing.T) interface{} {
+		return tt{
+			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
+				return nil, errors.New("success")
+			}),
+			id:     "2020-01-30T13:33:00.00+05:30|kl",
+			status: http.StatusBadGateway,
+			err:    `^Get "?http://example.com/testdb/2020-01-30T13%3A33%3A00\.00%2B05%3A30%7Ckl"?: success$`,
 		}
 	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
 		doc, err := tt.db.Get(context.Background(), tt.id, tt.options)
-		testy.StatusErrorRE(t, tt.err, tt.status, err)
+		if !testy.ErrorMatchesRE(tt.err, err) {
+			t.Errorf("Unexpected error: \n Got: %s\nWant: /%s/", err, tt.err)
+		}
+		if err != nil {
+			return
+		}
 		result, err := ioutil.ReadAll(doc.Body)
 		if err != nil {
 			t.Fatal(err)

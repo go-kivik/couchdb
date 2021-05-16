@@ -26,12 +26,18 @@ const (
 //
 // In particular:
 // -  '_design/' and '_local/' prefixes are unaltered.
-// - The rest of the docID is Query-URL encoded (despite being part of the path)
+// - The rest of the docID is Query-URL encoded, except that spaces are converted to %20. See https://github.com/apache/couchdb/issues/3565 for an
+// explanation.
 func EncodeDocID(docID string) string {
 	for _, prefix := range []string{prefixDesign, prefixLocal} {
 		if strings.HasPrefix(docID, prefix) {
-			return prefix + url.PathEscape(strings.TrimPrefix(docID, prefix))
+			return prefix + encodeDocID(strings.TrimPrefix(docID, prefix))
 		}
 	}
-	return url.PathEscape(docID)
+	return encodeDocID(docID)
+}
+
+func encodeDocID(docID string) string {
+	docID = url.QueryEscape(docID)
+	return strings.ReplaceAll(docID, "+", "%20") // Ensure space is encoded as %20, not '+', so that if CouchDB ever fixes the encoding, we won't break
 }
