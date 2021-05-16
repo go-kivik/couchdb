@@ -27,5 +27,5 @@ func EncodeDocID(docID string) string {
 
 func encodeDocID(docID string) string {
 	docID = url.QueryEscape(docID)
-	return strings.ReplaceAll(docID, "+", "%20") // Ensure space is encoded as %20, not '+', so that if CouchDB ever fixes the encoding, we won't break
+	return strings.Replace(docID, "+", "%20", -1) // Ensure space is encoded as %20, not '+', so that if CouchDB ever fixes the encoding, we won't break
 }
