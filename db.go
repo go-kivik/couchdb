@@ -296,7 +296,7 @@ func (d *db) GetMeta(ctx context.Context, docID string, options map[string]inter
 	return resp.ContentLength, rev, err
 }
 
-func (d *db) get(ctx context.Context, method string, docID string, options map[string]interface{}) (*http.Response, string, error) {
+func (d *db) get(ctx context.Context, method, docID string, options map[string]interface{}) (*http.Response, string, error) {
 	if docID == "" {
 		return nil, "", missingArg("docID")
 	}

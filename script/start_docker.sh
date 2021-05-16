@@ -12,6 +12,7 @@ export KIVIK_TEST_DSN_COUCH17=http://admin:abc123@localhost:6001/
 export KIVIK_TEST_DSN_COUCH22=http://admin:abc123@localhost:6002/
 export KIVIK_TEST_DSN_COUCH23=http://admin:abc123@localhost:6003/
 export KIVIK_TEST_DSN_COUCH30=http://admin:abc123@localhost:6004/
+export KIVIK_TEST_DSN_COUCH31=http://admin:abc123@localhost:6005/
 
 echo "CouchDB 1.7.2"
 docker pull couchdb:1.7.2
@@ -32,3 +33,8 @@ echo "CouchDB 3.0.0"
 docker pull apache/couchdb:3.0.0
 docker run --name couch30 -p 6004:5984/tcp -d --rm -e COUCHDB_USER -e COUCHDB_PASSWORD apache/couchdb:3.0.0
 ${DIR}/complete_couch2.sh $KIVIK_TEST_DSN_COUCH30
+
+echo "CouchDB 3.1.1"
+docker pull apache/couchdb:3.1.1
+docker run --name couch31 -p 6005:5984/tcp -d --rm -e COUCHDB_USER -e COUCHDB_PASSWORD apache/couchdb:3.1.1
+${DIR}/complete_couch2.sh $KIVIK_TEST_DSN_COUCH31
