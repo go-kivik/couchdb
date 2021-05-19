@@ -89,7 +89,19 @@ func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err := a.authenticate(req); err != nil {
 		return nil, err
 	}
-	return a.transport.RoundTrip(req)
+
+	res, err := a.transport.RoundTrip(req)
+	if err != nil {
+		return res, err
+	}
+
+	if res != nil && res.StatusCode == http.StatusUnauthorized {
+		if a.Cookie() != nil {
+			a.client.Jar = nil
+			a.setCookieJar()
+		}
+	}
+	return res, nil
 }
 
 func (a *CookieAuth) authenticate(req *http.Request) error {
