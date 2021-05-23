@@ -310,7 +310,23 @@ func Test401Response(t *testing.T) {
 	}
 
 	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
-	testy.StatusError(t, "Unauthorized: You are not authorized to access this db.", 401, err)
+
+	// this causes a skip so this won't work for us.
+	//testy.StatusError(t, "Unauthorized: You are not authorized to access this db.", 401, err)
+	if err == nil {
+		t.Fatal("Should have an auth error")
+	}
+	if err != nil {
+		errString := err.Error()
+		if errString != "Unauthorized: You are not authorized to access this db." {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		actualStatus := testy.StatusCode(err)
+		if 401 != actualStatus {
+			t.Errorf("Unexpected status code: %d (expected %d)", actualStatus, 401)
+		}
+	}
+
 	if d := testy.DiffInterface(expectedCookie, auth.Cookie()); d != nil {
 		t.Error(d)
 	}
