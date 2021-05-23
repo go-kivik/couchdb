@@ -327,7 +327,8 @@ func Test401Response(t *testing.T) {
 		}
 	}
 
-	if d := testy.DiffInterface(expectedCookie, auth.Cookie()); d != nil {
+	var noCookie *http.Cookie
+	if d := testy.DiffInterface(noCookie, auth.Cookie()); d != nil {
 		t.Error(d)
 	}
 
