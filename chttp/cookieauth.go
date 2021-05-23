@@ -96,9 +96,10 @@ func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	if res != nil && res.StatusCode == http.StatusUnauthorized {
-		if a.Cookie() != nil {
-			a.client.Jar = nil
-			a.setCookieJar()
+		if cookie := a.Cookie(); cookie != nil {
+			// set to expire yesterday to allow us to ditch it
+			cookie.Expires = time.Now().AddDate(0, 0, -1)
+			a.client.Jar.SetCookies(a.client.dsn, []*http.Cookie{cookie})
 		}
 	}
 	return res, nil
