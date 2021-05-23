@@ -251,22 +251,31 @@ func Test401Response(t *testing.T) {
 			}
 			var cookie string
 			if sessCounter == 1 {
+				// set another cookie at the start too
+				h.Add("Set-Cookie", "Other=foo; Version=1; Path=/; HttpOnly")
 				cookie = "First"
 			} else {
 				cookie = "Second"
 			}
-			h.Set("Set-Cookie", "AuthSession="+cookie+"; Version=1; Path=/; HttpOnly")
+			h.Add("Set-Cookie", "AuthSession="+cookie+"; Version=1; Path=/; HttpOnly")
 			w.WriteHeader(200)
 			_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
 		} else {
 			getCounter++
+			cookie := r.Header.Get("Cookie")
+			if !(strings.Contains(cookie, "AuthSession=")) {
+				t.Errorf("Expected cookie not found: %s", cookie)
+			}
+			// because of the way the request is baked before the auth loop
+			// cookies other than the auth cookie set when calling _session won't
+			// get applied to requests until after that first request.
+			if getCounter > 1 && !strings.Contains(cookie, "Other=foo") {
+				t.Errorf("Expected cookie not found: %s", cookie)
+			}
 			if getCounter == 2 {
 				w.WriteHeader(401)
 				_, _ = w.Write([]byte(`{"error":"unauthorized","reason":"You are not authorized to access this db."}`))
 				return
-			}
-			if cookie := r.Header.Get("Cookie"); !strings.HasPrefix(cookie, "AuthSession=") {
-				t.Errorf("Expected cookie not found: %s", cookie)
 			}
 			w.WriteHeader(200)
 			_, _ = w.Write([]byte(`{"ok":true}`))
