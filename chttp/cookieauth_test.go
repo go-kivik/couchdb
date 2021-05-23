@@ -6,6 +6,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -234,4 +235,77 @@ func Test_shouldAuth(t *testing.T) {
 			t.Errorf("Want %t, got %t", tt.want, got)
 		}
 	})
+}
+
+func Test401Response(t *testing.T) {
+	var sessCounter, getCounter int
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Type", "application/json")
+		h.Set("Date", "Sat, 08 Sep 2018 15:49:29 GMT")
+		h.Set("Server", "CouchDB/2.2.0 (Erlang OTP/19)")
+		if r.URL.Path == "/_session" {
+			sessCounter++
+			if sessCounter > 2 {
+				t.Fatal("Too many calls to /_session")
+			}
+			var cookie string
+			if sessCounter == 1 {
+				cookie = "First"
+			} else {
+				cookie = "Second"
+			}
+			h.Set("Set-Cookie", "AuthSession="+cookie+"; Version=1; Path=/; HttpOnly")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
+		} else {
+			getCounter++
+			if getCounter == 2 {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte(`{"error":"unauthorized","reason":"You are not authorized to access this db."}`))
+				return
+			}
+			if cookie := r.Header.Get("Cookie"); !strings.HasPrefix(cookie, "AuthSession=") {
+				t.Errorf("Expected cookie not found: %s", cookie)
+			}
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		}
+	}))
+
+	c, err := New(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth := &CookieAuth{Username: "foo", Password: "bar"}
+	if e := c.Auth(auth); e != nil {
+		t.Fatal(e)
+	}
+
+	expectedCookie := &http.Cookie{
+		Name:  kivik.SessionCookieName,
+		Value: "First",
+	}
+	newCookie := &http.Cookie{
+		Name:  kivik.SessionCookieName,
+		Value: "Second",
+	}
+
+	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+	testy.StatusError(t, "", 0, err)
+	if d := testy.DiffInterface(expectedCookie, auth.Cookie()); d != nil {
+		t.Error(d)
+	}
+
+	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+	testy.StatusError(t, "Unauthorized: You are not authorized to access this db.", 401, err)
+	if d := testy.DiffInterface(expectedCookie, auth.Cookie()); d != nil {
+		t.Error(d)
+	}
+
+	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+	testy.StatusError(t, "", 0, err)
+	if d := testy.DiffInterface(newCookie, auth.Cookie()); d != nil {
+		t.Error(d)
+	}
 }
