@@ -85,11 +85,26 @@ var authInProgress = &struct{ name string }{"in progress"}
 
 // RoundTrip fulfills the http.RoundTripper interface. It sets
 // (re-)authenticates when the cookie has expired or is not yet set.
+// It also drops the auth cookie if we receive a 401 response to ensure
+// that follow up requests can try to authenticate again.
 func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err := a.authenticate(req); err != nil {
 		return nil, err
 	}
-	return a.transport.RoundTrip(req)
+
+	res, err := a.transport.RoundTrip(req)
+	if err != nil {
+		return res, err
+	}
+
+	if res != nil && res.StatusCode == http.StatusUnauthorized {
+		if cookie := a.Cookie(); cookie != nil {
+			// set to expire yesterday to allow us to ditch it
+			cookie.Expires = time.Now().AddDate(0, 0, -1)
+			a.client.Jar.SetCookies(a.client.dsn, []*http.Cookie{cookie})
+		}
+	}
+	return res, nil
 }
 
 func (a *CookieAuth) authenticate(req *http.Request) error {

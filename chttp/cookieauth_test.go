@@ -18,6 +18,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -246,4 +247,103 @@ func Test_shouldAuth(t *testing.T) {
 			t.Errorf("Want %t, got %t", tt.want, got)
 		}
 	})
+}
+
+func Test401Response(t *testing.T) {
+	var sessCounter, getCounter int
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Type", "application/json")
+		h.Set("Date", "Sat, 08 Sep 2018 15:49:29 GMT")
+		h.Set("Server", "CouchDB/2.2.0 (Erlang OTP/19)")
+		if r.URL.Path == "/_session" {
+			sessCounter++
+			if sessCounter > 2 {
+				t.Fatal("Too many calls to /_session")
+			}
+			var cookie string
+			if sessCounter == 1 {
+				// set another cookie at the start too
+				h.Add("Set-Cookie", "Other=foo; Version=1; Path=/; HttpOnly")
+				cookie = "First"
+			} else {
+				cookie = "Second"
+			}
+			h.Add("Set-Cookie", "AuthSession="+cookie+"; Version=1; Path=/; HttpOnly")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
+		} else {
+			getCounter++
+			cookie := r.Header.Get("Cookie")
+			if !(strings.Contains(cookie, "AuthSession=")) {
+				t.Errorf("Expected cookie not found: %s", cookie)
+			}
+			// because of the way the request is baked before the auth loop
+			// cookies other than the auth cookie set when calling _session won't
+			// get applied to requests until after that first request.
+			if getCounter > 1 && !strings.Contains(cookie, "Other=foo") {
+				t.Errorf("Expected cookie not found: %s", cookie)
+			}
+			if getCounter == 2 {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte(`{"error":"unauthorized","reason":"You are not authorized to access this db."}`))
+				return
+			}
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		}
+	}))
+
+	c, err := New(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth := &CookieAuth{Username: "foo", Password: "bar"}
+	if e := c.Auth(auth); e != nil {
+		t.Fatal(e)
+	}
+
+	expectedCookie := &http.Cookie{
+		Name:  kivik.SessionCookieName,
+		Value: "First",
+	}
+	newCookie := &http.Cookie{
+		Name:  kivik.SessionCookieName,
+		Value: "Second",
+	}
+
+	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+	testy.StatusError(t, "", 0, err)
+	if d := testy.DiffInterface(expectedCookie, auth.Cookie()); d != nil {
+		t.Error(d)
+	}
+
+	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+
+	// this causes a skip so this won't work for us.
+	//testy.StatusError(t, "Unauthorized: You are not authorized to access this db.", 401, err)
+	if err == nil {
+		t.Fatal("Should have an auth error")
+	}
+	if err != nil {
+		errString := err.Error()
+		if errString != "Unauthorized: You are not authorized to access this db." {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		actualStatus := testy.StatusCode(err)
+		if 401 != actualStatus {
+			t.Errorf("Unexpected status code: %d (expected %d)", actualStatus, 401)
+		}
+	}
+
+	var noCookie *http.Cookie
+	if d := testy.DiffInterface(noCookie, auth.Cookie()); d != nil {
+		t.Error(d)
+	}
+
+	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
+	testy.StatusError(t, "", 0, err)
+	if d := testy.DiffInterface(newCookie, auth.Cookie()); d != nil {
+		t.Error(d)
+	}
 }
