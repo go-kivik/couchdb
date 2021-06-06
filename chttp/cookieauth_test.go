@@ -191,7 +191,7 @@ func Test_shouldAuth(t *testing.T) {
 		c, _ := New("http://example.com/")
 		c.Jar = &dummyJar{&http.Cookie{
 			Name:    kivik.SessionCookieName,
-			Expires: time.Now().Add(20 * time.Second),
+			Expires: time.Now().Add(20 * time.Minute),
 		}}
 		a := &CookieAuth{client: c}
 
@@ -226,6 +226,20 @@ func Test_shouldAuth(t *testing.T) {
 			a:    a,
 			req:  httptest.NewRequest("GET", "/", nil),
 			want: false,
+		}
+	})
+	tests.Add("about to expire", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name:    kivik.SessionCookieName,
+			Expires: time.Now().Add(20 * time.Second),
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: true,
 		}
 	})
 
@@ -309,19 +323,12 @@ func Test401Response(t *testing.T) {
 	_, err = c.DoError(context.Background(), "GET", "/foo", nil)
 
 	// this causes a skip so this won't work for us.
-	//testy.StatusError(t, "Unauthorized: You are not authorized to access this db.", 401, err)
-	if err == nil {
-		t.Fatal("Should have an auth error")
+	// testy.StatusError(t, "Unauthorized: You are not authorized to access this db.", 401, err)
+	if !testy.ErrorMatches("Unauthorized: You are not authorized to access this db.", err) {
+		t.Fatalf("Unexpected error: %s", err)
 	}
-	if err != nil {
-		errString := err.Error()
-		if errString != "Unauthorized: You are not authorized to access this db." {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		actualStatus := testy.StatusCode(err)
-		if 401 != actualStatus {
-			t.Errorf("Unexpected status code: %d (expected %d)", actualStatus, 401)
-		}
+	if status := testy.StatusCode(err); status != http.StatusUnauthorized {
+		t.Errorf("Unexpected status code: %d", status)
 	}
 
 	var noCookie *http.Cookie
