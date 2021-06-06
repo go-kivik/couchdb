@@ -46,7 +46,7 @@ func (a *CookieAuth) shouldAuth(req *http.Request) bool {
 		return true
 	}
 	if !cookie.Expires.IsZero() {
-		return cookie.Expires.Before(time.Now())
+		return cookie.Expires.Before(time.Now().Add(time.Minute))
 	}
 	// If we get here, it means the server did not include an expiry time in
 	// the session cookie. Some CouchDB configurations do this, but rather than

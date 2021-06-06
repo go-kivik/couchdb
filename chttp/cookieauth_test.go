@@ -191,7 +191,7 @@ func Test_shouldAuth(t *testing.T) {
 		c, _ := New("http://example.com/")
 		c.Jar = &dummyJar{&http.Cookie{
 			Name:    kivik.SessionCookieName,
-			Expires: time.Now().Add(20 * time.Second),
+			Expires: time.Now().Add(20 * time.Minute),
 		}}
 		a := &CookieAuth{client: c}
 
@@ -226,6 +226,20 @@ func Test_shouldAuth(t *testing.T) {
 			a:    a,
 			req:  httptest.NewRequest("GET", "/", nil),
 			want: false,
+		}
+	})
+	tests.Add("about to expire", func() interface{} {
+		c, _ := New("http://example.com/")
+		c.Jar = &dummyJar{&http.Cookie{
+			Name:    kivik.SessionCookieName,
+			Expires: time.Now().Add(20 * time.Second),
+		}}
+		a := &CookieAuth{client: c}
+
+		return tt{
+			a:    a,
+			req:  httptest.NewRequest("GET", "/", nil),
+			want: true,
 		}
 	})
 
