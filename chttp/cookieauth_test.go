@@ -20,7 +20,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
@@ -177,92 +176,6 @@ func (j *dummyJar) SetCookies(_ *url.URL, cookies []*http.Cookie) {
 	*j = cookies
 }
 
-func Test_shouldAuth(t *testing.T) {
-	type tt struct {
-		a    *CookieAuth
-		req  *http.Request
-		want bool
-	}
-
-	tests := testy.NewTable()
-	tests.Add("no session", tt{
-		a:    &CookieAuth{},
-		req:  httptest.NewRequest("GET", "/", nil),
-		want: true,
-	})
-	tests.Add("authed request", func() interface{} {
-		req := httptest.NewRequest("GET", "/", nil)
-		req.AddCookie(&http.Cookie{Name: kivik.SessionCookieName})
-		return tt{
-			a:    &CookieAuth{},
-			req:  req,
-			want: false,
-		}
-	})
-	tests.Add("valid session", func() interface{} {
-		c, _ := New("http://example.com/")
-		c.Jar = &dummyJar{&http.Cookie{
-			Name:    kivik.SessionCookieName,
-			Expires: time.Now().Add(20 * time.Minute),
-		}}
-		a := &CookieAuth{client: c}
-
-		return tt{
-			a:    a,
-			req:  httptest.NewRequest("GET", "/", nil),
-			want: false,
-		}
-	})
-	tests.Add("expired session", func() interface{} {
-		c, _ := New("http://example.com/")
-		c.Jar = &dummyJar{&http.Cookie{
-			Name:    kivik.SessionCookieName,
-			Expires: time.Now().Add(-20 * time.Second),
-		}}
-		a := &CookieAuth{client: c}
-
-		return tt{
-			a:    a,
-			req:  httptest.NewRequest("GET", "/", nil),
-			want: true,
-		}
-	})
-	tests.Add("no expiry time", func() interface{} {
-		c, _ := New("http://example.com/")
-		c.Jar = &dummyJar{&http.Cookie{
-			Name: kivik.SessionCookieName,
-		}}
-		a := &CookieAuth{client: c}
-
-		return tt{
-			a:    a,
-			req:  httptest.NewRequest("GET", "/", nil),
-			want: false,
-		}
-	})
-	tests.Add("about to expire", func() interface{} {
-		c, _ := New("http://example.com/")
-		c.Jar = &dummyJar{&http.Cookie{
-			Name:    kivik.SessionCookieName,
-			Expires: time.Now().Add(20 * time.Second),
-		}}
-		a := &CookieAuth{client: c}
-
-		return tt{
-			a:    a,
-			req:  httptest.NewRequest("GET", "/", nil),
-			want: true,
-		}
-	})
-
-	tests.Run(t, func(t *testing.T, tt tt) {
-		got := tt.a.shouldAuth(tt.req)
-		if got != tt.want {
-			t.Errorf("Want %t, got %t", tt.want, got)
-		}
-	})
-}
-
 func Test401Response(t *testing.T) {
 	var sessCounter, getCounter int
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -273,7 +186,7 @@ func Test401Response(t *testing.T) {
 		if r.URL.Path == "/_session" {
 			sessCounter++
 			if sessCounter > 2 {
-				t.Fatal("Too many calls to /_session")
+				t.Fatal("Too many requests to /_session")
 			}
 			var cookie string
 			if sessCounter == 1 {
@@ -286,26 +199,26 @@ func Test401Response(t *testing.T) {
 			h.Add("Set-Cookie", "AuthSession="+cookie+"; Version=1; Path=/; HttpOnly")
 			w.WriteHeader(200)
 			_, _ = w.Write([]byte(`{"ok":true,"name":"admin","roles":["_admin"]}`))
-		} else {
-			getCounter++
-			cookie := r.Header.Get("Cookie")
-			if !(strings.Contains(cookie, "AuthSession=")) {
-				t.Errorf("Expected cookie not found: %s", cookie)
-			}
-			// because of the way the request is baked before the auth loop
-			// cookies other than the auth cookie set when calling _session won't
-			// get applied to requests until after that first request.
-			if getCounter > 1 && !strings.Contains(cookie, "Other=foo") {
-				t.Errorf("Expected cookie not found: %s", cookie)
-			}
-			if getCounter == 2 {
-				w.WriteHeader(401)
-				_, _ = w.Write([]byte(`{"error":"unauthorized","reason":"You are not authorized to access this db."}`))
-				return
-			}
-			w.WriteHeader(200)
-			_, _ = w.Write([]byte(`{"ok":true}`))
+			return
 		}
+		getCounter++
+		cookie := r.Header.Get("Cookie")
+		if !strings.Contains(cookie, "AuthSession=") {
+			t.Errorf("Expected cookie not found: %s", cookie)
+		}
+		// because of the way the request is baked before the auth loop
+		// cookies other than the auth cookie set when calling _session won't
+		// get applied to requests until after that first request.
+		if getCounter > 1 && !strings.Contains(cookie, "Other=foo") {
+			t.Errorf("Expected cookie not found: %s", cookie)
+		}
+		if getCounter == 2 {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"error":"unauthorized","reason":"You are not authorized to access this db."}`))
+			return
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 
 	c, err := New(s.URL)
