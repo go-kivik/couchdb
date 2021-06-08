@@ -31,7 +31,8 @@ type CookieAuth struct {
 	client *Client
 	// transport stores the original transport that is overridden by this auth
 	// mechanism
-	transport http.RoundTripper
+	transport  http.RoundTripper
+	authExpiry *time.Time
 }
 
 var _ Authenticator = &CookieAuth{}
@@ -46,26 +47,6 @@ func (a *CookieAuth) Authenticate(c *Client) error {
 	}
 	c.Transport = a
 	return nil
-}
-
-// shouldAuth returns true if there is no cookie set, or if it has expired.
-func (a *CookieAuth) shouldAuth(req *http.Request) bool {
-	if _, err := req.Cookie(kivik.SessionCookieName); err == nil {
-		return false
-	}
-	cookie := a.Cookie()
-	if cookie == nil {
-		return true
-	}
-	if !cookie.Expires.IsZero() {
-		return cookie.Expires.Before(time.Now().Add(time.Minute))
-	}
-	// If we get here, it means the server did not include an expiry time in
-	// the session cookie. Some CouchDB configurations do this, but rather than
-	// re-authenticating for every request, we'll let the session expire. A
-	// future change might be to make a client-configurable option to set the
-	// re-authentication timeout.
-	return false
 }
 
 // Cookie returns the current session cookie if found, or nil if not.
@@ -102,9 +83,31 @@ func (a *CookieAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 			// set to expire yesterday to allow us to ditch it
 			cookie.Expires = time.Now().AddDate(0, 0, -1)
 			a.client.Jar.SetCookies(a.client.dsn, []*http.Cookie{cookie})
+			a.client.authMU.Lock()
+			a.authExpiry = nil
+			a.client.authMU.Unlock()
 		}
 	}
 	return res, nil
+}
+
+// shouldAuth returns true if there is no cookie set, or if it has expired.
+func (a *CookieAuth) shouldAuth(req *http.Request) bool {
+	if _, err := req.Cookie(kivik.SessionCookieName); err == nil {
+		return false
+	}
+	if a.authExpiry == nil {
+		return true
+	}
+	if !a.authExpiry.IsZero() {
+		return a.authExpiry.Before(time.Now())
+	}
+	// If we get here, it means the server did not include an expiry time in
+	// the session cookie. Some CouchDB configurations do this, but rather than
+	// re-authenticating for every request, we'll let the session expire. A
+	// future change might be to make a client-configurable option to set the
+	// re-authentication timeout.
+	return false
 }
 
 func (a *CookieAuth) authenticate(req *http.Request) error {
@@ -112,14 +115,9 @@ func (a *CookieAuth) authenticate(req *http.Request) error {
 	if inProg, _ := ctx.Value(authInProgress).(bool); inProg {
 		return nil
 	}
-	if !a.shouldAuth(req) {
-		return nil
-	}
 	a.client.authMU.Lock()
 	defer a.client.authMU.Unlock()
-	if c := a.Cookie(); c != nil {
-		// In case another simultaneous process authenticated successfully first
-		req.AddCookie(c)
+	if !a.shouldAuth(req) {
 		return nil
 	}
 	ctx = context.WithValue(ctx, authInProgress, true)
@@ -129,8 +127,27 @@ func (a *CookieAuth) authenticate(req *http.Request) error {
 			HeaderIdempotencyKey: []string{},
 		},
 	}
-	if _, err := a.client.DoError(ctx, http.MethodPost, "/_session", opts); err != nil {
+	res, err := a.client.DoError(ctx, http.MethodPost, "/_session", opts)
+	if err != nil {
 		return err
+	}
+	for _, cookie := range res.Cookies() {
+		if cookie.Name == kivik.SessionCookieName {
+			expiry := cookie.Expires
+			if !expiry.IsZero() {
+				expiry = expiry.Add(-time.Minute)
+			}
+			a.authExpiry = &expiry
+			break
+		}
+	}
+
+	cookies := req.Cookies()
+	req.Header.Del("Cookie")
+	for _, cookie := range cookies {
+		if cookie.Name != kivik.SessionCookieName {
+			req.AddCookie(cookie)
+		}
 	}
 	if c := a.Cookie(); c != nil {
 		req.AddCookie(c)
