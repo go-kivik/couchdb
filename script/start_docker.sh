@@ -30,7 +30,7 @@ docker run --name couch23 -p 6003:5984/tcp -d --rm -e COUCHDB_USER -e COUCHDB_PA
 ${DIR}/complete_couch2.sh $KIVIK_TEST_DSN_COUCH23
 
 echo "CouchDB 3.0.0"
-docker pull apache/couchdb:3.0.0
+docker pull couchdb:3.0.0
 docker run --name couch30 -p 6004:5984/tcp -d --rm -e COUCHDB_USER -e COUCHDB_PASSWORD apache/couchdb:3.0.0
 ${DIR}/complete_couch2.sh $KIVIK_TEST_DSN_COUCH30
 
