@@ -10,6 +10,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+//go:build !1.13
 // +build !1.13
 
 package chttp

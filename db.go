@@ -186,7 +186,7 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 			return nil, &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
 		}
 		length := int64(-1)
-		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil {
+		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil { // nolint:gomnd
 			length = cl
 		}
 
@@ -259,7 +259,7 @@ func (a *multipartAttachments) Next(att *driver.Attachment) error {
 	size := int64(-1)
 	if meta.Size != nil {
 		size = *meta.Size
-	} else if cl, e := strconv.ParseInt(part.Header.Get("Content-Length"), 10, 64); e == nil {
+	} else if cl, e := strconv.ParseInt(part.Header.Get("Content-Length"), 10, 64); e == nil { // nolint:gomnd
 		size = cl
 	}
 
