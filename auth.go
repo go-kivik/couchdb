@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-kivik/couchdb/v3/chttp"
-	kivik "github.com/go-kivik/kivik/v3"
+	"github.com/go-kivik/kivik/v3"
 )
 
 func (c *client) Authenticate(ctx context.Context, a interface{}) error {
@@ -74,6 +74,17 @@ func BasicAuth(user, password string) Authenticator {
 // CookieAuth provides support for CouchDB cookie-based authentication.
 func CookieAuth(user, password string) Authenticator {
 	auth := chttp.CookieAuth{Username: user, Password: password}
+	return authFunc(func(ctx context.Context, c *client) error {
+		return auth.Authenticate(c.Client)
+	})
+}
+
+// JWTAuth provides support for CouchDB JWT-based authentication. Kivik does
+// no validation on the JWT token; it is passed verbatim to the server.
+//
+// See https://docs.couchdb.org/en/latest/api/server/authn.html#jwt-authentication
+func JWTAuth(token string) Authenticator {
+	auth := chttp.JWTAuth{Token: token}
 	return authFunc(func(ctx context.Context, c *client) error {
 		return auth.Authenticate(c.Client)
 	})

@@ -87,3 +87,73 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestJWTAuthRoundTrip(t *testing.T) {
+	type rtTest struct {
+		name     string
+		auth     *JWTAuth
+		req      *http.Request
+		expected *http.Response
+		cleanup  func()
+	}
+	tests := []rtTest{
+		{
+			name: "Provided transport",
+			req:  httptest.NewRequest("GET", "/", nil),
+			auth: &JWTAuth{
+				Token: "token",
+				transport: customTransport(func(req *http.Request) (*http.Response, error) {
+					if h := req.Header.Get("Authorization"); h != "Bearer token" {
+						t.Errorf("Unexpected authorization header: %s", h)
+					}
+					return &http.Response{StatusCode: 200}, nil
+				}),
+			},
+			expected: &http.Response{StatusCode: 200},
+		},
+		func() rtTest {
+			h := func(w http.ResponseWriter, r *http.Request) {
+				if h := r.Header.Get("Authorization"); h != "Bearer token" {
+					t.Errorf("Unexpected authorization header: %s", h)
+				}
+				w.Header().Set("Date", "Wed, 01 Nov 2017 19:32:41 GMT")
+				w.Header().Set("Content-Type", "application/json")
+			}
+			s := httptest.NewServer(http.HandlerFunc(h))
+			return rtTest{
+				name: "default transport",
+				auth: &JWTAuth{
+					Token:     "token",
+					transport: http.DefaultTransport,
+				},
+				req: httptest.NewRequest("GET", s.URL, nil),
+				expected: &http.Response{
+					Status:     "200 OK",
+					StatusCode: 200,
+					Proto:      "HTTP/1.1",
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+					Header: http.Header{
+						"Content-Length": {"0"},
+						"Content-Type":   {"application/json"},
+						"Date":           {"Wed, 01 Nov 2017 19:32:41 GMT"},
+					},
+				},
+				cleanup: func() { s.Close() },
+			}
+		}(),
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			res, err := test.auth.RoundTrip(test.req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res.Body = nil
+			res.Request = nil
+			if d := testy.DiffInterface(test.expected, res); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
