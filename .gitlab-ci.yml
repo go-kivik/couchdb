@@ -14,7 +14,7 @@ variables:
           alias: couch22
         - name: apache/couchdb:2.3.1
           alias: couch23
-        - name: apache/couchdb:3.0.0
+        - name: couchdb:3.0.0
           alias: couch30
     variables:
         COUCHDB_USER: admin
@@ -46,7 +46,7 @@ variables:
 
 linter:
     stage: test
-    image: golangci/golangci-lint:v1.40
+    image: golangci/golangci-lint:v1.43
     script:
         - go mod download
         - golangci-lint run ./...
@@ -84,6 +84,10 @@ go-1.15:
 go-1.16:
   <<: *test_template
   image: golang:1.16
+
+go-1.17:
+  <<: *test_template
+  image: golang:1.17
 
 go-rc:
     <<: *test_template

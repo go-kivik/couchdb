@@ -1,3 +1,4 @@
+//go:build !1.13
 // +build !1.13
 
 package chttp
