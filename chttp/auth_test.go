@@ -42,7 +42,8 @@ func TestAuthenticate(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close() // nolint: errcheck
 		var authed bool
-		if auth := r.Header.Get("Authorization"); auth == "Basic YWRtaW46YWJjMTIz" {
+		switch r.Header.Get("Authorization") {
+		case "Basic YWRtaW46YWJjMTIz", "Bearer tokennekot":
 			authed = true
 		}
 		if r.Method == http.MethodPost {
@@ -144,6 +145,16 @@ func TestAuthenticate(t *testing.T) {
 			addr: s.URL,
 			jar:  jar,
 		}
+	})
+	tests.Add("JWT auth", authTest{
+		addr:   s.URL,
+		auther: &JWTAuth{Token: "tokennekot"}, // nolint: misspell
+	})
+	tests.Add("failed JWT auth", authTest{
+		addr:   s.URL,
+		auther: &JWTAuth{Token: "nekot"}, // nolint: misspell
+		err:    "Unauthorized",
+		status: http.StatusUnauthorized,
 	})
 
 	tests.Run(t, func(t *testing.T, test authTest) {

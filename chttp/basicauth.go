@@ -44,3 +44,24 @@ func (a *BasicAuth) Authenticate(c *Client) error {
 	c.Transport = a
 	return nil
 }
+
+// JWTAuth provides JWT based auth for a client.
+type JWTAuth struct {
+	Token string
+
+	transport http.RoundTripper
+}
+
+func (a *JWTAuth) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Bearer "+a.Token)
+	return a.transport.RoundTrip(req)
+}
+
+func (a *JWTAuth) Authenticate(c *Client) error {
+	a.transport = c.Transport
+	if a.transport == nil {
+		a.transport = http.DefaultTransport
+	}
+	c.Transport = a
+	return nil
+}
