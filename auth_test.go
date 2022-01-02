@@ -199,6 +199,18 @@ func TestAuthentication(t *testing.T) {
 		authStatus: http.StatusBadRequest,
 		authErr:    "kivik: HTTP client transport already set",
 	})
+	tests.Add("JWTAuth", tst{
+		handler: func(t *testing.T) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if h := r.Header.Get("Authorization"); h != "Bearer tokentoken" {
+					t.Errorf("Unexpected Auth header: %s\n", h)
+				}
+				w.WriteHeader(200)
+				_, _ = w.Write([]byte(`{}`))
+			})
+		},
+		auther: JWTAuth("tokentoken"), // nolint:misspell
+	})
 
 	driver := &Couch{}
 	tests.Run(t, func(t *testing.T, test tst) {
