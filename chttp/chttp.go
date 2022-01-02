@@ -324,7 +324,7 @@ func curlStatus(err error) int {
 // paths.
 func fixPath(req *http.Request, path string) {
 	// Remove any query parameters
-	parts := strings.SplitN(path, "?", 2)
+	parts := strings.SplitN(path, "?", 2) // nolint:gomnd
 	req.URL.RawPath = "/" + strings.TrimPrefix(parts[0], "/")
 }
 
