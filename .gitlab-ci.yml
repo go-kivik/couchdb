@@ -85,6 +85,10 @@ go-1.16:
   <<: *test_template
   image: golang:1.16
 
+go-1.17:
+  <<: *test_template
+  image: golang:1.17
+
 go-rc:
     <<: *test_template
     image: golang:rc
