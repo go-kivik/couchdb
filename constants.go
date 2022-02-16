@@ -20,7 +20,7 @@ const (
 	// to override the default User-Agent header sent on all requests.
 	OptionUserAgent = "User-Agent"
 
-	// OptionUserAgent may be passed as an option when creating a client object,
+	// OptionHTTPClient may be passed as an option when creating a client object,
 	// to specify an *http.Client.
 	OptionHTTPClient = "kivik:httpClient"
 
