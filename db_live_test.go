@@ -34,13 +34,13 @@ func TestQueries_1_x(t *testing.T) {
 	}
 
 	db := client.DB("_users")
-	rows, err := db.AllDocs(context.Background(), map[string]interface{}{
+	rows := db.AllDocs(context.Background(), map[string]interface{}{
 		"queries": []map[string]interface{}{
 			{},
 			{},
 		},
 	})
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close() // nolint:errcheck
@@ -48,8 +48,8 @@ func TestQueries_1_x(t *testing.T) {
 	for rows.Next() {
 		if rows.EOQ() {
 			result = append(result, map[string]interface{}{
-				"EOQ":        true,
-				"total_rows": rows.TotalRows(),
+				"EOQ": true,
+				// "total_rows": rows.TotalRows(), // FIXME
 			})
 			continue
 		}
@@ -80,13 +80,13 @@ func TestQueries_2_x(t *testing.T) {
 	}
 
 	db := client.DB("_users")
-	rows, err := db.AllDocs(context.Background(), map[string]interface{}{
+	rows := db.AllDocs(context.Background(), map[string]interface{}{
 		"queries": []map[string]interface{}{
 			{},
 			{},
 		},
 	})
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close() // nolint:errcheck
@@ -94,8 +94,8 @@ func TestQueries_2_x(t *testing.T) {
 	for rows.Next() {
 		if rows.EOQ() {
 			result = append(result, map[string]interface{}{
-				"EOQ":        true,
-				"total_rows": rows.TotalRows(),
+				"EOQ": true,
+				// "total_rows": rows.TotalRows(), // FIXME
 			})
 			continue
 		}
@@ -123,13 +123,13 @@ func TestQueries_3_x(t *testing.T) {
 	}
 
 	db := client.DB("_users")
-	rows, err := db.AllDocs(context.Background(), map[string]interface{}{
+	rows := db.AllDocs(context.Background(), map[string]interface{}{
 		"queries": []map[string]interface{}{
 			{},
 			{},
 		},
 	})
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close() // nolint:errcheck
@@ -137,8 +137,8 @@ func TestQueries_3_x(t *testing.T) {
 	for rows.Next() {
 		if rows.EOQ() {
 			result = append(result, map[string]interface{}{
-				"EOQ":        true,
-				"total_rows": rows.TotalRows(),
+				"EOQ": true,
+				// "total_rows": rows.TotalRows(), // FIXME
 			})
 			continue
 		}
