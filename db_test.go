@@ -1458,21 +1458,21 @@ func TestSecurity(t *testing.T) {
 }
 
 func TestSetSecurity(t *testing.T) {
-	tests := []struct {
-		name     string
+	type tt struct {
 		db       *db
 		security *driver.Security
 		status   int
 		err      string
-	}{
-		{
-			name:   "network error",
-			db:     newTestDB(nil, errors.New("net error")),
-			status: http.StatusBadGateway,
-			err:    `Put "?http://example.com/testdb/_security"?: net error`,
-		},
-		{
-			name: "1.6.1",
+	}
+	tests := testy.NewTable()
+
+	tests.Add("network error", tt{
+		db:     newTestDB(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    `Put "?http://example.com/testdb/_security"?: net error`,
+	})
+	tests.Add("1.6.1", func(t *testing.T) interface{} {
+		return tt{
 			security: &driver.Security{
 				Admins: driver.Members{
 					Names: []string{"bob"},
@@ -1513,14 +1513,13 @@ func TestSetSecurity(t *testing.T) {
 					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := test.db.SetSecurity(context.Background(), test.security)
-			testy.StatusErrorRE(t, test.err, test.status, err)
-		})
-	}
+		}
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		err := tt.db.SetSecurity(context.Background(), tt.security)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+	})
 }
 
 func TestGetMeta(t *testing.T) {
