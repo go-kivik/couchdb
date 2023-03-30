@@ -35,7 +35,7 @@ func deJSONify(i interface{}) (interface{}, error) {
 	}
 	var x interface{}
 	if err := json.Unmarshal(data, &x); err != nil {
-		return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
+		return nil, &kivik.Error{Status: http.StatusBadRequest, Err: err}
 	}
 	return x, nil
 }

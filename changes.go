@@ -29,7 +29,7 @@ func (d *db) Changes(ctx context.Context, opts map[string]interface{}) (driver.C
 	key := "results"
 	if f, ok := opts["feed"]; ok {
 		if f == "eventsource" {
-			return nil, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: errors.New("kivik: eventsource feed not supported, use 'continuous'")}
+			return nil, &kivik.Error{Status: http.StatusBadRequest, Err: errors.New("kivik: eventsource feed not supported, use 'continuous'")}
 		}
 		if f == "continuous" {
 			key = ""
@@ -64,7 +64,7 @@ func (p *continuousChangesParser) decodeItem(i interface{}, dec *json.Decoder) e
 	row := i.(*driver.Change)
 	ch := &change{Change: row}
 	if err := dec.Decode(ch); err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		return &kivik.Error{Status: http.StatusBadGateway, Err: err}
 	}
 	ch.Change.Seq = string(ch.Seq)
 	return nil

@@ -26,7 +26,7 @@ func encodeKey(i interface{}) (string, error) {
 	}
 	raw, err := json.Marshal(i)
 	if err != nil {
-		err = &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: err}
+		err = &kivik.Error{Status: http.StatusBadRequest, Err: err}
 	}
 	return string(raw), err
 }

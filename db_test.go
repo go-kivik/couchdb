@@ -1528,7 +1528,6 @@ func TestGetMeta(t *testing.T) {
 		name    string
 		db      *db
 		id      string
-		size    int64
 		options kivik.Options
 		rev     string
 		status  int
@@ -1565,17 +1564,13 @@ func TestGetMeta(t *testing.T) {
 				ContentLength: 70,
 				Body:          ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			size: 70,
-			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
+			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			size, rev, err := test.db.GetMeta(context.Background(), test.id, test.options)
+			rev, err := test.db.GetRev(context.Background(), test.id, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
-			if size != test.size {
-				t.Errorf("Got size %d, expected %d", size, test.size)
-			}
 			if rev != test.rev {
 				t.Errorf("Got rev %s, expected %s", rev, test.rev)
 			}

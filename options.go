@@ -26,7 +26,7 @@ func fullCommit(opts map[string]interface{}) (bool, error) {
 	}
 	fcBool, ok := fc.(bool)
 	if !ok {
-		return false, &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be bool, not %T", OptionFullCommit, fc)}
+		return false, &kivik.Error{Status: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be bool, not %T", OptionFullCommit, fc)}
 	}
 	delete(opts, OptionFullCommit)
 	return fcBool, nil
@@ -39,7 +39,7 @@ func ifNoneMatch(opts map[string]interface{}) (string, error) {
 	}
 	inmString, ok := inm.(string)
 	if !ok {
-		return "", &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be string, not %T", OptionIfNoneMatch, inm)}
+		return "", &kivik.Error{Status: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be string, not %T", OptionIfNoneMatch, inm)}
 	}
 	delete(opts, OptionIfNoneMatch)
 	if inmString[0] != '"' {

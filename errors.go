@@ -20,5 +20,5 @@ import (
 )
 
 func missingArg(arg string) error {
-	return &kivik.Error{HTTPStatus: http.StatusBadRequest, Err: fmt.Errorf("kivik: %s required", arg)}
+	return &kivik.Error{Status: http.StatusBadRequest, Err: fmt.Errorf("kivik: %s required", arg)}
 }
