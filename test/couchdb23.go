@@ -97,8 +97,8 @@ func registerSuiteCouch23() {
 		"Get/RW/group/Admin/bogus.status":  http.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": http.StatusNotFound,
 
-		"GetMeta/RW/group/Admin/bogus.status":  http.StatusNotFound,
-		"GetMeta/RW/group/NoAuth/bogus.status": http.StatusNotFound,
+		"GetRev/RW/group/Admin/bogus.status":  http.StatusNotFound,
+		"GetRev/RW/group/NoAuth/bogus.status": http.StatusNotFound,
 
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/NoAuth/chicken/DoFlush.status": http.StatusNotFound,
