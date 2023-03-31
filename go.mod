@@ -1,6 +1,6 @@
 module github.com/go-kivik/couchdb/v4
 
-go 1.13
+go 1.17
 
 require (
 	github.com/go-kivik/kivik/v4 v4.0.0-20230331074407-d84254814834
