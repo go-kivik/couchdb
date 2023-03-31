@@ -9,5 +9,4 @@ require (
 	github.com/pkg/errors v0.9.1
 	gitlab.com/flimzy/testy v0.9.1
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 )
