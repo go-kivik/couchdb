@@ -1458,21 +1458,21 @@ func TestSecurity(t *testing.T) {
 }
 
 func TestSetSecurity(t *testing.T) {
-	tests := []struct {
-		name     string
+	type tt struct {
 		db       *db
 		security *driver.Security
 		status   int
 		err      string
-	}{
-		{
-			name:   "network error",
-			db:     newTestDB(nil, errors.New("net error")),
-			status: http.StatusBadGateway,
-			err:    `Put "?http://example.com/testdb/_security"?: net error`,
-		},
-		{
-			name: "1.6.1",
+	}
+	tests := testy.NewTable()
+
+	tests.Add("network error", tt{
+		db:     newTestDB(nil, errors.New("net error")),
+		status: http.StatusBadGateway,
+		err:    `Put "?http://example.com/testdb/_security"?: net error`,
+	})
+	tests.Add("1.6.1", func(t *testing.T) interface{} {
+		return tt{
 			security: &driver.Security{
 				Admins: driver.Members{
 					Names: []string{"bob"},
@@ -1513,14 +1513,13 @@ func TestSetSecurity(t *testing.T) {
 					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := test.db.SetSecurity(context.Background(), test.security)
-			testy.StatusErrorRE(t, test.err, test.status, err)
-		})
-	}
+		}
+	})
+
+	tests.Run(t, func(t *testing.T, tt tt) {
+		err := tt.db.SetSecurity(context.Background(), tt.security)
+		testy.StatusErrorRE(t, tt.err, tt.status, err)
+	})
 }
 
 func TestGetMeta(t *testing.T) {
@@ -1528,7 +1527,6 @@ func TestGetMeta(t *testing.T) {
 		name    string
 		db      *db
 		id      string
-		size    int64
 		options kivik.Options
 		rev     string
 		status  int
@@ -1565,17 +1563,13 @@ func TestGetMeta(t *testing.T) {
 				ContentLength: 70,
 				Body:          ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			size: 70,
-			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
+			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			size, rev, err := test.db.GetMeta(context.Background(), test.id, test.options)
+			rev, err := test.db.GetRev(context.Background(), test.id, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
-			if size != test.size {
-				t.Errorf("Got size %d, expected %d", size, test.size)
-			}
 			if rev != test.rev {
 				t.Errorf("Got rev %s, expected %s", rev, test.rev)
 			}

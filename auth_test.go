@@ -75,7 +75,7 @@ func TestAuthenticate(t *testing.T) {
 		{
 			name:          "auth failure",
 			client:        &client{Client: &chttp.Client{}},
-			authenticator: &mockAuther{authErr: &kivik.Error{HTTPStatus: http.StatusUnauthorized, Err: errors.New("auth failed")}},
+			authenticator: &mockAuther{authErr: &kivik.Error{Status: http.StatusUnauthorized, Err: errors.New("auth failed")}},
 			status:        http.StatusUnauthorized,
 			err:           "auth failed",
 		},

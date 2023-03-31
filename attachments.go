@@ -133,7 +133,7 @@ func decodeAttachment(resp *http.Response) (*driver.Attachment, error) {
 func getContentType(resp *http.Response) (string, error) {
 	ctype := resp.Header.Get("Content-Type")
 	if _, ok := resp.Header["Content-Type"]; !ok {
-		return "", &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.New("no Content-Type in response")}
+		return "", &kivik.Error{Status: http.StatusBadGateway, Err: errors.New("no Content-Type in response")}
 	}
 	return ctype, nil
 }
@@ -141,7 +141,7 @@ func getContentType(resp *http.Response) (string, error) {
 func getDigest(resp *http.Response) (string, error) {
 	etag, ok := chttp.ETag(resp)
 	if !ok {
-		return "", &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: errors.New("ETag header not found")}
+		return "", &kivik.Error{Status: http.StatusBadGateway, Err: errors.New("ETag header not found")}
 	}
 	return etag, nil
 }

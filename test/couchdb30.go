@@ -108,11 +108,11 @@ func registerSuiteCouch30() {
 		"Get/RW/group/NoAuth/bob.status":         http.StatusUnauthorized,
 		"Get/RW/group/NoAuth/_local/foo.status":  http.StatusUnauthorized,
 
-		"GetMeta/RW/group/Admin/bogus.status":        http.StatusNotFound,
-		"GetMeta/RW/group/NoAuth/bogus.status":       http.StatusUnauthorized,
-		"GetMeta/RW/group/NoAuth/_local/foo.status":  http.StatusUnauthorized,
-		"GetMeta/RW/group/NoAuth/_design/foo.status": http.StatusUnauthorized,
-		"GetMeta/RW/group/NoAuth/bob.status":         http.StatusUnauthorized,
+		"GetRev/RW/group/Admin/bogus.status":        http.StatusNotFound,
+		"GetRev/RW/group/NoAuth/bogus.status":       http.StatusUnauthorized,
+		"GetRev/RW/group/NoAuth/_local/foo.status":  http.StatusUnauthorized,
+		"GetRev/RW/group/NoAuth/_design/foo.status": http.StatusUnauthorized,
+		"GetRev/RW/group/NoAuth/bob.status":         http.StatusUnauthorized,
 
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/NoAuth/chicken/DoFlush.status": http.StatusNotFound,

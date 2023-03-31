@@ -38,7 +38,7 @@ func (re *replicationError) Error() string {
 	return re.reason
 }
 
-func (re *replicationError) StatusCode() int {
+func (re *replicationError) HTTPStatus() int {
 	return re.status
 }
 
@@ -73,7 +73,7 @@ func (t *replicationStateTime) UnmarshalJSON(data []byte) error {
 		*t = epochTime
 		return nil
 	}
-	return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("kivik: '%s' does not appear to be a valid timestamp", string(data))}
+	return &kivik.Error{Status: http.StatusBadGateway, Err: fmt.Errorf("kivik: '%s' does not appear to be a valid timestamp", string(data))}
 }
 
 type replication struct {
@@ -136,7 +136,7 @@ func (r *replication) Update(ctx context.Context, state *driver.ReplicationInfo)
 	}
 	info, err := r.updateActiveTasks(ctx)
 	if err != nil {
-		if kivik.StatusCode(err) == http.StatusNotFound {
+		if kivik.HTTPStatus(err) == http.StatusNotFound {
 			// not listed in _active_tasks (because the replication is done, or
 			// hasn't yet started), but this isn't an error
 			return nil
@@ -169,7 +169,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 	defer func() { _ = resp.Body.Close() }()
 	var tasks []*activeTask
 	if err = json.NewDecoder(resp.Body).Decode(&tasks); err != nil {
-		return nil, &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		return nil, &kivik.Error{Status: http.StatusBadGateway, Err: err}
 	}
 	for _, task := range tasks {
 		if task.Type != "replication" {
@@ -181,7 +181,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 		}
 		return task, nil
 	}
-	return nil, &kivik.Error{HTTPStatus: http.StatusNotFound, Err: errors.New("task not found")}
+	return nil, &kivik.Error{Status: http.StatusNotFound, Err: errors.New("task not found")}
 }
 
 // updateMain updates the "main" fields: those stored directly in r.
@@ -231,7 +231,7 @@ func (r *replication) setFromReplicatorDoc(doc *replicatorDoc) {
 }
 
 func (r *replication) Delete(ctx context.Context) error {
-	_, rev, err := r.GetMeta(ctx, r.docID, nil)
+	rev, err := r.GetRev(ctx, r.docID, nil)
 	if err != nil {
 		return err
 	}

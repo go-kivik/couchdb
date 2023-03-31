@@ -40,7 +40,7 @@ func (c *client) DBExists(ctx context.Context, dbName string, _ map[string]inter
 		return false, missingArg("dbName")
 	}
 	_, err := c.DoError(ctx, http.MethodHead, dbName, nil)
-	if kivik.StatusCode(err) == http.StatusNotFound {
+	if kivik.HTTPStatus(err) == http.StatusNotFound {
 		return false, nil
 	}
 	return err == nil, err
@@ -106,10 +106,10 @@ func (u *couchUpdates) Next(update *driver.DBUpdate) error {
 // version prior to 2.x.
 func (c *client) Ping(ctx context.Context) (bool, error) {
 	resp, err := c.DoError(ctx, http.MethodHead, "/_up", nil)
-	if kivik.StatusCode(err) == http.StatusBadRequest {
+	if kivik.HTTPStatus(err) == http.StatusBadRequest {
 		return strings.HasPrefix(resp.Header.Get("Server"), "CouchDB/1."), nil
 	}
-	if kivik.StatusCode(err) == http.StatusNotFound {
+	if kivik.HTTPStatus(err) == http.StatusNotFound {
 		return false, nil
 	}
 	return err == nil, err

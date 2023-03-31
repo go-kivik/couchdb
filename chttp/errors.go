@@ -35,16 +35,16 @@ type HTTPError struct {
 
 func (e *HTTPError) Error() string {
 	if e.Reason == "" {
-		return http.StatusText(e.StatusCode())
+		return http.StatusText(e.HTTPStatus())
 	}
-	if statusText := http.StatusText(e.StatusCode()); statusText != "" {
+	if statusText := http.StatusText(e.HTTPStatus()); statusText != "" {
 		return fmt.Sprintf("%s: %s", statusText, e.Reason)
 	}
 	return e.Reason
 }
 
 // StatusCode returns the embedded status code.
-func (e *HTTPError) StatusCode() int {
+func (e *HTTPError) HTTPStatus() int {
 	return e.Response.StatusCode
 }
 
@@ -99,7 +99,7 @@ func (e *curlError) ExitStatus() int {
 	return e.curlStatus
 }
 
-func (e *curlError) StatusCode() int {
+func (e *curlError) HTTPStatus() int {
 	return e.httpStatus
 }
 

@@ -57,7 +57,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		Reason string `json:"reason"`
 	}
 	if err := r.dec.Decode(&updateResult); err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		return &kivik.Error{Status: http.StatusBadGateway, Err: err}
 	}
 	update.ID = updateResult.ID
 	update.Rev = updateResult.Rev
@@ -70,7 +70,7 @@ func (r *bulkResults) Next(update *driver.BulkResult) error {
 		default:
 			status = http.StatusInternalServerError
 		}
-		update.Error = &kivik.Error{HTTPStatus: status, Err: errors.New(updateResult.Reason)}
+		update.Error = &kivik.Error{Status: status, Err: errors.New(updateResult.Reason)}
 	}
 	return nil
 }

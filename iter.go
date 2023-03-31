@@ -149,7 +149,7 @@ func (i *iter) next(row interface{}) error {
 		// We haven't begun yet
 		i.dec = json.NewDecoder(i.body)
 		if err := i.begin(); err != nil {
-			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+			return &kivik.Error{Status: http.StatusBadGateway, Err: err}
 		}
 	}
 
@@ -226,14 +226,14 @@ func (i *iter) finish() (err error) {
 	if i.expectedKey == "" && !i.objMode {
 		_, err := i.dec.Token()
 		if err != nil && err != io.EOF {
-			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+			return &kivik.Error{Status: http.StatusBadGateway, Err: err}
 		}
 		return nil
 	}
 	if i.objMode {
 		err := consumeDelim(i.dec, json.Delim('}'))
 		if err != nil && err != io.EOF {
-			return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+			return &kivik.Error{Status: http.StatusBadGateway, Err: err}
 		}
 		return nil
 	}
@@ -286,11 +286,11 @@ func (i *iter) Close() error {
 func consumeDelim(dec *json.Decoder, expectedDelim json.Delim) error {
 	t, err := dec.Token()
 	if err != nil {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: err}
+		return &kivik.Error{Status: http.StatusBadGateway, Err: err}
 	}
 	d, ok := t.(json.Delim)
 	if !ok {
-		return &kivik.Error{HTTPStatus: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
+		return &kivik.Error{Status: http.StatusBadGateway, Err: fmt.Errorf("Unexpected token %T: %v", t, t)}
 	}
 	if d != expectedDelim {
 		return unexpectedDelim(d)
@@ -307,6 +307,6 @@ func (d unexpectedDelim) Error() string {
 	return fmt.Sprintf("Unexpected JSON delimiter: %c", d)
 }
 
-func (d unexpectedDelim) StatusCode() int {
+func (d unexpectedDelim) HTTPStatus() int {
 	return http.StatusBadGateway
 }
