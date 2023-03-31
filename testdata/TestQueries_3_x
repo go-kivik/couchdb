@@ -2,15 +2,13 @@
   (map[string]interface {}) (len=1) {
     (string) (len=3) "_id": (string) (len=13) "_design/_auth"
   },
-  (map[string]interface {}) (len=2) {
-    (string) (len=3) "EOQ": (bool) true,
-    (string) (len=10) "total_rows": (int64) 1
+  (map[string]interface {}) (len=1) {
+    (string) (len=3) "EOQ": (bool) true
   },
   (map[string]interface {}) (len=1) {
     (string) (len=3) "_id": (string) (len=13) "_design/_auth"
   },
-  (map[string]interface {}) (len=2) {
-    (string) (len=3) "EOQ": (bool) true,
-    (string) (len=10) "total_rows": (int64) 1
+  (map[string]interface {}) (len=1) {
+    (string) (len=3) "EOQ": (bool) true
   }
 }
