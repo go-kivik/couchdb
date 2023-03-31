@@ -36,11 +36,11 @@ var jsonKeys = []string{"endkey", "end_key", "key", "startkey", "start_key", "ke
 func encodeKeys(opts map[string]interface{}) error {
 	for _, key := range jsonKeys {
 		if v, ok := opts[key]; ok {
-			new, err := encodeKey(v)
+			value, err := encodeKey(v)
 			if err != nil {
 				return err
 			}
-			opts[key] = new
+			opts[key] = value
 		}
 	}
 	return nil

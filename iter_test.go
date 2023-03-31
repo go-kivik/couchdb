@@ -16,7 +16,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -29,9 +28,9 @@ func TestCancelableReadCloser(t *testing.T) {
 		t.Parallel()
 		rc := newCancelableReadCloser(
 			context.Background(),
-			ioutil.NopCloser(strings.NewReader("foo")),
+			io.NopCloser(strings.NewReader("foo")),
 		)
-		result, err := ioutil.ReadAll(rc)
+		result, err := io.ReadAll(rc)
 		testy.Error(t, "", err)
 		if string(result) != "foo" {
 			t.Errorf("Unexpected result: %s", string(result))
@@ -43,9 +42,9 @@ func TestCancelableReadCloser(t *testing.T) {
 		cancel()
 		rc := newCancelableReadCloser(
 			ctx,
-			ioutil.NopCloser(strings.NewReader("foo")),
+			io.NopCloser(strings.NewReader("foo")),
 		)
-		result, err := ioutil.ReadAll(rc)
+		result, err := io.ReadAll(rc)
 		testy.Error(t, "context canceled", err)
 		if string(result) != "" {
 			t.Errorf("Unexpected result: %s", string(result))
@@ -62,9 +61,9 @@ func TestCancelableReadCloser(t *testing.T) {
 		)
 		rc := newCancelableReadCloser(
 			ctx,
-			ioutil.NopCloser(r),
+			io.NopCloser(r),
 		)
-		result, err := ioutil.ReadAll(rc)
+		result, err := io.ReadAll(rc)
 		testy.Error(t, "context deadline exceeded", err)
 		if string(result) != "" {
 			t.Errorf("Unexpected result: %s", string(result))
@@ -74,9 +73,9 @@ func TestCancelableReadCloser(t *testing.T) {
 		t.Parallel()
 		rc := newCancelableReadCloser(
 			context.Background(),
-			ioutil.NopCloser(testy.ErrorReader("foo", errors.New("read err"))),
+			io.NopCloser(testy.ErrorReader("foo", errors.New("read err"))),
 		)
-		result, err := ioutil.ReadAll(rc)
+		result, err := io.ReadAll(rc)
 		testy.Error(t, "read err", err)
 		if string(result) != "" {
 			t.Errorf("Unexpected result: %s", string(result))
@@ -86,10 +85,10 @@ func TestCancelableReadCloser(t *testing.T) {
 		t.Parallel()
 		rc := newCancelableReadCloser(
 			context.Background(),
-			ioutil.NopCloser(testy.NeverReader()),
+			io.NopCloser(testy.NeverReader()),
 		)
 		_ = rc.Close()
-		result, err := ioutil.ReadAll(rc)
+		result, err := io.ReadAll(rc)
 		testy.Error(t, "iterator closed", err)
 		if string(result) != "" {
 			t.Errorf("Unexpected result: %s", string(result))

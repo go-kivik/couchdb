@@ -16,7 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -51,7 +51,7 @@ func TestClusterStatus(t *testing.T) {
 			Header: http.Header{
 				"Content-Type": []string{"application/json"},
 			},
-			Body: ioutil.NopCloser(strings.NewReader(`{"state":"cluster_finished"}`)),
+			Body: io.NopCloser(strings.NewReader(`{"state":"cluster_finished"}`)),
 		}, nil),
 		expected: "cluster_finished",
 	})
@@ -97,7 +97,7 @@ func TestClusterStatus(t *testing.T) {
 					Header: http.Header{
 						"Content-Type": []string{"application/json"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"state":"cluster_finished"}`)),
+					Body: io.NopCloser(strings.NewReader(`{"state":"cluster_finished"}`)),
 				}, nil
 			}),
 			options: map[string]interface{}{
@@ -155,7 +155,7 @@ func TestClusterSetup(t *testing.T) {
 					Header: http.Header{
 						"Content-Type": []string{"application/json"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
 			action: map[string]interface{}{
@@ -172,7 +172,7 @@ func TestClusterSetup(t *testing.T) {
 			Header: http.Header{
 				"Content-Type": []string{"application/json"},
 			},
-			Body: ioutil.NopCloser(strings.NewReader(`{"error":"bad_request","reason":"Cluster is already finished"}`)),
+			Body: io.NopCloser(strings.NewReader(`{"error":"bad_request","reason":"Cluster is already finished"}`)),
 		}, nil),
 		action: map[string]interface{}{
 			"action": "finish_cluster",
@@ -212,7 +212,7 @@ func TestMembership(t *testing.T) {
 					"Date":           []string{"Fri, 10 Jul 2020 13:12:10 GMT"},
 					"Server":         []string{"CouchDB/2.3.1 (Erlang OTP/19)"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"all_nodes":["couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local"],"cluster_nodes":["couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local"]}
+				Body: io.NopCloser(strings.NewReader(`{"all_nodes":["couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local"],"cluster_nodes":["couchdb@b2c-couchdb-0.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-1.b2c-couchdb.b2c.svc.cluster.local","couchdb@b2c-couchdb-2.b2c-couchdb.b2c.svc.cluster.local"]}
 				`)),
 			}, nil),
 			want: &driver.ClusterMembership{

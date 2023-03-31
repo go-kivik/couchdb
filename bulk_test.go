@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -47,7 +46,7 @@ func TestBulkDocs(t *testing.T) {
 			name: "JSON encoding error",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			docs:   []interface{}{make(chan int)},
 			status: http.StatusBadRequest,
@@ -57,7 +56,7 @@ func TestBulkDocs(t *testing.T) {
 			name: "docs rejected",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusExpectationFailed,
-				Body:       ioutil.NopCloser(strings.NewReader("[]")),
+				Body:       io.NopCloser(strings.NewReader("[]")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
 			status: http.StatusExpectationFailed,
@@ -67,7 +66,7 @@ func TestBulkDocs(t *testing.T) {
 			name: "error response",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusBadRequest,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
 			status: http.StatusBadRequest,
@@ -77,7 +76,7 @@ func TestBulkDocs(t *testing.T) {
 			name: "invalid JSON response",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusCreated,
-				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
+				Body:       io.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
 			docs:   []interface{}{1, 2, 3},
 			status: http.StatusBadGateway,
@@ -87,7 +86,7 @@ func TestBulkDocs(t *testing.T) {
 			name: "unexpected response code",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("[]")),
+				Body:       io.NopCloser(strings.NewReader("[]")),
 			}, nil),
 			docs: []interface{}{1, 2, 3},
 		},
@@ -107,7 +106,7 @@ func TestBulkDocs(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusCreated,
-					Body:       ioutil.NopCloser(strings.NewReader("[]")),
+					Body:       io.NopCloser(strings.NewReader("[]")),
 				}, nil
 			}),
 		},
@@ -128,7 +127,7 @@ func TestBulkDocs(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusCreated,
-					Body:       ioutil.NopCloser(strings.NewReader("[]")),
+					Body:       io.NopCloser(strings.NewReader("[]")),
 				}, nil
 			}),
 		},
@@ -237,7 +236,7 @@ func TestBulkNext(t *testing.T) {
 		{
 			name: "read error",
 			results: func() *bulkResults {
-				r, err := newBulkResults(ioutil.NopCloser(testy.ErrorReader("[", errors.New("read error"))))
+				r, err := newBulkResults(io.NopCloser(testy.ErrorReader("[", errors.New("read error"))))
 				if err != nil {
 					t.Fatal(err)
 				}

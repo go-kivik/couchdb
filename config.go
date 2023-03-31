@@ -16,7 +16,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -66,7 +66,7 @@ func (c *client) SetConfigValue(ctx context.Context, node, section, key, value s
 	body, _ := json.Marshal(value) // Strings never cause JSON marshaling errors
 	var old string
 	opts := &chttp.Options{
-		Body: ioutil.NopCloser(bytes.NewReader(body)),
+		Body: io.NopCloser(bytes.NewReader(body)),
 	}
 	_, err := c.Client.DoJSON(ctx, http.MethodPut, configURL(node, section, key), opts, &old)
 	return old, err

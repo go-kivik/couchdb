@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -404,7 +403,7 @@ Content-Length: 86
 		if err != nil {
 			return
 		}
-		result, err := ioutil.ReadAll(doc.Body)
+		result, err := io.ReadAll(doc.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -421,7 +420,7 @@ Content-Length: 86
 					}
 					break
 				}
-				content, e := ioutil.ReadAll(att.Content)
+				content, e := io.ReadAll(att.Content)
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -473,7 +472,7 @@ func TestCreateDoc(t *testing.T) {
 			doc:  map[string]interface{}{"foo": "bar"},
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusBadRequest,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusBadRequest,
 			err:    "Bad Request",
@@ -483,7 +482,7 @@ func TestCreateDoc(t *testing.T) {
 			doc:  map[string]interface{}{"foo": "bar"},
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
+				Body:       io.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
 			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
@@ -502,7 +501,7 @@ func TestCreateDoc(t *testing.T) {
 					"Content-Length": {"95"},
 					"Cache-Control":  {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"1-4c6114c65e295552ab1019e2b046b10e"}
+				Body: io.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"1-4c6114c65e295552ab1019e2b046b10e"}
 `)),
 			}, nil),
 			id:  "43734cf3ce6d5a37050c050bb600006b",
@@ -643,7 +642,7 @@ func TestCompact(t *testing.T) {
 						"Content-Length": {"12"},
 						"Cache-Control":  {"must-revalidate"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
 		},
@@ -692,7 +691,7 @@ func TestCompactView(t *testing.T) {
 						"Content-Length": {"12"},
 						"Cache-Control":  {"must-revalidate"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
 		},
@@ -733,7 +732,7 @@ func TestViewCleanup(t *testing.T) {
 						"Content-Length": {"12"},
 						"Cache-Control":  {"must-revalidate"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
 		},
@@ -776,7 +775,7 @@ func TestPut(t *testing.T) {
 			id:   "foo",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusBadRequest,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusBadRequest,
 			err:    "Bad Request",
@@ -786,7 +785,7 @@ func TestPut(t *testing.T) {
 			id:   "foo",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("invalid json")),
+				Body:       io.NopCloser(strings.NewReader("invalid json")),
 			}, nil),
 			status: http.StatusBadGateway,
 			err:    "invalid character 'i' looking for beginning of value",
@@ -797,7 +796,7 @@ func TestPut(t *testing.T) {
 			doc:  make(chan int),
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusBadRequest,
 			err:    `Put "?http://example.com/testdb/foo"?: json: unsupported type: chan int`,
@@ -817,7 +816,7 @@ func TestPut(t *testing.T) {
 					"Content-Length": {"66"},
 					"Cache-Control":  {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"foo","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
+				Body: io.NopCloser(strings.NewReader(`{"ok":true,"id":"foo","rev":"1-4c6114c65e295552ab1019e2b046b10e"}`)),
 			}, nil),
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
@@ -948,7 +947,7 @@ func TestDelete(t *testing.T) {
 				"Content-Length": {"58"},
 				"Cache-Control":  {"must-revalidate"},
 			},
-			Body: ioutil.NopCloser(strings.NewReader(`{"error":"conflict","reason":"Document update conflict."}`)),
+			Body: io.NopCloser(strings.NewReader(`{"error":"conflict","reason":"Document update conflict."}`)),
 		}, nil),
 		status: http.StatusConflict,
 		err:    "Conflict",
@@ -966,7 +965,7 @@ func TestDelete(t *testing.T) {
 				"Content-Length": {"95"},
 				"Cache-Control":  {"must-revalidate"},
 			},
-			Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"2-185ccf92154a9f24a4f4fd12233bf463"}`)),
+			Body: io.NopCloser(strings.NewReader(`{"ok":true,"id":"43734cf3ce6d5a37050c050bb600006b","rev":"2-185ccf92154a9f24a4f4fd12233bf463"}`)),
 		}, nil),
 		newrev: "2-185ccf92154a9f24a4f4fd12233bf463",
 	})
@@ -1056,7 +1055,7 @@ func TestFlush(t *testing.T) {
 						"Content-Length": {"53"},
 						"Cache-Control":  {"must-revalidate"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"1509022681259533"}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"1509022681259533"}`)),
 				}, nil
 			}),
 		},
@@ -1077,7 +1076,7 @@ func TestFlush(t *testing.T) {
 						"X-Couch-Request-ID":  {"e454023cb8"},
 						"X-CouchDB-Body-Time": {"0"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"0"}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true,"instance_start_time":"0"}`)),
 				}, nil
 			}),
 		},
@@ -1127,7 +1126,7 @@ func TestRowsQuery(t *testing.T) {
 			path: "_all_docs",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusBadRequest,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusBadRequest,
 			err:    "Bad Request",
@@ -1145,7 +1144,7 @@ func TestRowsQuery(t *testing.T) {
 					"Content-Type":      {"text/plain; charset=utf-8"},
 					"Cache-Control":     {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":3,"offset":0,"rows":[
+				Body: io.NopCloser(strings.NewReader(`{"total_rows":3,"offset":0,"rows":[
 {"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-75efcce1f083316d622d389f3f9813f7"}},
 {"id":"org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye","key":"org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye","value":{"rev":"1-747e6766038164010fd0efcabd1a31dd"}},
 {"id":"org.couchdb.user:zqfdn6u3cqi6pol3hslq5egiye","key":"org.couchdb.user:zqfdn6u3cqi6pol3hslq5egiye","value":{"rev":"1-4645438e6e1aa2230a1b06b5c1f5c63f"}}
@@ -1186,7 +1185,7 @@ func TestRowsQuery(t *testing.T) {
 					"Content-Type":      {"text/plain; charset=utf-8"},
 					"Cache-Control":     {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":3,"offset":1,"update_seq":31,"rows":[
+				Body: io.NopCloser(strings.NewReader(`{"total_rows":3,"offset":1,"update_seq":31,"rows":[
 {"id":"org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye","key":"org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye","value":{"rev":"1-747e6766038164010fd0efcabd1a31dd"}}
 ]}
 `)),
@@ -1218,7 +1217,7 @@ func TestRowsQuery(t *testing.T) {
 					"X-Couch-Request-ID": {"a9688d9335"},
 					"X-Couch-Body-Time":  {"0"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":1,"offset":0,"update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjPlsQBJhgdA6j8QZCUy4Fv4AKLuflYiE151DRB18wmZtwCibj9u85ISgGRSPV63JSmA1NiD1bDgUJPIkCSP3xAHkCHxYDWsWQDg12MD","rows":[
+				Body: io.NopCloser(strings.NewReader(`{"total_rows":1,"offset":0,"update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjPlsQBJhgdA6j8QZCUy4Fv4AKLuflYiE151DRB18wmZtwCibj9u85ISgGRSPV63JSmA1NiD1bDgUJPIkCSP3xAHkCHxYDWsWQDg12MD","rows":[
 {"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-75efcce1f083316d622d389f3f9813f7"}}
 ]}
 `)),
@@ -1263,7 +1262,7 @@ func TestRowsQuery(t *testing.T) {
 						"X-Couch-Request-ID": {"24fdb3fd86"},
 						"X-Couch-Body-Time":  {"0"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+					Body: io.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
 {"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-6e609020e0371257432797b4319c5829"}}
 ]}`)),
 				}, nil
@@ -1301,7 +1300,7 @@ func TestRowsQuery(t *testing.T) {
 						"X-Couch-Request-ID": {"24fdb3fd86"},
 						"X-Couch-Body-Time":  {"0"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+					Body: io.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
 {"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-6e609020e0371257432797b4319c5829"}}
 ]}`)),
 				}, nil
@@ -1346,7 +1345,7 @@ func TestRowsQuery(t *testing.T) {
 						"X-Couch-Request-ID": {"24fdb3fd86"},
 						"X-Couch-Body-Time":  {"0"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+					Body: io.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
 {"id":"_design/_auth","key":"_design/_auth","value":{"rev":"1-6e609020e0371257432797b4319c5829"}}
 ]}`)),
 				}, nil
@@ -1422,7 +1421,7 @@ func TestSecurity(t *testing.T) {
 					"Content-Length": {"3"},
 					"Cache-Control":  {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader("{}")),
+				Body: io.NopCloser(strings.NewReader("{}")),
 			}, nil),
 			expected: &driver.Security{},
 		},
@@ -1437,7 +1436,7 @@ func TestSecurity(t *testing.T) {
 					"Content-Length": {"65"},
 					"Cache-Control":  {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"admins":{},"members":{"names":["32dgsme3cmi6pddghslq5egiye"]}}`)),
+				Body: io.NopCloser(strings.NewReader(`{"admins":{},"members":{"names":["32dgsme3cmi6pddghslq5egiye"]}}`)),
 			}, nil),
 			expected: &driver.Security{
 				Members: driver.Members{
@@ -1510,7 +1509,7 @@ func TestSetSecurity(t *testing.T) {
 						"Content-Length": {"12"},
 						"Cache-Control":  {"must-revalidate"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"ok":true}`)),
+					Body: io.NopCloser(strings.NewReader(`{"ok":true}`)),
 				}, nil
 			}),
 		}
@@ -1561,7 +1560,7 @@ func TestGetMeta(t *testing.T) {
 					"Cache-Control":  {"must-revalidate"},
 				},
 				ContentLength: 70,
-				Body:          ioutil.NopCloser(strings.NewReader("")),
+				Body:          io.NopCloser(strings.NewReader("")),
 			}, nil),
 			rev: "1-4c6114c65e295552ab1019e2b046b10e",
 		},
@@ -1844,7 +1843,7 @@ test content
 			result := new(driver.Attachment)
 			err := test.atts.Next(result)
 			testy.StatusError(t, test.err, test.status, err)
-			content, err := ioutil.ReadAll(result.Content)
+			content, err := io.ReadAll(result.Content)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1915,7 +1914,7 @@ func TestPurge(t *testing.T) {
 						"Content-Length": []string{"28"},
 						"Cache-Control":  []string{"must-revalidate"},
 					},
-					Body: ioutil.NopCloser(strings.NewReader(`{"purge_seq":3,"purged":{}}`)),
+					Body: io.NopCloser(strings.NewReader(`{"purge_seq":3,"purged":{}}`)),
 				}, nil
 			}),
 			docMap:   expectedDocMap,
@@ -1932,7 +1931,7 @@ func TestPurge(t *testing.T) {
 					"Content-Length": []string{"168"},
 					"Cache-Control":  []string{"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"purge_seq":5,"purged":{"foo":["1-abc","2-def"],"bar":["3-ghi"]}}`)),
+				Body: io.NopCloser(strings.NewReader(`{"purge_seq":5,"purged":{"foo":["1-abc","2-def"],"bar":["3-ghi"]}}`)),
 			}, nil),
 			docMap:   expectedDocMap,
 			expected: &driver.PurgeResult{Seq: 5, Purged: expectedDocMap},
@@ -1951,7 +1950,7 @@ func TestPurge(t *testing.T) {
 					"X-Couch-Request-ID":  []string{"03e91291c8"},
 					"X-CouchDB-Body-Time": []string{"0"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(`{"error":"not_implemented","reason":"this feature is not yet implemented"}`)),
+				Body: io.NopCloser(strings.NewReader(`{"error":"not_implemented","reason":"this feature is not yet implemented"}`)),
 			}, nil),
 			docMap: expectedDocMap,
 			err:    "Not Implemented: this feature is not yet implemented",
@@ -2014,13 +2013,13 @@ test content
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			in := ioutil.NopCloser(strings.NewReader(test.input))
+			in := io.NopCloser(strings.NewReader(test.input))
 			boundary, size, body, err := newMultipartAttachments(in, test.atts)
 			testy.Error(t, test.err, err)
 			if test.size != size {
 				t.Errorf("Unexpected size: %d (want %d)", size, test.size)
 			}
-			result, _ := ioutil.ReadAll(body)
+			result, _ := io.ReadAll(body)
 			expected := fmt.Sprintf(test.expected, boundary)
 			expected = strings.TrimPrefix(expected, "\n")
 			result = bytes.ReplaceAll(result, []byte("\r\n"), []byte("\n"))
@@ -2145,11 +2144,11 @@ func TestAttachmentSize(t *testing.T) {
 	tests.Run(t, func(t *testing.T, test tst) {
 		err := attachmentSize(test.att)
 		testy.Error(t, test.err, err)
-		body, err := ioutil.ReadAll(test.att.Content)
+		body, err := io.ReadAll(test.att.Content)
 		if err != nil {
 			t.Fatal(err)
 		}
-		expBody, err := ioutil.ReadAll(test.expected.Content)
+		expBody, err := io.ReadAll(test.expected.Content)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2204,7 +2203,7 @@ func TestReaderSize(t *testing.T) {
 		body: "foo bar",
 	})
 	tests.Add("file", func(t *testing.T) interface{} {
-		f, err := ioutil.TempFile("", "file-reader-*")
+		f, err := os.CreateTemp("", "file-reader-*")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2224,14 +2223,14 @@ func TestReaderSize(t *testing.T) {
 		}
 	})
 	tests.Add("nop closer", tst{
-		in:   ioutil.NopCloser(strings.NewReader("foo bar")),
+		in:   io.NopCloser(strings.NewReader("foo bar")),
 		size: 7,
 		body: "foo bar",
 	})
 	tests.Run(t, func(t *testing.T, test tst) {
 		size, r, err := readerSize(test.in)
 		testy.Error(t, test.err, err)
-		body, err := ioutil.ReadAll(r)
+		body, err := io.ReadAll(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2275,7 +2274,7 @@ func TestNewAttachment(t *testing.T) {
 	tests.Run(t, func(t *testing.T, test tst) {
 		result, err := NewAttachment("foo.txt", "text/plain", test.content, test.size...)
 		testy.Error(t, test.err, err)
-		content, err := ioutil.ReadAll(result.Content)
+		content, err := io.ReadAll(result.Content)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2378,7 +2377,7 @@ func TestRevsDiff(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body: ioutil.NopCloser(strings.NewReader(`{
+				Body: io.NopCloser(strings.NewReader(`{
 					"190f721ca3411be7aa9477db5f948bbb": {
 						"missing": [
 							"3-bb72a7682290f94a985f7afac8b27137",

@@ -15,7 +15,7 @@ package couchdb
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -50,7 +50,7 @@ func TestConfig(t *testing.T) {
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(strings.NewReader(`{"foo":{"asd":"baz"}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"foo":{"asd":"baz"}}`)),
 		}, nil),
 		node: "local",
 		expected: driver.Config{
@@ -93,7 +93,7 @@ func TestConfigSection(t *testing.T) {
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(strings.NewReader(`{"fds":"baz"}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"fds":"baz"}`)),
 		}, nil),
 		node:     "local",
 		section:  "foo",
@@ -137,7 +137,7 @@ func TestConfigValue(t *testing.T) {
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(strings.NewReader(`"baz"`)),
+			Body:       io.NopCloser(strings.NewReader(`"baz"`)),
 		}, nil),
 		node:     "local",
 		section:  "foo",
@@ -192,7 +192,7 @@ func TestSetConfigValue(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`"old"`)),
+				Body:       io.NopCloser(strings.NewReader(`"old"`)),
 			}, nil
 		}),
 		node:     "local",
@@ -239,7 +239,7 @@ func TestDeleteConfigKey(t *testing.T) {
 	tests.Add("success", tst{
 		client: newTestClient(&http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(strings.NewReader(`"old"`)),
+			Body:       io.NopCloser(strings.NewReader(`"old"`)),
 		}, nil),
 		node:     "local",
 		section:  "foo",

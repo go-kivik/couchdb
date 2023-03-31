@@ -15,7 +15,6 @@ package couchdb
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -52,7 +51,7 @@ const input = `
 var expectedKeys = []string{`"meatballs"`, `"spaghetti"`, `"tomato sauce"`}
 
 func TestRowsIterator(t *testing.T) {
-	rows := newRows(context.TODO(), ioutil.NopCloser(strings.NewReader(input)))
+	rows := newRows(context.TODO(), io.NopCloser(strings.NewReader(input)))
 	var count int
 	for {
 		row := &driver.Row{}
@@ -144,7 +143,7 @@ const multipleQueries = `{
 }`
 
 func TestMultiQueriesRowsIterator(t *testing.T) {
-	rows := newMultiQueriesRows(context.TODO(), ioutil.NopCloser(strings.NewReader(multipleQueries)))
+	rows := newMultiQueriesRows(context.TODO(), io.NopCloser(strings.NewReader(multipleQueries)))
 	results := make([]interface{}, 0, 8)
 	rowsQI := rows.(driver.QueryIndexer)
 	for {
@@ -232,7 +231,7 @@ func TestRowsIteratorErrors(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rows := newRows(context.TODO(), ioutil.NopCloser(strings.NewReader(test.input)))
+			rows := newRows(context.TODO(), io.NopCloser(strings.NewReader(test.input)))
 			for i := 0; i < 10; i++ {
 				err := rows.Next(&driver.Row{})
 				if err == nil {
@@ -262,7 +261,7 @@ type fullRows interface {
 }
 
 func TestFindRowsIterator(t *testing.T) {
-	rows := newFindRows(context.TODO(), ioutil.NopCloser(strings.NewReader(findInput))).(fullRows)
+	rows := newFindRows(context.TODO(), io.NopCloser(strings.NewReader(findInput))).(fullRows)
 	var count int
 	for {
 		row := &driver.Row{}

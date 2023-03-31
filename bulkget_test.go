@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -59,7 +58,7 @@ func TestBulkGet(t *testing.T) {
 				Header: http.Header{
 					"Content-Type": []string{"application/json"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader(removeSpaces(`{
+				Body: io.NopCloser(strings.NewReader(removeSpaces(`{
 	  "results": [
 	    {
 	      "id": "foo",
@@ -88,7 +87,7 @@ func TestBulkGet(t *testing.T) {
 				StatusCode: http.StatusOK,
 				ProtoMajor: 1,
 				ProtoMinor: 1,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"results": [{"id": "", "docs": [{"error":{"id":"","rev":null,"error":"illegal_docid","reason":"Document id must not be empty"}}]}]}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"results": [{"id": "", "docs": [{"error":{"id":"","rev":null,"error":"illegal_docid","reason":"Document id must not be empty"}}]}]}`)),
 			}, nil),
 			dbName: "xxx",
 		},
@@ -108,7 +107,7 @@ func TestBulkGet(t *testing.T) {
 				StatusCode: http.StatusOK,
 				ProtoMajor: 1,
 				ProtoMinor: 1,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"results": [{"id": "asdf", "docs": [{"error":{"id":"asdf","rev":"1-xxx","error":"not_found","reason":"missing"}}]}]}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"results": [{"id": "asdf", "docs": [{"error":{"id":"asdf","rev":"1-xxx","error":"not_found","reason":"missing"}}]}]}`)),
 			}, nil),
 			dbName: "xxx",
 		},
@@ -134,7 +133,7 @@ func TestBulkGet(t *testing.T) {
 					StatusCode: http.StatusOK,
 					ProtoMajor: 1,
 					ProtoMinor: 1,
-					Body:       ioutil.NopCloser(strings.NewReader(`{"results": [{"id": "test1", "docs": [{"ok":{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}}]}]}`)),
+					Body:       io.NopCloser(strings.NewReader(`{"results": [{"id": "test1", "docs": [{"ok":{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}}]}]}`)),
 				}, nil
 			}),
 			dbName: "xxx",
@@ -273,7 +272,7 @@ func TestGetBulkRowsIterator(t *testing.T) {
 		{ID: "baz", Err: "not_found: missing"},
 	}
 	results := []result{}
-	rows := newBulkGetRows(context.TODO(), ioutil.NopCloser(strings.NewReader(bulkGetInput)))
+	rows := newBulkGetRows(context.TODO(), io.NopCloser(strings.NewReader(bulkGetInput)))
 	var count int
 	for {
 		row := &driver.Row{}

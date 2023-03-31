@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -191,7 +190,7 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		}
 
 		// TODO: Use a TeeReader here, to avoid slurping the entire body into memory at once
-		content, err := ioutil.ReadAll(body)
+		content, err := io.ReadAll(body)
 		if err != nil {
 			return nil, &kivik.Error{Status: http.StatusBadGateway, Err: err}
 		}
@@ -205,7 +204,7 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		return &driver.Document{
 			ContentLength: length,
 			Rev:           rev,
-			Body:          ioutil.NopCloser(bytes.NewBuffer(content)),
+			Body:          io.NopCloser(bytes.NewBuffer(content)),
 			Attachments: &multipartAttachments{
 				content:  resp.Body,
 				mpReader: mpReader,
@@ -453,7 +452,7 @@ func interfaceToAttachments(i interface{}) (*kivik.Attachments, bool) {
 // newMultipartAttachments reads a json stream on in, and produces a
 // multipart/related output suitable for a PUT request.
 func newMultipartAttachments(in io.ReadCloser, att *kivik.Attachments) (boundary string, size int64, content io.ReadCloser, err error) {
-	tmp, err := ioutil.TempFile("", "kivik-multipart-*")
+	tmp, err := os.CreateTemp("", "kivik-multipart-*")
 	if err != nil {
 		return "", 0, nil, err
 	}
@@ -553,7 +552,7 @@ func attachmentSize(att *kivik.Attachment) error {
 	}
 	rc, ok := r.(io.ReadCloser)
 	if !ok {
-		rc = ioutil.NopCloser(r)
+		rc = io.NopCloser(r)
 	}
 
 	att.Content = rc
@@ -572,12 +571,12 @@ func readerSize(in io.Reader) (int64, io.Reader, error) {
 		}
 		return info.Size(), in, nil
 	}
-	content, err := ioutil.ReadAll(in)
+	content, err := io.ReadAll(in)
 	if err != nil {
 		return 0, nil, err
 	}
 	buf := bytes.NewBuffer(content)
-	return int64(buf.Len()), ioutil.NopCloser(buf), nil
+	return int64(buf.Len()), io.NopCloser(buf), nil
 }
 
 // NewAttachment is a convenience function, which sets the size of the attachment
@@ -604,7 +603,7 @@ func NewAttachment(filename, contentType string, content io.Reader, size ...int6
 	}
 	rc, ok := content.(io.ReadCloser)
 	if !ok {
-		rc = ioutil.NopCloser(content)
+		rc = io.NopCloser(content)
 	}
 	return &kivik.Attachment{
 		Filename:    filename,

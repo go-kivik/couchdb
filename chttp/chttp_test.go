@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -239,7 +238,7 @@ func TestEncodeBody(t *testing.T) {
 				t.Parallel()
 				r := EncodeBody(test.input)
 				defer r.Close() // nolint: errcheck
-				body, err := ioutil.ReadAll(r)
+				body, err := io.ReadAll(r)
 				testy.StatusError(t, test.err, test.status, err)
 				result := strings.TrimSpace(string(body))
 				if result != test.expected {
@@ -441,7 +440,7 @@ func TestGetRev(t *testing.T) {
 			resp: &http.Response{
 				StatusCode: 400,
 				Request:    &http.Request{Method: "POST"},
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			},
 			err: "Bad Request",
 		},
@@ -450,7 +449,7 @@ func TestGetRev(t *testing.T) {
 			resp: &http.Response{
 				StatusCode: 200,
 				Request:    &http.Request{Method: "POST"},
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			},
 			err: "unable to determine document revision: EOF",
 		},
@@ -460,7 +459,7 @@ func TestGetRev(t *testing.T) {
 				StatusCode: 200,
 				Request:    &http.Request{Method: "POST"},
 				Header:     http.Header{"Etag": {`"12345"`}},
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			},
 			expected: `12345`,
 		},
@@ -1048,26 +1047,26 @@ func Test_extractRev(t *testing.T) {
 	})
 	tests.Add("empty body", tt{
 		resp: &http.Response{
-			Body: ioutil.NopCloser(strings.NewReader("")),
+			Body: io.NopCloser(strings.NewReader("")),
 		},
 		rev: "",
 		err: "unable to determine document revision: EOF",
 	})
 	tests.Add("invalid JSON", tt{
 		resp: &http.Response{
-			Body: ioutil.NopCloser(strings.NewReader(`bogus`)),
+			Body: io.NopCloser(strings.NewReader(`bogus`)),
 		},
 		err: `unable to determine document revision: invalid character 'b' looking for beginning of value`,
 	})
 	tests.Add("rev found", tt{
 		resp: &http.Response{
-			Body: ioutil.NopCloser(strings.NewReader(`{"_rev":"1-xyz"}`)),
+			Body: io.NopCloser(strings.NewReader(`{"_rev":"1-xyz"}`)),
 		},
 		rev: "1-xyz",
 	})
 	tests.Add("rev found in middle", tt{
 		resp: &http.Response{
-			Body: ioutil.NopCloser(strings.NewReader(`{
+			Body: io.NopCloser(strings.NewReader(`{
 				"_id":"foo",
 				"_rev":"1-xyz",
 				"asdf":"qwerty",
@@ -1078,7 +1077,7 @@ func Test_extractRev(t *testing.T) {
 	})
 	tests.Add("rev not found middle", tt{
 		resp: &http.Response{
-			Body: ioutil.NopCloser(strings.NewReader(`{
+			Body: io.NopCloser(strings.NewReader(`{
 				"_id":"foo",
 				"asdf":"qwerty",
 				"number":12345

@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
 	"sync/atomic"
 
@@ -276,7 +275,7 @@ func (r *multiQueriesRows) Close() error {
 		defer r.rows.Close() // nolint:errcheck
 	}
 	defer r.r.Close() // nolint:errcheck
-	if _, err := ioutil.ReadAll(r.r); err != nil {
+	if _, err := io.ReadAll(r.r); err != nil {
 		return err
 	}
 	if err := r.r.Close(); err != nil {

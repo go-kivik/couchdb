@@ -17,7 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -54,7 +54,7 @@ func TestExplain(t *testing.T) {
 			name: "error response",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusNotFound,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusNotFound,
 			err:    "Not Found",
@@ -63,7 +63,7 @@ func TestExplain(t *testing.T) {
 			name: "success",
 			db: newTestDB(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"dbname":"foo"}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"dbname":"foo"}`)),
 			}, nil),
 			expected: &driver.QueryPlan{DBName: "foo"},
 		},

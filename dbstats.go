@@ -78,7 +78,7 @@ type dbsInfoResponse struct {
 	Error  string  `json:"error"`
 }
 
-func (c *client) DBsStats(ctx context.Context, dbnames []string) ([]*driver.DBStats, error) {
+func (c *client) DBsStats(_ context.Context, dbnames []string) ([]*driver.DBStats, error) {
 	opts := &chttp.Options{
 		GetBody: chttp.BodyEncoder(dbsInfoRequest{Keys: dbnames}),
 		Header: http.Header{

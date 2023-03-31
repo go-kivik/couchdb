@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/http"
 	"strings"
@@ -116,7 +115,7 @@ func TestPutAttachment(t *testing.T) {
 				if rev := req.URL.Query().Get("rev"); rev != expectedRev {
 					return nil, fmt.Errorf("Unexpected rev: %s", rev)
 				}
-				body, err := ioutil.ReadAll(req.Body)
+				body, err := io.ReadAll(req.Body)
 				if err != nil {
 					return nil, err
 				}
@@ -410,7 +409,7 @@ func TestGetAttachment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			att, err := test.db.GetAttachment(context.Background(), test.id, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
-			fileContent, err := ioutil.ReadAll(att.Content)
+			fileContent, err := io.ReadAll(att.Content)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -588,7 +587,7 @@ func TestDecodeAttachment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			att, err := decodeAttachment(test.resp)
 			testy.StatusError(t, test.err, test.status, err)
-			fileContent, err := ioutil.ReadAll(att.Content)
+			fileContent, err := io.ReadAll(att.Content)
 			if err != nil {
 				t.Fatal(err)
 			}

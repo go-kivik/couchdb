@@ -15,7 +15,7 @@ package couchdb
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -158,7 +158,7 @@ func TestChangesNext(t *testing.T) {
 		},
 		{
 			name:    "read error",
-			changes: newChangesRows(context.TODO(), "", ioutil.NopCloser(testy.ErrorReader("", errors.New("read error"))), ""),
+			changes: newChangesRows(context.TODO(), "", io.NopCloser(testy.ErrorReader("", errors.New("read error"))), ""),
 			status:  http.StatusBadGateway,
 			err:     "read error",
 		},
@@ -193,7 +193,7 @@ func TestChangesClose(t *testing.T) {
 	})
 
 	t.Run("next in progress", func(t *testing.T) {
-		body := &closeTracker{ReadCloser: ioutil.NopCloser(testy.NeverReader())}
+		body := &closeTracker{ReadCloser: io.NopCloser(testy.NeverReader())}
 		feed := newChangesRows(context.TODO(), "", body, "")
 		row := new(driver.Change)
 		done := make(chan struct{})
