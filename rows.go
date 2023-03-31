@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -251,9 +252,8 @@ func (r *multiQueriesRows) nextQuery() error {
 	rows := newRows(r.ctx, r.r).(*rows)
 	rows.iter.dec = r.dec
 	if err := rows.iter.begin(); err != nil {
-		// I'd normally use errors.As, but I want to retain backward
-		// compatibility to at least Go 1.11.
-		if ud, _ := err.(unexpectedDelim); ud == unexpectedDelim(']') {
+		var ud unexpectedDelim
+		if errors.As(err, &ud); ud == unexpectedDelim(']') {
 			if err := r.Close(); err != nil {
 				return err
 			}

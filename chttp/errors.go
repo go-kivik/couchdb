@@ -53,22 +53,6 @@ func (e *HTTPError) ExitStatus() int {
 	return e.exitStatus
 }
 
-// Format implements fmt.Formatter
-func (e *HTTPError) Format(f fmt.State, c rune) {
-	formatError(e, f, c)
-}
-
-// FormatError satisfies the Go 1.13 errors.Formatter interface
-// (golang.org/x/xerrors.Formatter for older versions of Go).
-func (e *HTTPError) FormatError(p printer) error {
-	p.Print(e.Error())
-	if p.Detail() {
-		p.Printf("REQUEST: %s %s (%d bytes)", e.Response.Request.Method, e.Response.Request.URL.String(), e.Response.Request.ContentLength)
-		p.Printf("\nRESPONSE: %d / %s (%d bytes)\n", e.Response.StatusCode, http.StatusText(e.Response.StatusCode), e.Response.ContentLength)
-	}
-	return nil
-}
-
 // ResponseError returns an error from an *http.Response.
 func ResponseError(resp *http.Response) error {
 	if resp.StatusCode < 400 { // nolint:gomnd
