@@ -10,3 +10,11 @@ require (
 	gitlab.com/flimzy/testy v0.9.1
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 )
+
+require (
+	github.com/Masterminds/semver/v3 v3.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/otiai10/copy v1.7.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+)
