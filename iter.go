@@ -307,6 +307,6 @@ func (d unexpectedDelim) Error() string {
 	return fmt.Sprintf("Unexpected JSON delimiter: %c", d)
 }
 
-func (d unexpectedDelim) StatusCode() int {
+func (d unexpectedDelim) HTTPStatus() int {
 	return http.StatusBadGateway
 }

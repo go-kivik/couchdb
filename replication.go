@@ -38,7 +38,7 @@ func (re *replicationError) Error() string {
 	return re.reason
 }
 
-func (re *replicationError) StatusCode() int {
+func (re *replicationError) HTTPStatus() int {
 	return re.status
 }
 

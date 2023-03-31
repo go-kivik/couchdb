@@ -99,7 +99,7 @@ func (e *curlError) ExitStatus() int {
 	return e.curlStatus
 }
 
-func (e *curlError) StatusCode() int {
+func (e *curlError) HTTPStatus() int {
 	return e.httpStatus
 }
 
