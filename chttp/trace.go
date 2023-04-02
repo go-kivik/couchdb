@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -84,7 +83,7 @@ func (t *ClientTrace) httpResponseBody(r *http.Response) {
 	clone := new(http.Response)
 	*clone = *r
 	rBody := r.Body
-	body, readErr := ioutil.ReadAll(rBody)
+	body, readErr := io.ReadAll(rBody)
 	closeErr := rBody.Close()
 	r.Body = newReplay(body, readErr, closeErr)
 	clone.Body = newReplay(body, readErr, closeErr)
@@ -109,7 +108,7 @@ func (t *ClientTrace) httpRequestBody(r *http.Request) {
 	*clone = *r
 	if r.Body != nil {
 		rBody := r.Body
-		body, readErr := ioutil.ReadAll(rBody)
+		body, readErr := io.ReadAll(rBody)
 		closeErr := rBody.Close()
 		r.Body = newReplay(body, readErr, closeErr)
 		clone.Body = newReplay(body, readErr, closeErr)
@@ -119,10 +118,10 @@ func (t *ClientTrace) httpRequestBody(r *http.Request) {
 
 func newReplay(body []byte, readErr, closeErr error) io.ReadCloser {
 	if readErr == nil && closeErr == nil {
-		return ioutil.NopCloser(bytes.NewReader(body))
+		return io.NopCloser(bytes.NewReader(body))
 	}
 	return &replayReadCloser{
-		Reader:   ioutil.NopCloser(bytes.NewReader(body)),
+		Reader:   io.NopCloser(bytes.NewReader(body)),
 		readErr:  readErr,
 		closeErr: closeErr,
 	}

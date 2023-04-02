@@ -15,7 +15,6 @@ package couchdb
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -76,7 +75,7 @@ func Body(str string) io.ReadCloser {
 	if !strings.HasSuffix(str, "\n") {
 		str += "\n"
 	}
-	return ioutil.NopCloser(strings.NewReader(str))
+	return io.NopCloser(strings.NewReader(str))
 }
 
 func parseTime(t *testing.T, str string) time.Time {
@@ -93,7 +92,7 @@ func consume(r io.ReadCloser) error {
 		return nil
 	}
 	defer r.Close() // nolint: errcheck
-	_, e := ioutil.ReadAll(r)
+	_, e := io.ReadAll(r)
 	return e
 }
 

@@ -14,7 +14,6 @@ package chttp
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -52,5 +51,5 @@ func newTestClient(resp *http.Response, err error) *Client {
 }
 
 func Body(str string) io.ReadCloser {
-	return ioutil.NopCloser(strings.NewReader(str))
+	return io.NopCloser(strings.NewReader(str))
 }

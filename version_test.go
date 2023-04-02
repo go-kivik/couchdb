@@ -15,7 +15,7 @@ package couchdb
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -44,7 +44,7 @@ func TestVersion2(t *testing.T) {
 			name: "invalid JSON response",
 			client: newTestClient(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"name":[]}}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"name":[]}}`)),
 			}, nil),
 			status: http.StatusBadGateway,
 			err:    "json: cannot unmarshal array into Go ",
@@ -53,7 +53,7 @@ func TestVersion2(t *testing.T) {
 			name: "error response",
 			client: newTestClient(&http.Response{
 				StatusCode: http.StatusInternalServerError,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       io.NopCloser(strings.NewReader("")),
 			}, nil),
 			status: http.StatusInternalServerError,
 			err:    "Internal Server Error",
@@ -62,7 +62,7 @@ func TestVersion2(t *testing.T) {
 			name: "CouchDB 1.6.1",
 			client: newTestClient(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"version":"1.6.1","name":"The Apache Software Foundation"}}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"couchdb":"Welcome","uuid":"a902efb0fac143c2b1f97160796a6347","version":"1.6.1","vendor":{"version":"1.6.1","name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
 				Version:     "1.6.1",
@@ -74,7 +74,7 @@ func TestVersion2(t *testing.T) {
 			name: "CouchDB 2.0.0",
 			client: newTestClient(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"The Apache Software Foundation"}}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
 				Version:     "2.0.0",
@@ -86,7 +86,7 @@ func TestVersion2(t *testing.T) {
 			name: "CouchDB 2.1.0",
 			client: newTestClient(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.1.0","features":["scheduler"],"vendor":{"name":"The Apache Software Foundation"}}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.1.0","features":["scheduler"],"vendor":{"name":"The Apache Software Foundation"}}`)),
 			}, nil),
 			expected: &driver.Version{
 				Version:     "2.1.0",
@@ -99,7 +99,7 @@ func TestVersion2(t *testing.T) {
 			name: "Cloudant 2017-10-23",
 			client: newTestClient(&http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"IBM Cloudant","version":"6365","variant":"paas"},"features":["geo","scheduler"]}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"couchdb":"Welcome","version":"2.0.0","vendor":{"name":"IBM Cloudant","version":"6365","variant":"paas"},"features":["geo","scheduler"]}`)),
 			}, nil),
 			expected: &driver.Version{
 				Version:     "2.0.0",

@@ -15,7 +15,6 @@ package chttp
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,14 +46,14 @@ func TestHTTPResponse(t *testing.T) {
 						}
 						r.StatusCode = 0
 						defer r.Body.Close() // nolint: errcheck
-						if _, err := ioutil.ReadAll(r.Body); err != nil {
+						if _, err := io.ReadAll(r.Body); err != nil {
 							t.Fatal(err)
 						}
 					},
 				}
 			},
-			resp:      &http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader("testing"))},
-			finalResp: &http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader("testing"))},
+			resp:      &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("testing"))},
+			finalResp: &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("testing"))},
 		},
 		{
 			name: "HTTPResponse/cloned response",
@@ -71,8 +70,8 @@ func TestHTTPResponse(t *testing.T) {
 					},
 				}
 			},
-			resp:      &http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader("testing"))},
-			finalResp: &http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader("testing"))},
+			resp:      &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("testing"))},
+			finalResp: &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("testing"))},
 		},
 	}
 	for _, test := range tests {
@@ -97,8 +96,8 @@ func TestHTTPRequest(t *testing.T) {
 		{
 			name:     "no hook defined",
 			trace:    func(_ *testing.T) *ClientTrace { return &ClientTrace{} },
-			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
-			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+			req:      httptest.NewRequest("PUT", "/", io.NopCloser(strings.NewReader("testing"))),
+			finalReq: httptest.NewRequest("PUT", "/", io.NopCloser(strings.NewReader("testing"))),
 		},
 		{
 			name: "HTTPRequesteBody/cloned response",
@@ -110,14 +109,14 @@ func TestHTTPRequest(t *testing.T) {
 						}
 						r.Method = "unf"     // nolint: goconst
 						defer r.Body.Close() // nolint: errcheck
-						if _, err := ioutil.ReadAll(r.Body); err != nil {
+						if _, err := io.ReadAll(r.Body); err != nil {
 							t.Fatal(err)
 						}
 					},
 				}
 			},
-			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
-			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+			req:      httptest.NewRequest("PUT", "/", io.NopCloser(strings.NewReader("testing"))),
+			finalReq: httptest.NewRequest("PUT", "/", io.NopCloser(strings.NewReader("testing"))),
 		},
 		{
 			name: "HTTPRequeste/cloned response",
@@ -134,8 +133,8 @@ func TestHTTPRequest(t *testing.T) {
 					},
 				}
 			},
-			req:      httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
-			finalReq: httptest.NewRequest("PUT", "/", ioutil.NopCloser(strings.NewReader("testing"))),
+			req:      httptest.NewRequest("PUT", "/", io.NopCloser(strings.NewReader("testing"))),
+			finalReq: httptest.NewRequest("PUT", "/", io.NopCloser(strings.NewReader("testing"))),
 		},
 		{
 			name: "HTTPRequesteBody/no body",
@@ -185,12 +184,12 @@ func TestReplayReadCloser(t *testing.T) {
 	}{
 		{
 			name:     "no errors",
-			input:    ioutil.NopCloser(strings.NewReader("testing")),
+			input:    io.NopCloser(strings.NewReader("testing")),
 			expected: "testing",
 		},
 		{
 			name:     "read error",
-			input:    ioutil.NopCloser(&errReader{Reader: strings.NewReader("testi"), err: errors.New("read error 1")}),
+			input:    io.NopCloser(&errReader{Reader: strings.NewReader("testi"), err: errors.New("read error 1")}),
 			expected: "testi",
 			readErr:  "read error 1",
 		},
@@ -203,11 +202,11 @@ func TestReplayReadCloser(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			content, err := ioutil.ReadAll(test.input.(io.Reader))
+			content, err := io.ReadAll(test.input.(io.Reader))
 			closeErr := test.input.Close()
 			rc := newReplay(content, err, closeErr)
 
-			result, resultErr := ioutil.ReadAll(rc.(io.Reader))
+			result, resultErr := io.ReadAll(rc.(io.Reader))
 			resultCloseErr := rc.Close()
 			if d := testy.DiffText(test.expected, result); d != nil {
 				t.Error(d)
