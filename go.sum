@@ -3,8 +3,8 @@ github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-kivik/kivik/v4 v4.0.0-20230330195943-0fcd5e6f5451/go.mod h1:WXlDuyGPIcNq7ejCME+bqYl7vzH/KpM9FLRPfsYEjZI=
-github.com/go-kivik/kivik/v4 v4.0.0-20230331074407-d84254814834 h1:09mIQDbdTiN7hNz0oy+MgkQSVhHE5H1R8pXDhEvOoHk=
-github.com/go-kivik/kivik/v4 v4.0.0-20230331074407-d84254814834/go.mod h1:WXlDuyGPIcNq7ejCME+bqYl7vzH/KpM9FLRPfsYEjZI=
+github.com/go-kivik/kivik/v4 v4.0.0-20230430194615-b7cdddca6372 h1:gEB7iUSCaNlCRI+IoCymAK6ghOWptXNwgEAcUsd/Pro=
+github.com/go-kivik/kivik/v4 v4.0.0-20230430194615-b7cdddca6372/go.mod h1:QpyDiYUPz1874EXJTfY8qZgLMzqqLQ22Pgmnplcjvng=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20230330202035-a6ae53d9f5a9 h1:B/9qQ+FU0fU2olMijOAqifmkxPmbuFs/QeO2vfFn1vk=
 github.com/go-kivik/kiviktest/v4 v4.0.0-20230330202035-a6ae53d9f5a9/go.mod h1:JHiJf1f4syQ2EW6QKkf6zPlaBU6Je6b8o67Lrp45Mmw=
 github.com/gopherjs/gopherjs v0.0.0-20180825215210-0210a2f0f73c/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
@@ -28,8 +28,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/fasttemplate v1.2.1 h1:TVEnxayobAdVkhQfrfes2IzOB6o+z4roRkPF52WA1u4=
 gitlab.com/flimzy/testy v0.9.1/go.mod h1:4Yy2aelUY6IgRmd3jHgGWewZLNMQZWQTlwyuMW642Mc=
-gitlab.com/flimzy/testy v0.12.2 h1:m4JS/yYRUi8k/KbcxJrRw6eTHYnVmHm9XRKALrtwB9g=
-gitlab.com/flimzy/testy v0.12.2/go.mod h1:9wPR98kErJw1lrq/aIJ8UZ6A0Dn7CHU0T6Qx4b2FiyQ=
+gitlab.com/flimzy/testy v0.12.4 h1:J2plNCG5d9FWfik30yOZrajcPrWbiDHrk0qw1nMstNU=
+gitlab.com/flimzy/testy v0.12.4/go.mod h1:9wPR98kErJw1lrq/aIJ8UZ6A0Dn7CHU0T6Qx4b2FiyQ=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 h1:HWj/xjIHfjYU5nVXpTM0s39J9CbLn7Cc5a7IC5rwsMQ=
 golang.org/x/net v0.8.0 h1:Zrh2ngAOFYneWTAIAPethzeaQLuHwhuBkuV6ZiRnUaQ=
 golang.org/x/net v0.8.0/go.mod h1:QVkue5JL9kW//ek3r6jTKnTFis1tRmNAW2P1shuFdJc=

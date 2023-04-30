@@ -14,9 +14,8 @@
       00000000  22 74 6f 6d 61 74 6f 20  73 61 75 63 65 22        |"tomato sauce"|
     }
   },
-  (map[string]interface {}) (len=4) {
+  (map[string]interface {}) (len=3) {
     (string) (len=3) "EOQ": (bool) true,
-    (string) (len=10) "QueryIndex": (int) 0,
     (string) (len=6) "offset": (int64) 0,
     (string) (len=10) "total_rows": (int64) 3
   },
@@ -39,15 +38,13 @@
       00000010  63 68 69 63 6b 65 6e 22                           |chicken"|
     }
   },
-  (map[string]interface {}) (len=4) {
+  (map[string]interface {}) (len=3) {
     (string) (len=3) "EOQ": (bool) true,
-    (string) (len=10) "QueryIndex": (int) 1,
     (string) (len=6) "offset": (int64) 2,
     (string) (len=10) "total_rows": (int64) 2667
   },
-  (map[string]interface {}) (len=4) {
+  (map[string]interface {}) (len=3) {
     (string) (len=3) "EOF": (bool) true,
-    (string) (len=10) "QueryIndex": (int) 1,
     (string) (len=6) "offset": (int64) 2,
     (string) (len=10) "total_rows": (int64) 2667
   }

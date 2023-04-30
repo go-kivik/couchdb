@@ -46,16 +46,17 @@ func TestQueries_1_x(t *testing.T) {
 	defer rows.Close() // nolint:errcheck
 	result := make([]interface{}, 0)
 	for rows.Next() {
-		if rows.EOQ() {
-			result = append(result, map[string]interface{}{
-				"EOQ": true,
-				// "total_rows": rows.TotalRows(), // FIXME
-			})
-			continue
-		}
 		result = append(result, map[string]interface{}{
 			"_id": rows.ID(),
 		})
+	}
+	meta, err := rows.Metadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMeta := &kivik.ResultMetadata{}
+	if d := testy.DiffInterface(wantMeta, meta); d != nil {
+		t.Error(d)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
@@ -92,16 +93,19 @@ func TestQueries_2_x(t *testing.T) {
 	defer rows.Close() // nolint:errcheck
 	result := make([]interface{}, 0)
 	for rows.Next() {
-		if rows.EOQ() {
-			result = append(result, map[string]interface{}{
-				"EOQ": true,
-				// "total_rows": rows.TotalRows(), // FIXME
-			})
-			continue
-		}
 		result = append(result, map[string]interface{}{
 			"_id": rows.ID(),
 		})
+	}
+	meta, err := rows.Metadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMeta := &kivik.ResultMetadata{
+		TotalRows: 1,
+	}
+	if d := testy.DiffInterface(wantMeta, meta); d != nil {
+		t.Error(d)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
@@ -135,16 +139,19 @@ func TestQueries_3_x(t *testing.T) {
 	defer rows.Close() // nolint:errcheck
 	result := make([]interface{}, 0)
 	for rows.Next() {
-		if rows.EOQ() {
-			result = append(result, map[string]interface{}{
-				"EOQ": true,
-				// "total_rows": rows.TotalRows(), // FIXME
-			})
-			continue
-		}
 		result = append(result, map[string]interface{}{
 			"_id": rows.ID(),
 		})
+	}
+	meta, err := rows.Metadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMeta := &kivik.ResultMetadata{
+		TotalRows: 1,
+	}
+	if d := testy.DiffInterface(wantMeta, meta); d != nil {
+		t.Error(d)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
