@@ -1,5 +1,0 @@
-([]interface {}) (len=1) {
-  (map[string]interface {}) (len=1) {
-    (string) (len=3) "_id": (string) (len=13) "_design/_auth"
-  }
-}
