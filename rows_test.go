@@ -145,7 +145,6 @@ const multipleQueries = `{
 func TestMultiQueriesRowsIterator(t *testing.T) {
 	rows := newMultiQueriesRows(context.TODO(), io.NopCloser(strings.NewReader(multipleQueries)))
 	results := make([]interface{}, 0, 8)
-	rowsQI := rows.(driver.QueryIndexer)
 	for {
 		row := &driver.Row{}
 		err := rows.Next(row)
@@ -154,7 +153,6 @@ func TestMultiQueriesRowsIterator(t *testing.T) {
 				"EOQ":        true,
 				"total_rows": rows.TotalRows(),
 				"offset":     rows.Offset(),
-				"QueryIndex": rowsQI.QueryIndex(),
 			})
 			continue
 		}
@@ -163,7 +161,6 @@ func TestMultiQueriesRowsIterator(t *testing.T) {
 				"EOF":        true,
 				"total_rows": rows.TotalRows(),
 				"offset":     rows.Offset(),
-				"QueryIndex": rowsQI.QueryIndex(),
 			})
 			break
 		}
