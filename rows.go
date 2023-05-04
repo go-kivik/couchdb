@@ -34,7 +34,7 @@ type rowsMeta struct {
 
 type rows struct {
 	*iter
-	*rowsMeta
+	meta *rowsMeta
 }
 
 var _ driver.Rows = &rows{}
@@ -76,8 +76,8 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 func newRows(ctx context.Context, in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
 	return &rows{
-		iter:     newIter(ctx, meta, "rows", in, &rowParser{}),
-		rowsMeta: meta,
+		iter: newIter(ctx, meta, "rows", in, &rowParser{}),
+		meta: meta,
 	}
 }
 
@@ -100,8 +100,8 @@ func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
 func newFindRows(ctx context.Context, in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
 	return &rows{
-		iter:     newIter(ctx, meta, "docs", in, &findParser{}),
-		rowsMeta: meta,
+		iter: newIter(ctx, meta, "docs", in, &findParser{}),
+		meta: meta,
 	}
 }
 
@@ -129,29 +129,44 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 func newBulkGetRows(ctx context.Context, in io.ReadCloser) driver.Rows {
 	meta := &rowsMeta{}
 	return &rows{
-		iter:     newIter(ctx, meta, "results", in, &bulkParser{}),
-		rowsMeta: meta,
+		iter: newIter(ctx, meta, "results", in, &bulkParser{}),
+		meta: meta,
 	}
 }
 
 func (r *rows) Offset() int64 {
-	return r.offset
+	if r.meta == nil {
+		return 0
+	}
+	return r.meta.offset
 }
 
 func (r *rows) TotalRows() int64 {
-	return r.totalRows
+	if r.meta == nil {
+		return 0
+	}
+	return r.meta.totalRows
 }
 
 func (r *rows) Warning() string {
-	return r.warning
+	if r.meta == nil {
+		return ""
+	}
+	return r.meta.warning
 }
 
 func (r *rows) Bookmark() string {
-	return r.bookmark
+	if r.meta == nil {
+		return ""
+	}
+	return r.meta.bookmark
 }
 
 func (r *rows) UpdateSeq() string {
-	return string(r.updateSeq)
+	if r.meta == nil {
+		return ""
+	}
+	return string(r.meta.updateSeq)
 }
 
 func (r *rows) Next(row *driver.Row) error {
