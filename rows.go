@@ -68,7 +68,7 @@ func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
 		row.Value = bytes.NewReader(target.Value)
 	}
 	if len(target.Doc) > 0 {
-		row.Value = bytes.NewReader(target.Doc)
+		row.Doc = bytes.NewReader(target.Doc)
 	}
 	return nil
 }

@@ -1399,6 +1399,50 @@ func TestRowsQuery(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "all docs with docs",
+			path: "/_all_docs",
+			options: map[string]interface{}{
+				"keys": []string{"_design/_auth", "foo"},
+			},
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				if r.Method != http.MethodPost {
+					t.Errorf("Unexpected method: %s", r.Method)
+				}
+				defer r.Body.Close() // nolint: errcheck
+				if d := testy.DiffAsJSON(map[string][]string{"keys": {"_design/_auth", "foo"}}, r.Body); d != nil {
+					t.Error(d)
+				}
+				if keys := r.URL.Query().Get("keys"); keys != "" {
+					t.Error("query key 'keys' should be absent")
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Transfer-Encoding":  {"chunked"},
+						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
+						"Server":             {"CouchDB/2.2.0 (Erlang OTP/19)"},
+						"Content-Type":       {typeJSON},
+						"Cache-Control":      {"must-revalidate"},
+						"X-Couch-Request-ID": {"24fdb3fd86"},
+						"X-Couch-Body-Time":  {"0"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+{"id":"foo","doc":{"_id":"foo"}}
+]}`)),
+				}, nil
+			}),
+			expected: queryResult{
+				TotalRows: 1,
+				UpdateSeq: "",
+				Rows: []*driver.Row{
+					{
+						ID:  "foo",
+						Doc: strings.NewReader(`{"_id":"foo"}`),
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
