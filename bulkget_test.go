@@ -26,6 +26,7 @@ import (
 	"gitlab.com/flimzy/testy"
 
 	"github.com/go-kivik/kivik/v4/driver"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestBulkGet(t *testing.T) {
@@ -78,7 +79,7 @@ func TestBulkGet(t *testing.T) {
 		},
 		expected: &driver.Row{
 			ID:  "foo",
-			Doc: []byte(`{"_id":"foo","_rev":"4-753875d51501a6b1883a9d62b4d33f91","value":"thisisfoo"}`),
+			Doc: strings.NewReader(`{"_id":"foo","_rev":"4-753875d51501a6b1883a9d62b4d33f91","value":"thisisfoo"}`),
 		},
 	})
 	tests.Add("invalid id", tst{
@@ -143,7 +144,7 @@ func TestBulkGet(t *testing.T) {
 		},
 		expected: &driver.Row{
 			ID:  "test1",
-			Doc: []byte(`{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}`),
+			Doc: strings.NewReader(`{"_id":"test1","_rev":"4-8158177eb5931358b3ddaadd6377cf00","moo":123,"oink":true,"_revisions":{"start":4,"ids":["8158177eb5931358b3ddaadd6377cf00","1c08032eef899e52f35cbd1cd5f93826","e22bea278e8c9e00f3197cb2edee8bf4","7d6ff0b102072755321aa0abb630865a"]},"_attachments":{"foo.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-WiGw80mG3uQuqTKfUnIZsg==","length":9,"stub":true}}}`),
 		},
 	})
 	tests.Add("request", func(t *testing.T) interface{} {
@@ -176,10 +177,43 @@ func TestBulkGet(t *testing.T) {
 		defer rows.Close() // nolint: errcheck
 		testy.StatusError(t, test.rowErr, test.rowStatus, err)
 
-		if d := testy.DiffInterface(test.expected, row); d != nil {
+		if d := rowsDiff(test.expected, row); d != "" {
 			t.Error(d)
 		}
 	})
+}
+
+type row struct {
+	ID    string
+	Key   string
+	Value string
+	Doc   string
+	Error string
+}
+
+func driverRow2row(r *driver.Row) *row {
+	var value, doc []byte
+	if r.Value != nil {
+		value, _ = io.ReadAll(r.Value)
+	}
+	if r.Doc != nil {
+		doc, _ = io.ReadAll(r.Doc)
+	}
+	var err string
+	if r.Error != nil {
+		err = r.Error.Error()
+	}
+	return &row{
+		ID:    r.ID,
+		Key:   string(r.Key),
+		Value: string(value),
+		Doc:   string(doc),
+		Error: err,
+	}
+}
+
+func rowsDiff(got, want *driver.Row) string {
+	return cmp.Diff(driverRow2row(want), driverRow2row(got))
 }
 
 var bulkGetInput = `

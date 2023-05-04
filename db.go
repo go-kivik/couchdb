@@ -910,9 +910,14 @@ func (p *revsDiffParser) decodeItem(i interface{}, dec *json.Decoder) error {
 	if err != nil {
 		return err
 	}
+	var value json.RawMessage
+	if err := dec.Decode(&value); err != nil {
+		return err
+	}
 	row := i.(*driver.Row)
 	row.ID = t.(string)
-	return dec.Decode(&row.Value)
+	row.Value = bytes.NewReader(value)
+	return nil
 }
 
 func newRevsDiffRows(ctx context.Context, in io.ReadCloser) driver.Rows {

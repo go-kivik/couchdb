@@ -33,6 +33,7 @@ import (
 	"github.com/go-kivik/couchdb/v4/chttp"
 	kivik "github.com/go-kivik/kivik/v4"
 	"github.com/go-kivik/kivik/v4/driver"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAllDocs(t *testing.T) {
@@ -1089,15 +1090,51 @@ func TestFlush(t *testing.T) {
 	}
 }
 
-func TestRowsQuery(t *testing.T) {
-	type queryResult struct {
+type queryResult struct {
+	Offset    int64
+	TotalRows int64
+	Warning   string
+	UpdateSeq string
+	Err       string
+	Rows      []*driver.Row
+}
+
+func queryResultDiff(got, want queryResult) string {
+	type qr struct {
 		Offset    int64
 		TotalRows int64
 		Warning   string
 		UpdateSeq string
 		Err       string
-		Rows      []driver.Row
+		Rows      []*row
 	}
+	g := qr{
+		Offset:    got.Offset,
+		TotalRows: got.TotalRows,
+		Warning:   got.Warning,
+		UpdateSeq: got.UpdateSeq,
+		Err:       got.Err,
+		Rows:      make([]*row, len(got.Rows)),
+	}
+	for i, row := range got.Rows {
+		g.Rows[i] = driverRow2row(row)
+	}
+
+	w := qr{
+		Offset:    want.Offset,
+		TotalRows: want.TotalRows,
+		Warning:   want.Warning,
+		UpdateSeq: want.UpdateSeq,
+		Err:       want.Err,
+		Rows:      make([]*row, len(want.Rows)),
+	}
+	for i, row := range want.Rows {
+		w.Rows[i] = driverRow2row(row)
+	}
+	return cmp.Diff(g, w)
+}
+
+func TestRowsQuery(t *testing.T) {
 	tests := []struct {
 		name     string
 		db       *db
@@ -1153,21 +1190,21 @@ func TestRowsQuery(t *testing.T) {
 			}, nil),
 			expected: queryResult{
 				TotalRows: 3,
-				Rows: []driver.Row{
+				Rows: []*driver.Row{
 					{
 						ID:    "_design/_auth",
 						Key:   []byte(`"_design/_auth"`),
-						Value: []byte(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
+						Value: strings.NewReader(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
 					},
 					{
 						ID:    "org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye",
 						Key:   []byte(`"org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye"`),
-						Value: []byte(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
+						Value: strings.NewReader(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
 					},
 					{
 						ID:    "org.couchdb.user:zqfdn6u3cqi6pol3hslq5egiye",
 						Key:   []byte(`"org.couchdb.user:zqfdn6u3cqi6pol3hslq5egiye"`),
-						Value: []byte(`{"rev":"1-4645438e6e1aa2230a1b06b5c1f5c63f"}`),
+						Value: strings.NewReader(`{"rev":"1-4645438e6e1aa2230a1b06b5c1f5c63f"}`),
 					},
 				},
 			},
@@ -1194,11 +1231,11 @@ func TestRowsQuery(t *testing.T) {
 				TotalRows: 3,
 				Offset:    1,
 				UpdateSeq: "31",
-				Rows: []driver.Row{
+				Rows: []*driver.Row{
 					{
 						ID:    "org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye",
 						Key:   []byte(`"org.couchdb.user:5wmxzru3b4i6pdmvhslq5egiye"`),
-						Value: []byte(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
+						Value: strings.NewReader(`{"rev":"1-747e6766038164010fd0efcabd1a31dd"}`),
 					},
 				},
 			},
@@ -1225,11 +1262,11 @@ func TestRowsQuery(t *testing.T) {
 			expected: queryResult{
 				TotalRows: 1,
 				UpdateSeq: "13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjPlsQBJhgdA6j8QZCUy4Fv4AKLuflYiE151DRB18wmZtwCibj9u85ISgGRSPV63JSmA1NiD1bDgUJPIkCSP3xAHkCHxYDWsWQDg12MD",
-				Rows: []driver.Row{
+				Rows: []*driver.Row{
 					{
 						ID:    "_design/_auth",
 						Key:   []byte(`"_design/_auth"`),
-						Value: []byte(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
+						Value: strings.NewReader(`{"rev":"1-75efcce1f083316d622d389f3f9813f7"}`),
 					},
 				},
 			},
@@ -1270,11 +1307,11 @@ func TestRowsQuery(t *testing.T) {
 			expected: queryResult{
 				TotalRows: 1,
 				UpdateSeq: "",
-				Rows: []driver.Row{
+				Rows: []*driver.Row{
 					{
 						ID:    "_design/_auth",
 						Key:   []byte(`"_design/_auth"`),
-						Value: []byte(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
+						Value: strings.NewReader(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
 					},
 				},
 			},
@@ -1308,11 +1345,11 @@ func TestRowsQuery(t *testing.T) {
 			expected: queryResult{
 				TotalRows: 1,
 				UpdateSeq: "",
-				Rows: []driver.Row{
+				Rows: []*driver.Row{
 					{
 						ID:    "_design/_auth",
 						Key:   []byte(`"_design/_auth"`),
-						Value: []byte(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
+						Value: strings.NewReader(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
 					},
 				},
 			},
@@ -1353,11 +1390,55 @@ func TestRowsQuery(t *testing.T) {
 			expected: queryResult{
 				TotalRows: 1,
 				UpdateSeq: "",
-				Rows: []driver.Row{
+				Rows: []*driver.Row{
 					{
 						ID:    "_design/_auth",
 						Key:   []byte(`"_design/_auth"`),
-						Value: []byte(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
+						Value: strings.NewReader(`{"rev":"1-6e609020e0371257432797b4319c5829"}`),
+					},
+				},
+			},
+		},
+		{
+			name: "all docs with docs",
+			path: "/_all_docs",
+			options: map[string]interface{}{
+				"keys": []string{"_design/_auth", "foo"},
+			},
+			db: newCustomDB(func(r *http.Request) (*http.Response, error) {
+				if r.Method != http.MethodPost {
+					t.Errorf("Unexpected method: %s", r.Method)
+				}
+				defer r.Body.Close() // nolint: errcheck
+				if d := testy.DiffAsJSON(map[string][]string{"keys": {"_design/_auth", "foo"}}, r.Body); d != nil {
+					t.Error(d)
+				}
+				if keys := r.URL.Query().Get("keys"); keys != "" {
+					t.Error("query key 'keys' should be absent")
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Transfer-Encoding":  {"chunked"},
+						"Date":               {"Sat, 01 Sep 2018 19:01:30 GMT"},
+						"Server":             {"CouchDB/2.2.0 (Erlang OTP/19)"},
+						"Content-Type":       {typeJSON},
+						"Cache-Control":      {"must-revalidate"},
+						"X-Couch-Request-ID": {"24fdb3fd86"},
+						"X-Couch-Body-Time":  {"0"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"total_rows":1,"offset":null,"rows":[
+{"id":"foo","doc":{"_id":"foo"}}
+]}`)),
+				}, nil
+			}),
+			expected: queryResult{
+				TotalRows: 1,
+				UpdateSeq: "",
+				Rows: []*driver.Row{
+					{
+						ID:  "foo",
+						Doc: strings.NewReader(`{"_id":"foo"}`),
 					},
 				},
 			},
@@ -1368,7 +1449,7 @@ func TestRowsQuery(t *testing.T) {
 			rows, err := test.db.rowsQuery(context.Background(), test.path, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			result := queryResult{
-				Rows: []driver.Row{},
+				Rows: []*driver.Row{},
 			}
 			for {
 				var row driver.Row
@@ -1378,7 +1459,7 @@ func TestRowsQuery(t *testing.T) {
 					}
 					break
 				}
-				result.Rows = append(result.Rows, row)
+				result.Rows = append(result.Rows, &row)
 			}
 			result.Offset = rows.Offset()
 			result.TotalRows = rows.TotalRows()
@@ -1389,7 +1470,7 @@ func TestRowsQuery(t *testing.T) {
 				t.Errorf("RowsWarner interface not satisified!!?")
 			}
 
-			if d := testy.DiffInterface(test.expected, result); d != nil {
+			if d := queryResultDiff(test.expected, result); d != "" {
 				t.Error(d)
 			}
 		})
@@ -2417,7 +2498,7 @@ func TestRevsDiff(t *testing.T) {
 				t.Fatal(err)
 			}
 			var row interface{}
-			if err := json.Unmarshal(drow.Value, &row); err != nil {
+			if err := json.NewDecoder(drow.Value).Decode(&row); err != nil {
 				t.Fatal(err)
 			}
 			results[drow.ID] = row

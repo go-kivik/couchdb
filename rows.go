@@ -53,7 +53,24 @@ type rowParser struct {
 var _ parser = &rowParser{}
 
 func (p *rowParser) decodeItem(i interface{}, dec *json.Decoder) error {
-	return dec.Decode(i)
+	row := i.(*driver.Row)
+	target := struct {
+		*driver.Row
+		Value json.RawMessage `json:"value"`
+		Doc   json.RawMessage `json:"doc"`
+	}{
+		Row: row,
+	}
+	if err := dec.Decode(&target); err != nil {
+		return err
+	}
+	if len(target.Value) > 0 {
+		row.Value = bytes.NewReader(target.Value)
+	}
+	if len(target.Doc) > 0 {
+		row.Doc = bytes.NewReader(target.Doc)
+	}
+	return nil
 }
 
 func newRows(ctx context.Context, in io.ReadCloser) driver.Rows {
@@ -71,8 +88,13 @@ type findParser struct {
 var _ parser = &findParser{}
 
 func (p *findParser) decodeItem(i interface{}, dec *json.Decoder) error {
+	var doc json.RawMessage
+	if err := dec.Decode(&doc); err != nil {
+		return err
+	}
 	row := i.(*driver.Row)
-	return dec.Decode(&row.Doc)
+	row.Doc = bytes.NewReader(doc)
+	return nil
 }
 
 func newFindRows(ctx context.Context, in io.ReadCloser) driver.Rows {
@@ -96,7 +118,7 @@ func (p *bulkParser) decodeItem(i interface{}, dec *json.Decoder) error {
 		return err
 	}
 	row.ID = result.ID
-	row.Doc = result.Docs[0].Doc
+	row.Doc = bytes.NewReader(result.Docs[0].Doc)
 	row.Error = nil
 	if err := result.Docs[0].Error; err != nil {
 		row.Error = err
