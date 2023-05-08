@@ -49,8 +49,9 @@ func TestQueries_2_x(t *testing.T) {
 	defer rows.Close() // nolint:errcheck
 	result := make([]interface{}, 0)
 	for rows.Next() {
+		id, _ := rows.ID()
 		result = append(result, map[string]interface{}{
-			"_id": rows.ID(),
+			"_id": id,
 		})
 	}
 	meta, err := rows.Metadata()
@@ -95,8 +96,9 @@ func TestQueries_3_x(t *testing.T) {
 	defer rows.Close() // nolint:errcheck
 	result := make([]interface{}, 0)
 	for rows.Next() {
+		id, _ := rows.ID()
 		result = append(result, map[string]interface{}{
-			"_id": rows.ID(),
+			"_id": id,
 		})
 	}
 	meta, err := rows.Metadata()

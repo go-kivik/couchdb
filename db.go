@@ -45,7 +45,7 @@ type db struct {
 
 var (
 	_ driver.DB                   = &db{}
-	_ driver.OptsFinder           = &db{}
+	_ driver.Finder               = &db{}
 	_ driver.RevGetter            = &db{}
 	_ driver.AttachmentMetaGetter = &db{}
 	_ driver.PartitionedDB        = &db{}
@@ -170,9 +170,8 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 	switch ct {
 	case typeJSON:
 		return &driver.Document{
-			Rev:           rev,
-			ContentLength: resp.ContentLength,
-			Body:          resp.Body,
+			Rev:  rev,
+			Body: resp.Body,
 		}, nil
 	case typeMPRelated:
 		boundary := strings.Trim(params["boundary"], "\"")
@@ -183,10 +182,6 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		body, err := mpReader.NextPart()
 		if err != nil {
 			return nil, &kivik.Error{Status: http.StatusBadGateway, Err: err}
-		}
-		length := int64(-1)
-		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil { // nolint:gomnd
-			length = cl
 		}
 
 		// TODO: Use a TeeReader here, to avoid slurping the entire body into memory at once
@@ -202,9 +197,8 @@ func (d *db) Get(ctx context.Context, docID string, options map[string]interface
 		}
 
 		return &driver.Document{
-			ContentLength: length,
-			Rev:           rev,
-			Body:          io.NopCloser(bytes.NewBuffer(content)),
+			Rev:  rev,
+			Body: io.NopCloser(bytes.NewBuffer(content)),
 			Attachments: &multipartAttachments{
 				content:  resp.Body,
 				mpReader: mpReader,
