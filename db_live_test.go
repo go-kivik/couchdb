@@ -130,7 +130,7 @@ func Test_bug509(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close(context.Background())               // nolint:errcheck
+	defer client.Close()                                   // nolint:errcheck
 	defer client.DestroyDB(context.Background(), "bug509") // nolint:errcheck
 	if err := client.CreateDB(context.Background(), "bug509"); err != nil {
 		t.Fatal(err)
