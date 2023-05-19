@@ -731,11 +731,11 @@ func copyWithAttachmentStubs(w io.Writer, r io.Reader, atts map[string]*stub) er
 	return nil
 }
 
-func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]interface{}) (string, error) {
+func (d *db) Delete(ctx context.Context, docID string, options map[string]interface{}) (string, error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	if rev == "" {
+	if rev, _ := options["rev"].(string); rev == "" {
 		return "", missingArg("rev")
 	}
 
@@ -747,9 +747,6 @@ func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]i
 	query, err := optionsToParams(options)
 	if err != nil {
 		return "", err
-	}
-	if query.Get("rev") == "" {
-		query.Set("rev", rev)
 	}
 	opts := &chttp.Options{
 		FullCommit: fullCommit,

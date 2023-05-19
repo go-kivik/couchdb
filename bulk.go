@@ -16,7 +16,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/go-kivik/couchdb/v4/chttp"
@@ -24,62 +23,7 @@ import (
 	"github.com/go-kivik/kivik/v4/driver"
 )
 
-type bulkResults struct {
-	body io.ReadCloser
-	dec  *json.Decoder
-}
-
-var _ driver.BulkResults = &bulkResults{}
-
-func newBulkResults(body io.ReadCloser) (*bulkResults, error) {
-	dec := json.NewDecoder(body)
-	// Consume the opening '[' char
-	if err := consumeDelim(dec, json.Delim('[')); err != nil {
-		return nil, err
-	}
-	return &bulkResults{
-		body: body,
-		dec:  dec,
-	}, nil
-}
-
-func (r *bulkResults) Next(update *driver.BulkResult) error {
-	if !r.dec.More() {
-		if err := consumeDelim(r.dec, json.Delim(']')); err != nil {
-			return err
-		}
-		return io.EOF
-	}
-	var updateResult struct {
-		ID     string `json:"id"`
-		Rev    string `json:"rev"`
-		Error  string `json:"error"`
-		Reason string `json:"reason"`
-	}
-	if err := r.dec.Decode(&updateResult); err != nil {
-		return &kivik.Error{Status: http.StatusBadGateway, Err: err}
-	}
-	update.ID = updateResult.ID
-	update.Rev = updateResult.Rev
-	update.Error = nil
-	if updateResult.Error != "" {
-		var status int
-		switch updateResult.Error {
-		case "conflict":
-			status = http.StatusConflict
-		default:
-			status = http.StatusInternalServerError
-		}
-		update.Error = &kivik.Error{Status: status, Err: errors.New(updateResult.Reason)}
-	}
-	return nil
-}
-
-func (r *bulkResults) Close() error {
-	return r.body.Close()
-}
-
-func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[string]interface{}) (driver.BulkResults, error) {
+func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[string]interface{}) ([]driver.BulkResult, error) {
 	if options == nil {
 		options = make(map[string]interface{})
 	}
@@ -92,7 +36,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 		GetBody:    chttp.BodyEncoder(options),
 		FullCommit: fullCommit,
 	}
-	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("_bulk_docs"), opts)
+	resp, err := d.Client.DoReq(ctx, http.MethodPost, d.path("/_bulk_docs"), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +54,42 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 			return nil, e
 		}
 	}
-	results, bulkErr := newBulkResults(resp.Body)
-	if bulkErr != nil {
-		return nil, bulkErr
+	var temp []bulkDocResult
+	if err := chttp.DecodeJSON(resp, &temp); err != nil {
+		return nil, err
+	}
+	results := make([]driver.BulkResult, len(temp))
+	for i, r := range temp {
+		results[i] = driver.BulkResult(r)
 	}
 	return results, err
+}
+
+type bulkDocResult struct {
+	ID    string `json:"id"`
+	Rev   string `json:"rev"`
+	Error error
+}
+
+func (r *bulkDocResult) UnmarshalJSON(p []byte) error {
+	target := struct {
+		*bulkDocResult
+		Error         string `json:"error"`
+		Reason        string `json:"reason"`
+		UnmarshalJSON struct{}
+	}{
+		bulkDocResult: r,
+	}
+	if err := json.Unmarshal(p, &target); err != nil {
+		return err
+	}
+	switch target.Error {
+	case "":
+		// No error
+	case "conflict":
+		r.Error = &kivik.Error{Status: http.StatusConflict, Err: errors.New(target.Reason)}
+	default:
+		r.Error = &kivik.Error{Status: http.StatusInternalServerError, Err: errors.New(target.Reason)}
+	}
+	return nil
 }
