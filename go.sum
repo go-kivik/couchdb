@@ -3,11 +3,11 @@ github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/go-kivik/kivik/v4 v4.0.0-20230508185852-2b883268ad9a/go.mod h1:UNIt4XnxFFNIJi0uJXBV2/BG13MP1F0QLo7x0QvwqbI=
-github.com/go-kivik/kivik/v4 v4.0.0-20230515193101-09b9118ef0d0 h1:4C7D8zcAQYfOOefscshavEMvpkl0x7zRrrL3u/gYy/o=
-github.com/go-kivik/kivik/v4 v4.0.0-20230515193101-09b9118ef0d0/go.mod h1:UNIt4XnxFFNIJi0uJXBV2/BG13MP1F0QLo7x0QvwqbI=
-github.com/go-kivik/kiviktest/v4 v4.0.0-20230508191059-50d464e4a155 h1:8Nso5H4847ItG5ae48Yy39RJS03DVsbL90d1D8DDIq0=
-github.com/go-kivik/kiviktest/v4 v4.0.0-20230508191059-50d464e4a155/go.mod h1:GNSz9NvxjBg1IdPUJ+oe+/7FW2HgHJskoopgi+hQNdM=
+github.com/go-kivik/kivik/v4 v4.0.0-20230519204432-875898671a01/go.mod h1:UNIt4XnxFFNIJi0uJXBV2/BG13MP1F0QLo7x0QvwqbI=
+github.com/go-kivik/kivik/v4 v4.0.0-20230520195323-33e57d600444 h1:rYxB+0y8eSrr/4fNT+l1I0m5hQvOHROwKznYwKjlTQU=
+github.com/go-kivik/kivik/v4 v4.0.0-20230520195323-33e57d600444/go.mod h1:UNIt4XnxFFNIJi0uJXBV2/BG13MP1F0QLo7x0QvwqbI=
+github.com/go-kivik/kiviktest/v4 v4.0.0-20230520192751-0f6ef2bb17b3 h1:EAxvB0cwnOasFBQ+oeEzjKfwCs4oRU5gWeusmX6FOW0=
+github.com/go-kivik/kiviktest/v4 v4.0.0-20230520192751-0f6ef2bb17b3/go.mod h1:YCadzW5MGwJujDFzpXjSB/Ydbkru8Nmt78xvdp2yUwU=
 github.com/golang-jwt/jwt v3.2.2+incompatible/go.mod h1:8pz2t5EyA70fFQQSrl6XZXzqecmYZeUEB8OUGHkxJ+I=
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=

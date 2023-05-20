@@ -235,7 +235,7 @@ func (r *replication) Delete(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.db.Delete(ctx, r.docID, rev, nil)
+	_, err = r.db.Delete(ctx, r.docID, map[string]interface{}{"rev": rev})
 	return err
 }
 

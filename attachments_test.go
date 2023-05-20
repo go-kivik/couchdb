@@ -43,7 +43,7 @@ func TestPutAttachment(t *testing.T) {
 	type paoTest struct {
 		name    string
 		db      *db
-		id, rev string
+		id      string
 		att     *driver.Attachment
 		options map[string]interface{}
 
@@ -59,24 +59,24 @@ func TestPutAttachment(t *testing.T) {
 			err:    "kivik: docID required",
 		},
 		{
-			name:   "nil attachment",
-			id:     "foo",
-			rev:    "1-xxx",
-			status: http.StatusBadRequest,
-			err:    "kivik: att required",
+			name:    "nil attachment",
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-xxx"},
+			status:  http.StatusBadRequest,
+			err:     "kivik: att required",
 		},
 		{
-			name:   "missing filename",
-			id:     "foo",
-			rev:    "1-xxx",
-			att:    &driver.Attachment{},
-			status: http.StatusBadRequest,
-			err:    "kivik: att.Filename required",
+			name:    "missing filename",
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-xxx"},
+			att:     &driver.Attachment{},
+			status:  http.StatusBadRequest,
+			err:     "kivik: att.Filename required",
 		},
 		{
-			name: "no body",
-			id:   "foo",
-			rev:  "1-xxx",
+			name:    "no body",
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-xxx"},
 			att: &driver.Attachment{
 				Filename:    "x.jpg",
 				ContentType: "image/jpeg",
@@ -85,10 +85,10 @@ func TestPutAttachment(t *testing.T) {
 			err:    "kivik: att.Content required",
 		},
 		{
-			name: "network error",
-			db:   newTestDB(nil, errors.New("net error")),
-			id:   "foo",
-			rev:  "1-xxx",
+			name:    "network error",
+			db:      newTestDB(nil, errors.New("net error")),
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-xxx"},
 			att: &driver.Attachment{
 				Filename:    "x.jpg",
 				ContentType: "image/jpeg",
@@ -98,9 +98,9 @@ func TestPutAttachment(t *testing.T) {
 			err:    `Put "?http://example.com/testdb/foo/x.jpg\?rev=1-xxx"?: net error`,
 		},
 		{
-			name: "1.6.1",
-			id:   "foo",
-			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
+			name:    "1.6.1",
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-4c6114c65e295552ab1019e2b046b10e"},
 			att: &driver.Attachment{
 				Filename:    "foo.txt",
 				ContentType: "text/plain",
@@ -160,21 +160,22 @@ func TestPutAttachment(t *testing.T) {
 			name: "with options",
 			db:   newTestDB(nil, errors.New("success")),
 			id:   "foo",
-			rev:  "1-xxx",
 			att: &driver.Attachment{
 				Filename:    "foo.txt",
 				ContentType: "text/plain",
 				Content:     Body("x"),
 			},
-			options: map[string]interface{}{"foo": "oink"},
-			status:  http.StatusBadGateway,
-			err:     "foo=oink",
+			options: map[string]interface{}{
+				"foo": "oink",
+				"rev": "1-xxx",
+			},
+			status: http.StatusBadGateway,
+			err:    "foo=oink",
 		},
 		{
 			name: "invalid options",
 			db:   &db{},
 			id:   "foo",
-			rev:  "1-xxx",
 			att: &driver.Attachment{
 				Filename:    "foo.txt",
 				ContentType: "text/plain",
@@ -195,30 +196,34 @@ func TestPutAttachment(t *testing.T) {
 				}
 				return nil, errors.New("success")
 			}),
-			id:  "foo",
-			rev: "1-xxx",
+			id: "foo",
 			att: &driver.Attachment{
 				Filename:    "foo.txt",
 				ContentType: "text/plain",
 				Content:     Body("x"),
 			},
-			options: map[string]interface{}{OptionFullCommit: true},
-			status:  http.StatusBadGateway,
-			err:     "success",
+			options: map[string]interface{}{
+				OptionFullCommit: true,
+				"rev":            "1-xxx",
+			},
+			status: http.StatusBadGateway,
+			err:    "success",
 		},
 		{
 			name: "invalid full commit type",
 			db:   &db{},
 			id:   "foo",
-			rev:  "1-xxx",
 			att: &driver.Attachment{
 				Filename:    "foo.txt",
 				ContentType: "text/plain",
 				Content:     Body("x"),
 			},
-			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  http.StatusBadRequest,
-			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+			options: map[string]interface{}{
+				"rev":            "1-xxx",
+				OptionFullCommit: 123,
+			},
+			status: http.StatusBadRequest,
+			err:    "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		func() paoTest {
 			body := &closer{Reader: strings.NewReader("x")}
@@ -233,16 +238,18 @@ func TestPutAttachment(t *testing.T) {
 					}
 					return nil, errors.New("success")
 				}),
-				id:  "foo",
-				rev: "1-xxx",
+				id: "foo",
 				att: &driver.Attachment{
 					Filename:    "foo.txt",
 					ContentType: "text/plain",
 					Content:     Body("x"),
 				},
-				options: map[string]interface{}{OptionFullCommit: true},
-				status:  http.StatusBadGateway,
-				err:     "success",
+				options: map[string]interface{}{
+					"rev":            "1-xxx",
+					OptionFullCommit: true,
+				},
+				status: http.StatusBadGateway,
+				err:    "success",
 				final: func(t *testing.T) {
 					if !body.closed {
 						t.Fatal("body wasn't closed")
@@ -253,7 +260,7 @@ func TestPutAttachment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.PutAttachment(context.Background(), test.id, test.rev, test.att, test.options)
+			newRev, err := test.db.PutAttachment(context.Background(), test.id, test.att, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
@@ -605,10 +612,10 @@ func TestDecodeAttachment(t *testing.T) {
 
 func TestDeleteAttachment(t *testing.T) {
 	tests := []struct {
-		name              string
-		db                *db
-		id, rev, filename string
-		options           map[string]interface{}
+		name         string
+		db           *db
+		id, filename string
+		options      map[string]interface{}
 
 		newRev string
 		status int
@@ -626,16 +633,16 @@ func TestDeleteAttachment(t *testing.T) {
 			err:    "kivik: rev required",
 		},
 		{
-			name:   "no filename",
-			id:     "foo",
-			rev:    "1-xxx",
-			status: http.StatusBadRequest,
-			err:    "kivik: filename required",
+			name:    "no filename",
+			id:      "foo",
+			options: map[string]interface{}{"rev": "1-xxx"},
+			status:  http.StatusBadRequest,
+			err:     "kivik: filename required",
 		},
 		{
 			name:     "network error",
 			id:       "foo",
-			rev:      "1-xxx",
+			options:  map[string]interface{}{"rev": "1-xxx"},
 			filename: "foo.txt",
 			db:       newTestDB(nil, errors.New("net error")),
 			status:   http.StatusBadGateway,
@@ -644,7 +651,7 @@ func TestDeleteAttachment(t *testing.T) {
 		{
 			name:     "success 1.6.1",
 			id:       "foo",
-			rev:      "2-8ee3381d24ee4ac3e9f8c1f6c7395641",
+			options:  map[string]interface{}{"rev": "2-8ee3381d24ee4ac3e9f8c1f6c7395641"},
 			filename: "foo.txt",
 			db: newTestDB(&http.Response{
 				StatusCode: 200,
@@ -672,21 +679,25 @@ func TestDeleteAttachment(t *testing.T) {
 				return nil, errors.New("success")
 			}),
 			id:       "foo",
-			rev:      "1-xxx",
 			filename: "foo.txt",
-			options:  map[string]interface{}{"foo": "oink"},
-			status:   http.StatusBadGateway,
-			err:      "success",
+			options: map[string]interface{}{
+				"rev": "1-xxx",
+				"foo": "oink",
+			},
+			status: http.StatusBadGateway,
+			err:    "success",
 		},
 		{
 			name:     "invalid option",
 			db:       &db{},
 			id:       "foo",
-			rev:      "1-xxx",
 			filename: "foo.txt",
-			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   http.StatusBadRequest,
-			err:      "kivik: invalid type chan int for options",
+			options: map[string]interface{}{
+				"rev": "1-xxx",
+				"foo": make(chan int),
+			},
+			status: http.StatusBadRequest,
+			err:    "kivik: invalid type chan int for options",
 		},
 		{
 			name: "full commit",
@@ -700,26 +711,30 @@ func TestDeleteAttachment(t *testing.T) {
 				return nil, errors.New("success")
 			}),
 			id:       "foo",
-			rev:      "1-xxx",
 			filename: "foo.txt",
-			options:  map[string]interface{}{OptionFullCommit: true},
-			status:   http.StatusBadGateway,
-			err:      "success",
+			options: map[string]interface{}{
+				"rev":            "1-xxx",
+				OptionFullCommit: true,
+			},
+			status: http.StatusBadGateway,
+			err:    "success",
 		},
 		{
 			name:     "invalid full commit type",
 			db:       &db{},
 			id:       "foo",
-			rev:      "1-xxx",
 			filename: "foo.txt",
-			options:  map[string]interface{}{OptionFullCommit: 123},
-			status:   http.StatusBadRequest,
-			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+			options: map[string]interface{}{
+				"rev":            "1-xxx",
+				OptionFullCommit: 123,
+			},
+			status: http.StatusBadRequest,
+			err:    "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
+			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Unexpected new rev: %s", newRev)

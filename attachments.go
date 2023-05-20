@@ -22,7 +22,7 @@ import (
 	"github.com/go-kivik/kivik/v4/driver"
 )
 
-func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.Attachment, options map[string]interface{}) (newRev string, err error) {
+func (d *db) PutAttachment(ctx context.Context, docID string, att *driver.Attachment, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -44,9 +44,6 @@ func (d *db) PutAttachment(ctx context.Context, docID, rev string, att *driver.A
 	query, err := optionsToParams(options)
 	if err != nil {
 		return "", err
-	}
-	if rev != "" {
-		query.Set("rev", rev)
 	}
 	var response struct {
 		Rev string `json:"rev"`
@@ -146,11 +143,11 @@ func getDigest(resp *http.Response) (string, error) {
 	return etag, nil
 }
 
-func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, options map[string]interface{}) (newRev string, err error) {
+func (d *db) DeleteAttachment(ctx context.Context, docID, filename string, options map[string]interface{}) (newRev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	if rev == "" {
+	if rev, _ := options["rev"].(string); rev == "" {
 		return "", missingArg("rev")
 	}
 	if filename == "" {
@@ -166,7 +163,6 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, rev, filename string, 
 	if err != nil {
 		return "", err
 	}
-	query.Set("rev", rev)
 	var response struct {
 		Rev string `json:"rev"`
 	}

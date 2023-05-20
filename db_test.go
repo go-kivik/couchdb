@@ -901,7 +901,7 @@ func TestPut(t *testing.T) {
 func TestDelete(t *testing.T) {
 	type tt struct {
 		db      *db
-		id, rev string
+		id      string
 		options map[string]interface{}
 		newrev  string
 		status  int
@@ -918,24 +918,16 @@ func TestDelete(t *testing.T) {
 		status: http.StatusBadRequest,
 		err:    "kivik: rev required",
 	})
-	tests.Add("duplicate rev", tt{
-		id:      "foo",
-		rev:     "loser",
-		options: map[string]interface{}{"rev": "winner"},
-		db:      newTestDB(nil, errors.New("expected")),
-		status:  http.StatusBadGateway,
-		err:     `\?rev=winner[":]`,
-	})
 	tests.Add("network error", tt{
-		id:     "foo",
-		rev:    "1-xxx",
-		db:     newTestDB(nil, errors.New("net error")),
-		status: http.StatusBadGateway,
-		err:    `(Delete "?http://example.com/testdb/foo\?rev="?: )?net error`,
+		id:      "foo",
+		options: map[string]interface{}{"rev": "1-xxx"},
+		db:      newTestDB(nil, errors.New("net error")),
+		status:  http.StatusBadGateway,
+		err:     `(Delete "?http://example.com/testdb/foo\?rev="?: )?net error`,
 	})
 	tests.Add("1.6.1 conflict", tt{
-		id:  "43734cf3ce6d5a37050c050bb600006b",
-		rev: "1-xxx",
+		id:      "43734cf3ce6d5a37050c050bb600006b",
+		options: map[string]interface{}{"rev": "1-xxx"},
 		db: newTestDB(&http.Response{
 			StatusCode: 409,
 			Header: http.Header{
@@ -951,8 +943,8 @@ func TestDelete(t *testing.T) {
 		err:    "Conflict",
 	})
 	tests.Add("1.6.1 success", tt{
-		id:  "43734cf3ce6d5a37050c050bb600006b",
-		rev: "1-4c6114c65e295552ab1019e2b046b10e",
+		id:      "43734cf3ce6d5a37050c050bb600006b",
+		options: map[string]interface{}{"rev": "1-4c6114c65e295552ab1019e2b046b10e"},
 		db: newTestDB(&http.Response{
 			StatusCode: 200,
 			Header: http.Header{
@@ -977,19 +969,23 @@ func TestDelete(t *testing.T) {
 			}
 			return nil, errors.New("success")
 		}),
-		id:      "foo",
-		rev:     "1-xxx",
-		options: map[string]interface{}{"batch": "ok"},
-		status:  http.StatusBadGateway,
-		err:     "success",
+		id: "foo",
+		options: map[string]interface{}{
+			"batch": "ok",
+			"rev":   "1-xxx",
+		},
+		status: http.StatusBadGateway,
+		err:    "success",
 	})
 	tests.Add("invalid options", tt{
-		db:      &db{},
-		id:      "foo",
-		rev:     "1-xxx",
-		options: map[string]interface{}{"foo": make(chan int)},
-		status:  http.StatusBadRequest,
-		err:     "kivik: invalid type chan int for options",
+		db: &db{},
+		id: "foo",
+		options: map[string]interface{}{
+			"foo": make(chan int),
+			"rev": "1-xxx",
+		},
+		status: http.StatusBadRequest,
+		err:    "kivik: invalid type chan int for options",
 	})
 	tests.Add("full commit", tt{
 		db: newCustomDB(func(req *http.Request) (*http.Response, error) {
@@ -1001,23 +997,27 @@ func TestDelete(t *testing.T) {
 			}
 			return nil, errors.New("success")
 		}),
-		id:      "foo",
-		rev:     "1-xxx",
-		options: map[string]interface{}{OptionFullCommit: true},
-		status:  http.StatusBadGateway,
-		err:     "success",
+		id: "foo",
+		options: map[string]interface{}{
+			OptionFullCommit: true,
+			"rev":            "1-xxx",
+		},
+		status: http.StatusBadGateway,
+		err:    "success",
 	})
 	tests.Add("invalid full commit type", tt{
-		db:      &db{},
-		id:      "foo",
-		rev:     "1-xxx",
-		options: map[string]interface{}{OptionFullCommit: 123},
-		status:  http.StatusBadRequest,
-		err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+		db: &db{},
+		id: "foo",
+		options: map[string]interface{}{
+			OptionFullCommit: 123,
+			"rev":            "1-xxx",
+		},
+		status: http.StatusBadRequest,
+		err:    "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
-		newrev, err := tt.db.Delete(context.Background(), tt.id, tt.rev, tt.options)
+		newrev, err := tt.db.Delete(context.Background(), tt.id, tt.options)
 		testy.StatusErrorRE(t, tt.err, tt.status, err)
 		if newrev != tt.newrev {
 			t.Errorf("Unexpected new rev: %s", newrev)

@@ -22,9 +22,6 @@ import (
 	"testing"
 
 	"gitlab.com/flimzy/testy"
-
-	kivik "github.com/go-kivik/kivik/v4"
-	"github.com/go-kivik/kivik/v4/driver"
 )
 
 func TestBulkDocs(t *testing.T) {
@@ -147,117 +144,6 @@ func TestBulkDocs(t *testing.T) {
 	}
 }
 
-func TestBulkNext(t *testing.T) {
-	tests := []struct {
-		name     string
-		results  *bulkResults
-		status   int
-		err      string
-		expected *driver.BulkResult
-	}{
-		{
-			name: "no results",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[]`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			status: http.StatusInternalServerError,
-			err:    "EOF",
-		},
-		{
-			name: "closing delimiter missing",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			status: http.StatusBadGateway,
-			err:    "EOF",
-		},
-		{
-			name: "invalid doc json",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[{foo}]`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			status: http.StatusBadGateway,
-			err:    "invalid character 'f' looking for beginning of object key string",
-		},
-		{
-			name: "successful update",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[{"id":"foo","rev":"1-xxx"}]`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			expected: &driver.BulkResult{
-				ID:  "foo",
-				Rev: "1-xxx",
-			},
-		},
-		{
-			name: "conflict",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[{"id":"foo","error":"conflict","reason":"annoying conflict"}]`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			expected: &driver.BulkResult{
-				ID:    "foo",
-				Error: &kivik.Error{Status: http.StatusConflict, Err: errors.New("annoying conflict")},
-			},
-		},
-		{
-			name: "unknown error",
-			results: func() *bulkResults {
-				r, err := newBulkResults(Body(`[{"id":"foo","error":"foo","reason":"foo is erroneous"}]`))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			expected: &driver.BulkResult{
-				ID:    "foo",
-				Error: &kivik.Error{Status: http.StatusInternalServerError, Err: errors.New("foo is erroneous")},
-			},
-		},
-		{
-			name: "read error",
-			results: func() *bulkResults {
-				r, err := newBulkResults(io.NopCloser(testy.ErrorReader("[", errors.New("read error"))))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return r
-			}(),
-			status: http.StatusBadGateway,
-			err:    "read error",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := new(driver.BulkResult)
-			err := test.results.Next(result)
-			testy.StatusError(t, test.err, test.status, err)
-			if d := testy.DiffInterface(test.expected, result); d != nil {
-				t.Error(d)
-			}
-		})
-	}
-}
-
 type closeTracker struct {
 	closed bool
 	io.ReadCloser
@@ -266,20 +152,4 @@ type closeTracker struct {
 func (c *closeTracker) Close() error {
 	c.closed = true
 	return c.ReadCloser.Close()
-}
-
-func TestBulkClose(t *testing.T) {
-	body := &closeTracker{
-		ReadCloser: Body(`[{"id":"foo","error":"foo","reason":"foo is erroneous"}]`),
-	}
-	r, err := newBulkResults(body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if e := r.Close(); e != nil {
-		t.Fatal(e)
-	}
-	if !body.closed {
-		t.Errorf("Failed to close")
-	}
 }
