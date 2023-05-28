@@ -21,8 +21,8 @@ import (
 )
 
 // nolint:gomnd
-func registerSuiteCouch30() {
-	kiviktest.RegisterSuite(kiviktest.SuiteCouch30, kt.SuiteConfig{
+func registerSuiteCouch31() {
+	kiviktest.RegisterSuite(kiviktest.SuiteCouch31, kt.SuiteConfig{
 		"AllDBs.expected":               []string{"_global_changes", "_replicator", "_users"},
 		"AllDBs/RW/group/NoAuth.status": http.StatusUnauthorized,
 		"AllDBs/NoAuth.status":          http.StatusUnauthorized,
@@ -98,7 +98,7 @@ func registerSuiteCouch30() {
 
 		"Log.skip": true, // This was removed in CouchDB 2.0
 
-		"Version.version":        `^3\.0\.`,
+		"Version.version":        `^3\.1\.`,
 		"Version.vendor":         `^The Apache Software Foundation$`,
 		"Version.vendor_version": ``, // CouchDB 2.0+ no longer has a vendor version
 
