@@ -12,7 +12,7 @@ variables:
       alias: couch22
     - name: apache/couchdb:2.3.1
       alias: couch23
-    - name: couchdb:3.0.0
+    - name: couchdb:3.0.1
       alias: couch30
   variables:
     COUCHDB_USER: admin
