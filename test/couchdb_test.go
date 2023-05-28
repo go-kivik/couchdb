@@ -58,6 +58,10 @@ func TestCouch31(t *testing.T) {
 	kiviktest.DoTest(kiviktest.SuiteCouch31, "KIVIK_TEST_DSN_COUCH31", t)
 }
 
+func TestCouch32(t *testing.T) {
+	kiviktest.DoTest(kiviktest.SuiteCouch32, "KIVIK_TEST_DSN_COUCH32", t)
+}
+
 func TestCloudant(t *testing.T) {
 	kiviktest.DoTest(kiviktest.SuiteCloudant, "KIVIK_TEST_DSN_CLOUDANT", t)
 }
