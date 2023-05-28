@@ -21,5 +21,6 @@ func RegisterCouchDBSuites() {
 	registerSuiteCouch30()
 	registerSuiteCouch31()
 	registerSuiteCouch32()
+	registerSuiteCouch33()
 	registerSuiteCloudant()
 }
