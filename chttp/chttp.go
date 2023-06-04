@@ -21,15 +21,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/go-kivik/kivik/v4"
 )
@@ -95,7 +91,6 @@ func parseDSN(dsn string) (*url.URL, error) {
 	if dsn == "" {
 		return nil, &curlError{
 			httpStatus: http.StatusBadRequest,
-			curlStatus: ExitFailedToInitialize,
 			error:      errors.New("no URL specified"),
 		}
 	}
@@ -104,7 +99,7 @@ func parseDSN(dsn string) (*url.URL, error) {
 	}
 	dsnURL, err := url.Parse(dsn)
 	if err != nil {
-		return nil, fullError(http.StatusBadRequest, ExitStatusURLMalformed, err)
+		return nil, fullError(http.StatusBadRequest, err)
 	}
 	if dsnURL.Path == "" {
 		dsnURL.Path = "/"
@@ -213,7 +208,7 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	}
 	reqPath, err := url.Parse(fullPath)
 	if err != nil {
-		return nil, fullError(http.StatusBadRequest, ExitStatusURLMalformed, err)
+		return nil, fullError(http.StatusBadRequest, err)
 	}
 	u := *c.dsn // Make a copy
 	u.Path = reqPath.Path
@@ -283,41 +278,12 @@ func netError(err error) error {
 		if status == http.StatusInternalServerError {
 			status = http.StatusBadGateway
 		}
-		return fullError(status, curlStatus(err), err)
+		return fullError(status, err)
 	}
 	if status := kivik.HTTPStatus(err); status != http.StatusInternalServerError {
 		return err
 	}
-	return fullError(http.StatusBadGateway, ExitUnknownFailure, err)
-}
-
-var tooManyRecirectsRE = regexp.MustCompile(`stopped after \d+ redirect`)
-
-func curlStatus(err error) int {
-	if urlErr, ok := err.(*url.Error); ok {
-		// Timeout error
-		if urlErr.Timeout() {
-			return ExitOperationTimeout
-		}
-		// Host lookup failure
-		if opErr, ok := urlErr.Err.(*net.OpError); ok {
-			if _, ok := opErr.Err.(*net.DNSError); ok {
-				return ExitHostNotResolved
-			}
-			if scErr, ok := opErr.Err.(*os.SyscallError); ok {
-				if errno, ok := scErr.Err.(syscall.Errno); ok {
-					if errno == syscall.ECONNREFUSED {
-						return ExitFailedToConnect
-					}
-				}
-			}
-		}
-
-		if tooManyRecirectsRE.MatchString(urlErr.Err.Error()) {
-			return ExitTooManyRedirects
-		}
-	}
-	return 0
+	return fullError(http.StatusBadGateway, err)
 }
 
 // fixPath sets the request's URL.RawPath to work with escaped characters in
@@ -521,23 +487,6 @@ func readRev(r io.Reader) (string, error) {
 	}
 
 	return "", errors.New("_rev key not found in response body")
-}
-
-type exitStatuser interface {
-	ExitStatus() int
-}
-
-// ExitStatus returns the curl exit status embedded in the error, or 1 (unknown
-// error), if there was no specified exit status.  If err is nil, ExitStatus
-// returns 0.
-func ExitStatus(err error) int {
-	if err == nil {
-		return 0
-	}
-	if statuser, ok := err.(exitStatuser); ok { // nolint: misspell
-		return statuser.ExitStatus()
-	}
-	return 0
 }
 
 func (c *Client) userAgent() string {

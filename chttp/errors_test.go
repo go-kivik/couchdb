@@ -89,7 +89,6 @@ func TestResponseError(t *testing.T) {
 					Response: &http.Response{
 						StatusCode: http.StatusBadRequest,
 					},
-					exitStatus: ExitNotRetrieved,
 				},
 			},
 		},
@@ -118,8 +117,7 @@ func TestResponseError(t *testing.T) {
 					Response: &http.Response{
 						StatusCode: http.StatusBadRequest,
 					},
-					exitStatus: ExitNotRetrieved,
-					Reason:     "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
+					Reason: "Name: '_foo'. Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.",
 				},
 			},
 		},
@@ -146,7 +144,6 @@ func TestResponseError(t *testing.T) {
 					Response: &http.Response{
 						StatusCode: http.StatusBadRequest,
 					},
-					exitStatus: ExitNotRetrieved,
 				},
 			},
 		},

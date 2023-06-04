@@ -20,15 +20,14 @@ import (
 	"gitlab.com/flimzy/testy"
 )
 
-// curlStatusErrorRE is a modified version of testy.StatusError, which handles
+// statusErrorRE is a modified version of testy.StatusError, which handles
 // exit statuses as well.
-func curlStatusErrorRE(t *testing.T, expected string, status, eStatus int, actual error) {
+func statusErrorRE(t *testing.T, expected string, status int, actual error) {
 	var err string
-	var actualStatus, actualExitStatus int
+	var actualStatus int
 	if actual != nil {
 		err = actual.Error()
 		actualStatus = testy.StatusCode(actual)
-		actualExitStatus = ExitStatus(actual)
 	}
 	match, e := regexp.MatchString(expected, err)
 	if e != nil {
@@ -39,9 +38,6 @@ func curlStatusErrorRE(t *testing.T, expected string, status, eStatus int, actua
 	}
 	if status != actualStatus {
 		t.Errorf("Unexpected status code: %d (expected %d) [%s]", actualStatus, status, err)
-	}
-	if eStatus != actualExitStatus {
-		t.Errorf("Unexpected exit status: %d (expected %d) [%s]", actualExitStatus, eStatus, err)
 	}
 	if actual != nil {
 		t.SkipNow()

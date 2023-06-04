@@ -29,8 +29,6 @@ type HTTPError struct {
 
 	// Reason is the server-supplied error reason.
 	Reason string `json:"reason"`
-
-	exitStatus int
 }
 
 func (e *HTTPError) Error() string {
@@ -48,11 +46,6 @@ func (e *HTTPError) HTTPStatus() int {
 	return e.Response.StatusCode
 }
 
-// ExitStatus returns the embedded exit status.
-func (e *HTTPError) ExitStatus() int {
-	return e.exitStatus
-}
-
 // ResponseError returns an error from an *http.Response.
 func ResponseError(resp *http.Response) error {
 	if resp.StatusCode < 400 { // nolint:gomnd
@@ -62,8 +55,7 @@ func ResponseError(resp *http.Response) error {
 		defer resp.Body.Close() // nolint: errcheck
 	}
 	httpErr := &HTTPError{
-		Response:   resp,
-		exitStatus: ExitNotRetrieved,
+		Response: resp,
 	}
 	if resp != nil && resp.Request != nil && resp.Request.Method != "HEAD" && resp.ContentLength != 0 {
 		if ct, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ct == typeJSON {
@@ -74,22 +66,16 @@ func ResponseError(resp *http.Response) error {
 }
 
 type curlError struct {
-	curlStatus int
 	httpStatus int
 	error
-}
-
-func (e *curlError) ExitStatus() int {
-	return e.curlStatus
 }
 
 func (e *curlError) HTTPStatus() int {
 	return e.httpStatus
 }
 
-func fullError(httpStatus, curlStatus int, err error) error {
+func fullError(httpStatus int, err error) error {
 	return &curlError{
-		curlStatus: curlStatus,
 		httpStatus: httpStatus,
 		error:      err,
 	}
