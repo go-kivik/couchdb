@@ -13,6 +13,7 @@
 package chttp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -724,6 +725,7 @@ func TestDoReq(t *testing.T) {
 					expected := httptest.NewRequest("PUT", "/foo", nil)
 					expected.Header.Add("Accept", "application/json")
 					expected.Header.Add("Content-Type", "application/json")
+					expected.Header.Add("Content-Encoding", "gzip")
 					expected.Header.Add("User-Agent", defaultUA)
 					if d := testy.DiffHTTPRequest(expected, r); d != nil {
 						t.Error(d)
@@ -747,10 +749,16 @@ func TestDoReq(t *testing.T) {
 			return &ClientTrace{
 				HTTPRequestBody: func(r *http.Request) {
 					*success = true
-					expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
+					body := io.NopCloser(bytes.NewReader([]byte{
+						31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 74, 74, 44, 2,
+						4, 0, 0, 255, 255, 170, 140, 255, 118, 3, 0, 0, 0,
+					}))
+					expected := httptest.NewRequest("PUT", "/foo", body)
 					expected.Header.Add("Accept", "application/json")
 					expected.Header.Add("Content-Type", "application/json")
+					expected.Header.Add("Content-Encoding", "gzip")
 					expected.Header.Add("User-Agent", defaultUA)
+					expected.Header.Add("Content-Length", "27")
 					if d := testy.DiffHTTPRequest(expected, r); d != nil {
 						t.Error(d)
 					}
@@ -796,8 +804,10 @@ func TestDoReq(t *testing.T) {
 			traceSuccess = false
 			ctx = WithClientTrace(ctx, tt.trace(t, &traceSuccess))
 		}
-		_, err := tt.client.DoReq(ctx, tt.method, tt.path, tt.opts)
+		res, err := tt.client.DoReq(ctx, tt.method, tt.path, tt.opts)
 		statusErrorRE(t, tt.err, tt.status, err)
+		defer res.Body.Close()
+		_, _ = io.Copy(io.Discard, res.Body)
 		if !traceSuccess {
 			t.Error("Trace failed")
 		}

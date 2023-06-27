@@ -16,6 +16,7 @@ package chttp
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -52,6 +53,9 @@ type Client struct {
 	basePath string
 	auth     Authenticator
 	authMU   sync.Mutex
+
+	// noGzip will be set to true if the server fails on gzip-encoded requests.
+	noGzip bool
 }
 
 // New returns a connection to a remote CouchDB server. If credentials are
@@ -194,12 +198,49 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	u := *c.dsn // Make a copy
 	u.Path = reqPath.Path
 	u.RawQuery = reqPath.RawQuery
+	compress, body := c.compressBody(u.String(), body)
 	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
 		return nil, &kivik.Error{Status: http.StatusBadRequest, Err: err}
 	}
+	if compress {
+		req.Header.Add("Content-Encoding", "gzip")
+	}
 	req.Header.Add("User-Agent", c.userAgent())
 	return req.WithContext(ctx), nil
+}
+
+func (c *Client) shouldCompressBody(path string, body io.Reader) bool {
+	if c.noGzip {
+		return false
+	}
+	// /_session only supports compression from CouchDB 3.2.
+	if strings.HasSuffix(path, "/_session") {
+		return false
+	}
+	if body == nil {
+		return false
+	}
+	return true
+}
+
+// compressBody compresses body with gzip compression if appropriate. It will
+// return true, and the compressed stream, or false, and the unaltered stream.
+func (c *Client) compressBody(path string, body io.Reader) (bool, io.Reader) {
+	if !c.shouldCompressBody(path, body) {
+		return false, body
+	}
+	r, w := io.Pipe()
+	go func() {
+		if closer, ok := body.(io.Closer); ok {
+			defer closer.Close()
+		}
+		gz := gzip.NewWriter(w)
+		_, err := io.Copy(gz, body)
+		gz.Close()
+		w.CloseWithError(err)
+	}()
+	return true, r
 }
 
 // DoReq does an HTTP request. An error is returned only if there was an error
