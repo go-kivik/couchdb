@@ -34,7 +34,7 @@ const (
 	//    db.Put(ctx, "doc_id", doc, kivik.Options{couchdb.OptionFullCommit: true})
 	OptionFullCommit = internal.OptionFullCommit
 
-	// OptionIfNoneMatch is an option key to set the If-None-Match header on
+	// OptionIfNoneMatch is an option key to set the `If-None-Match header` on
 	// the request.
 	//
 	// Example:
@@ -49,14 +49,15 @@ const (
 	// See https://docs.couchdb.org/en/stable/api/partitioned-dbs.html
 	OptionPartition = internal.OptionPartition
 
-	// OptionNoMultipartPut instructs the Put() method not to use CouchDB's
-	// multipart/related upload capabilities. This only affects PUT requests that
-	// also include attachments.
+	// OptionNoMultipartPut instructs [github.com/go-kivik/kivik/v4.DB.Put] not
+	// to use CouchDB's multipart/related upload capabilities. This only affects
+	// PUT requests that also include attachments.
 	OptionNoMultipartPut = internal.OptionNoMultipartPut
 
-	// OptionNoMultipartGet instructs the Get() method not to use CouchDB's ability to
-	// download attachments with the multipart/related media type. This only
-	// affects GET requests that request attachments.
+	// OptionNoMultipartGet instructs [github.com/go-kivik/kivik/v4.DB.Get] not
+	// to use CouchDB's ability to download attachments with the
+	// multipart/related media type. This only affects GET requests that request
+	// attachments.
 	OptionNoMultipartGet = internal.OptionNoMultipartGet
 )
 
