@@ -305,7 +305,7 @@ func (d *db) get(ctx context.Context, method, docID string, options map[string]i
 	if err != nil {
 		return nil, "", err
 	}
-	if _, ok := options[NoMultipartGet]; ok {
+	if _, ok := options[OptionNoMultipartGet]; ok {
 		opts.Accept = typeJSON
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)), opts)
@@ -354,7 +354,7 @@ func putOpts(doc interface{}, options map[string]interface{}) (*chttp.Options, e
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := options[NoMultipartPut]; !ok {
+	if _, ok := options[OptionNoMultipartPut]; !ok {
 		if atts, ok := extractAttachments(doc); ok {
 			boundary, size, multipartBody, err := newMultipartAttachments(chttp.EncodeBody(doc), atts)
 			if err != nil {

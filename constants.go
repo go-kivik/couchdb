@@ -49,15 +49,15 @@ const (
 	// See https://docs.couchdb.org/en/stable/api/partitioned-dbs.html
 	OptionPartition = internal.OptionPartition
 
-	// NoMultipartPut instructs the Put() method not to use CouchDB's
+	// OptionNoMultipartPut instructs the Put() method not to use CouchDB's
 	// multipart/related upload capabilities. This only affects PUT requests that
 	// also include attachments.
-	NoMultipartPut = internal.NoMultipartPut
+	OptionNoMultipartPut = internal.OptionNoMultipartPut
 
-	// NoMultipartGet instructs the Get() method not to use CouchDB's ability to
+	// OptionNoMultipartGet instructs the Get() method not to use CouchDB's ability to
 	// download attachments with the multipart/related media type. This only
 	// affects GET requests that request attachments.
-	NoMultipartGet = internal.NoMultipartGet
+	OptionNoMultipartGet = internal.OptionNoMultipartGet
 )
 
 const (

@@ -260,7 +260,7 @@ func TestGet(t *testing.T) {
 			}
 			return nil, errors.New("not an error")
 		}),
-		options: map[string]interface{}{NoMultipartGet: true},
+		options: map[string]interface{}{OptionNoMultipartGet: true},
 		id:      "foo",
 		status:  http.StatusBadGateway,
 		err:     "not an error",
