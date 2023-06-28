@@ -15,11 +15,12 @@ package internal
 // Common constants, placed here to allow importing in chttp and root package
 // without import cycles.
 const (
-	OptionUserAgent      = "User-Agent"
-	OptionHTTPClient     = "kivik:httpClient"
-	OptionFullCommit     = "X-Couch-Full-Commit"
-	OptionIfNoneMatch    = "If-None-Match"
-	OptionPartition      = "kivik:partition"
-	OptionNoMultipartPut = "kivik:no-multipart-put"
-	OptionNoMultipartGet = "kivik:no-multipart-get"
+	OptionUserAgent            = "User-Agent"
+	OptionHTTPClient           = "kivik:httpClient"
+	OptionFullCommit           = "X-Couch-Full-Commit"
+	OptionIfNoneMatch          = "If-None-Match"
+	OptionPartition            = "kivik:partition"
+	OptionNoMultipartPut       = "kivik:no-multipart-put"
+	OptionNoMultipartGet       = "kivik:no-multipart-get"
+	OptionNoCompressedRequests = "kivik:no-compressed-requests"
 )

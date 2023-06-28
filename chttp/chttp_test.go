@@ -565,7 +565,6 @@ func TestNewRequest(t *testing.T) {
 	tests := []struct {
 		name         string
 		method, path string
-		body         io.Reader
 		expected     *http.Request
 		client       *Client
 		status       int
@@ -610,7 +609,7 @@ func TestNewRequest(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
+			req, err := test.client.NewRequest(context.Background(), test.method, test.path, nil, nil)
 			statusErrorRE(t, test.err, test.status, err)
 			test.expected = test.expected.WithContext(req.Context()) // determinism
 			if d := testy.DiffInterface(test.expected, req); d != nil {
@@ -795,6 +794,33 @@ func TestDoReq(t *testing.T) {
 		}),
 		method: "GET",
 		path:   "/foo",
+	})
+	tests.Add("gzipped request", tt{
+		client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+			if ce := r.Header.Get("Content-Encoding"); ce != "gzip" {
+				return nil, errors.Errorf("Unexpected Content-Encoding: %s", ce)
+			}
+			return &http.Response{}, nil
+		}),
+		method: "PUT",
+		path:   "/foo",
+		opts: &Options{
+			Body: Body("raw body"),
+		},
+	})
+	tests.Add("gzipped disabled", tt{
+		client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+			if ce := r.Header.Get("Content-Encoding"); ce != "" {
+				return nil, errors.Errorf("Unexpected Content-Encoding: %s", ce)
+			}
+			return &http.Response{}, nil
+		}),
+		method: "PUT",
+		path:   "/foo",
+		opts: &Options{
+			Body:   Body("raw body"),
+			NoGzip: true,
+		},
 	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {

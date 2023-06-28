@@ -63,6 +63,9 @@ type Options struct {
 
 	// Header is a list of default headers to be set on the request.
 	Header http.Header
+
+	// NoGzip disables gzip compression on the request body.
+	NoGzip bool
 }
 
 // NewOptions converts a kivik options map into

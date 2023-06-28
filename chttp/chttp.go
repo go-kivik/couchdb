@@ -85,6 +85,12 @@ func New(client *http.Client, dsn string, options map[string]interface{}) (*Clie
 			return nil, err
 		}
 	}
+	if gzip, ok := options[internal.OptionNoCompressedRequests]; ok {
+		c.noGzip, ok = gzip.(bool)
+		if !ok {
+			return nil, &kivik.Error{Status: http.StatusBadRequest, Message: fmt.Sprintf("OptionNoCompressedRequests is %T, must be bool", gzip)}
+		}
+	}
 	if err := c.setUserAgent(options); err != nil {
 		return nil, err
 	}
@@ -189,7 +195,7 @@ func (c *Client) path(path string) string {
 
 // NewRequest returns a new *http.Request to the CouchDB server, and the
 // specified path. The host, schema, etc, of the specified path are ignored.
-func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader, opts *Options) (*http.Request, error) {
 	fullPath := c.path(path)
 	reqPath, err := url.Parse(fullPath)
 	if err != nil {
@@ -198,7 +204,7 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	u := *c.dsn // Make a copy
 	u.Path = reqPath.Path
 	u.RawQuery = reqPath.RawQuery
-	compress, body := c.compressBody(u.String(), body)
+	compress, body := c.compressBody(u.String(), body, opts)
 	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
 		return nil, &kivik.Error{Status: http.StatusBadRequest, Err: err}
@@ -210,8 +216,8 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	return req.WithContext(ctx), nil
 }
 
-func (c *Client) shouldCompressBody(path string, body io.Reader) bool {
-	if c.noGzip {
+func (c *Client) shouldCompressBody(path string, body io.Reader, opts *Options) bool {
+	if c.noGzip || (opts != nil && opts.NoGzip) {
 		return false
 	}
 	// /_session only supports compression from CouchDB 3.2.
@@ -226,8 +232,8 @@ func (c *Client) shouldCompressBody(path string, body io.Reader) bool {
 
 // compressBody compresses body with gzip compression if appropriate. It will
 // return true, and the compressed stream, or false, and the unaltered stream.
-func (c *Client) compressBody(path string, body io.Reader) (bool, io.Reader) {
-	if !c.shouldCompressBody(path, body) {
+func (c *Client) compressBody(path string, body io.Reader, opts *Options) (bool, io.Reader) {
+	if !c.shouldCompressBody(path, body, opts) {
 		return false, body
 	}
 	r, w := io.Pipe()
@@ -264,7 +270,7 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 			defer opts.Body.Close() // nolint: errcheck
 		}
 	}
-	req, err := c.NewRequest(ctx, method, path, body)
+	req, err := c.NewRequest(ctx, method, path, body, opts)
 	if err != nil {
 		return nil, err
 	}
