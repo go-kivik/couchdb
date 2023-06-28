@@ -12,17 +12,19 @@
 
 package couchdb
 
+import "github.com/go-kivik/couchdb/v4/internal"
+
 // Version is the current version of this package.
 const Version = "4.0.0-prerelease"
 
 const (
 	// OptionUserAgent may be passed as an option when creating a client object,
 	// to override the default User-Agent header sent on all requests.
-	OptionUserAgent = "User-Agent"
+	OptionUserAgent = internal.OptionUserAgent
 
 	// OptionHTTPClient may be passed as an option when creating a client object,
 	// to specify an *http.Client.
-	OptionHTTPClient = "kivik:httpClient"
+	OptionHTTPClient = internal.OptionHTTPClient
 
 	// OptionFullCommit is the option key used to set the `X-Couch-Full-Commit`
 	// header in the request when set to true.
@@ -30,7 +32,7 @@ const (
 	// Example:
 	//
 	//    db.Put(ctx, "doc_id", doc, kivik.Options{couchdb.OptionFullCommit: true})
-	OptionFullCommit = "X-Couch-Full-Commit"
+	OptionFullCommit = internal.OptionFullCommit
 
 	// OptionIfNoneMatch is an option key to set the If-None-Match header on
 	// the request.
@@ -38,24 +40,24 @@ const (
 	// Example:
 	//
 	//    row, err := db.Get(ctx, "doc_id", kivik.Options{couchdb.OptionIfNoneMatch: "1-xxx"})
-	OptionIfNoneMatch = "If-None-Match"
+	OptionIfNoneMatch = internal.OptionIfNoneMatch
 
 	// OptionPartition instructs supporting methods to limit the query to the
 	// specified partition. Supported methods are: Query, AllDocs, Find, and
 	// Explain. Only supported by CouchDB 3.0.0 and newer.
 	//
 	// See https://docs.couchdb.org/en/stable/api/partitioned-dbs.html
-	OptionPartition = "kivik:partition"
+	OptionPartition = internal.OptionPartition
 
 	// NoMultipartPut instructs the Put() method not to use CouchDB's
 	// multipart/related upload capabilities. This only affects PUT requests that
 	// also include attachments.
-	NoMultipartPut = "kivik:no-multipart-put"
+	NoMultipartPut = internal.NoMultipartPut
 
 	// NoMultipartGet instructs the Get() method not to use CouchDB's ability to
 	// download attachments with the multipart/related media type. This only
 	// affects GET requests that request attachments.
-	NoMultipartGet = "kivik:no-multipart-get"
+	NoMultipartGet = internal.NoMultipartGet
 )
 
 const (

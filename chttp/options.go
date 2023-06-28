@@ -13,9 +13,13 @@
 package chttp
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/go-kivik/couchdb/v4/internal"
+	"github.com/go-kivik/kivik/v4"
 )
 
 // Options are optional parameters which may be sent with a request.
@@ -59,4 +63,49 @@ type Options struct {
 
 	// Header is a list of default headers to be set on the request.
 	Header http.Header
+}
+
+// NewOptions converts a kivik options map into
+func NewOptions(opts map[string]interface{}) (*Options, error) {
+	fullCommit, err := fullCommit(opts)
+	if err != nil {
+		return nil, err
+	}
+	ifNoneMatch, err := ifNoneMatch(opts)
+	if err != nil {
+		return nil, err
+	}
+	return &Options{
+		FullCommit:  fullCommit,
+		IfNoneMatch: ifNoneMatch,
+	}, nil
+}
+
+func fullCommit(opts map[string]interface{}) (bool, error) {
+	fc, ok := opts[internal.OptionFullCommit]
+	if !ok {
+		return false, nil
+	}
+	fcBool, ok := fc.(bool)
+	if !ok {
+		return false, &kivik.Error{Status: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be bool, not %T", internal.OptionFullCommit, fc)}
+	}
+	delete(opts, internal.OptionFullCommit)
+	return fcBool, nil
+}
+
+func ifNoneMatch(opts map[string]interface{}) (string, error) {
+	inm, ok := opts[internal.OptionIfNoneMatch]
+	if !ok {
+		return "", nil
+	}
+	inmString, ok := inm.(string)
+	if !ok {
+		return "", &kivik.Error{Status: http.StatusBadRequest, Err: fmt.Errorf("kivik: option '%s' must be string, not %T", internal.OptionIfNoneMatch, inm)}
+	}
+	delete(opts, internal.OptionIfNoneMatch)
+	if inmString[0] != '"' {
+		return `"` + inmString + `"`, nil
+	}
+	return inmString, nil
 }
