@@ -10,13 +10,15 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package couchdb
+package chttp
 
 import (
 	"net/http"
 	"testing"
 
 	"gitlab.com/flimzy/testy"
+
+	"github.com/go-kivik/couchdb/v4/internal"
 )
 
 func TestFullCommit(t *testing.T) {
@@ -29,12 +31,12 @@ func TestFullCommit(t *testing.T) {
 	}{
 		{
 			name:     "new",
-			input:    map[string]interface{}{OptionFullCommit: true},
+			input:    map[string]interface{}{internal.OptionFullCommit: true},
 			expected: true,
 		},
 		{
 			name:   "new error",
-			input:  map[string]interface{}{OptionFullCommit: 123},
+			input:  map[string]interface{}{internal.OptionFullCommit: 123},
 			status: http.StatusBadRequest,
 			err:    "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
@@ -51,8 +53,8 @@ func TestFullCommit(t *testing.T) {
 			if result != test.expected {
 				t.Errorf("Unexpected result: %v", result)
 			}
-			if _, ok := test.input[OptionFullCommit]; ok {
-				t.Errorf("%s still set in options", OptionFullCommit)
+			if _, ok := test.input[internal.OptionFullCommit]; ok {
+				t.Errorf("%s still set in options", internal.OptionFullCommit)
 			}
 		})
 	}
@@ -78,18 +80,18 @@ func TestIfNoneMatch(t *testing.T) {
 		},
 		{
 			name:   "wrong type",
-			opts:   map[string]interface{}{OptionIfNoneMatch: 123},
+			opts:   map[string]interface{}{internal.OptionIfNoneMatch: 123},
 			status: http.StatusBadRequest,
 			err:    "kivik: option 'If-None-Match' must be string, not int",
 		},
 		{
 			name:     "valid",
-			opts:     map[string]interface{}{OptionIfNoneMatch: "foo"},
+			opts:     map[string]interface{}{internal.OptionIfNoneMatch: "foo"},
 			expected: `"foo"`,
 		},
 		{
 			name:     "valid, pre-quoted",
-			opts:     map[string]interface{}{OptionIfNoneMatch: `"foo"`},
+			opts:     map[string]interface{}{internal.OptionIfNoneMatch: `"foo"`},
 			expected: `"foo"`,
 		},
 	}
@@ -100,8 +102,8 @@ func TestIfNoneMatch(t *testing.T) {
 			if result != test.expected {
 				t.Errorf("Unexpected result: %s", result)
 			}
-			if _, ok := test.opts[OptionIfNoneMatch]; ok {
-				t.Errorf("%s still set in options", OptionIfNoneMatch)
+			if _, ok := test.opts[internal.OptionIfNoneMatch]; ok {
+				t.Errorf("%s still set in options", internal.OptionIfNoneMatch)
 			}
 		})
 	}

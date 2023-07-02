@@ -36,7 +36,7 @@ func (d *db) PutAttachment(ctx context.Context, docID string, att *driver.Attach
 		return "", missingArg("att.Content")
 	}
 
-	fullCommit, err := fullCommit(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return "", err
 	}
@@ -48,12 +48,9 @@ func (d *db) PutAttachment(ctx context.Context, docID string, att *driver.Attach
 	var response struct {
 		Rev string `json:"rev"`
 	}
-	opts := &chttp.Options{
-		Body:        att.Content,
-		ContentType: att.ContentType,
-		FullCommit:  fullCommit,
-		Query:       query,
-	}
+	opts.Body = att.Content
+	opts.ContentType = att.ContentType
+	opts.Query = query
 	_, err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
 	if err != nil {
 		return "", err
@@ -88,19 +85,14 @@ func (d *db) fetchAttachment(ctx context.Context, method, docID, filename string
 	if filename == "" {
 		return nil, missingArg("filename")
 	}
-
-	inm, err := ifNoneMatch(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return nil, err
 	}
 
-	query, err := optionsToParams(options)
+	opts.Query, err = optionsToParams(options)
 	if err != nil {
 		return nil, err
-	}
-	opts := &chttp.Options{
-		IfNoneMatch: inm,
-		Query:       query,
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts)
 	if err != nil {
@@ -154,12 +146,12 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, filename string, optio
 		return "", missingArg("filename")
 	}
 
-	fullCommit, err := fullCommit(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return "", err
 	}
 
-	query, err := optionsToParams(options)
+	opts.Query, err = optionsToParams(options)
 	if err != nil {
 		return "", err
 	}
@@ -167,10 +159,6 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, filename string, optio
 		Rev string `json:"rev"`
 	}
 
-	opts := &chttp.Options{
-		FullCommit: fullCommit,
-		Query:      query,
-	}
 	_, err = d.Client.DoJSON(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
 	if err != nil {
 		return "", err

@@ -295,21 +295,17 @@ func (d *db) get(ctx context.Context, method, docID string, options map[string]i
 		return nil, "", missingArg("docID")
 	}
 
-	inm, err := ifNoneMatch(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return nil, "", err
 	}
 
-	params, err := optionsToParams(options)
+	opts.Accept = typeMPRelated + "," + typeJSON
+	opts.Query, err = optionsToParams(options)
 	if err != nil {
 		return nil, "", err
 	}
-	opts := &chttp.Options{
-		Accept:      typeMPRelated + "," + typeJSON,
-		IfNoneMatch: inm,
-		Query:       params,
-	}
-	if _, ok := options[NoMultipartGet]; ok {
+	if _, ok := options[OptionNoMultipartGet]; ok {
 		opts.Accept = typeJSON
 	}
 	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID)), opts)
@@ -329,7 +325,7 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]
 		Rev string `json:"rev"`
 	}{}
 
-	fullCommit, err := fullCommit(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return "", "", err
 	}
@@ -343,43 +339,35 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]
 		path += "?" + params.Encode()
 	}
 
-	opts := &chttp.Options{
-		Body:       chttp.EncodeBody(doc),
-		FullCommit: fullCommit,
-	}
+	opts.Body = chttp.EncodeBody(doc)
+
 	_, err = d.Client.DoJSON(ctx, http.MethodPost, path, opts, &result)
 	return result.ID, result.Rev, err
 }
 
 func putOpts(doc interface{}, options map[string]interface{}) (*chttp.Options, error) {
-	fullCommit, err := fullCommit(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return nil, err
 	}
-	params, err := optionsToParams(options)
+	opts.Query, err = optionsToParams(options)
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := options[NoMultipartPut]; !ok {
+	if _, ok := options[OptionNoMultipartPut]; !ok {
 		if atts, ok := extractAttachments(doc); ok {
-			boundary, size, multipartBody, e := newMultipartAttachments(chttp.EncodeBody(doc), atts)
-			if e != nil {
-				return nil, e
+			boundary, size, multipartBody, err := newMultipartAttachments(chttp.EncodeBody(doc), atts)
+			if err != nil {
+				return nil, err
 			}
-			return &chttp.Options{
-				Body:          multipartBody,
-				FullCommit:    fullCommit,
-				Query:         params,
-				ContentLength: size,
-				ContentType:   fmt.Sprintf(typeMPRelated+"; boundary=%q", boundary),
-			}, nil
+			opts.Body = multipartBody
+			opts.ContentLength = size
+			opts.ContentType = fmt.Sprintf(typeMPRelated+"; boundary=%q", boundary)
+			return opts, nil
 		}
 	}
-	return &chttp.Options{
-		Body:       chttp.EncodeBody(doc),
-		FullCommit: fullCommit,
-		Query:      params,
-	}, nil
+	opts.Body = chttp.EncodeBody(doc)
+	return opts, nil
 }
 
 func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
@@ -739,19 +727,16 @@ func (d *db) Delete(ctx context.Context, docID string, options map[string]interf
 		return "", missingArg("rev")
 	}
 
-	fullCommit, err := fullCommit(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return "", err
 	}
 
-	query, err := optionsToParams(options)
+	opts.Query, err = optionsToParams(options)
 	if err != nil {
 		return "", err
 	}
-	opts := &chttp.Options{
-		FullCommit: fullCommit,
-		Query:      query,
-	}
+
 	resp, err := d.Client.DoReq(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)), opts)
 	if err != nil {
 		return "", err
@@ -840,21 +825,18 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if targetID == "" {
 		return "", missingArg("targetID")
 	}
-	fullCommit, err := fullCommit(options)
+	opts, err := chttp.NewOptions(options)
 	if err != nil {
 		return "", err
 	}
-	params, err := optionsToParams(options)
+	opts.Query, err = optionsToParams(options)
 	if err != nil {
 		return "", err
 	}
-	opts := &chttp.Options{
-		FullCommit: fullCommit,
-		Query:      params,
-		Header: http.Header{
-			chttp.HeaderDestination: []string{targetID},
-		},
+	opts.Header = http.Header{
+		chttp.HeaderDestination: []string{targetID},
 	}
+
 	resp, err := d.Client.DoReq(ctx, "COPY", d.path(chttp.EncodeDocID(sourceID)), opts)
 	if err != nil {
 		return "", err
