@@ -847,7 +847,7 @@ func TestPut(t *testing.T) {
 		{
 			name: "connection refused",
 			db: func() *db {
-				c, err := chttp.New("http://127.0.0.1:1/")
+				c, err := chttp.New("http://127.0.0.1:1/", nil)
 				if err != nil {
 					t.Fatal(err)
 				}

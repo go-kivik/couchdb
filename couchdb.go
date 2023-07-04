@@ -68,7 +68,7 @@ func (d *couch) NewClient(dsn string, options map[string]interface{}) (driver.Cl
 			return nil, &kivik.Error{Status: http.StatusBadRequest, Message: fmt.Sprintf("OptionUserAgent is %T, must be string", ua)}
 		}
 	}
-	chttpClient, err := chttp.NewWithClient(httpClient, dsn)
+	chttpClient, err := chttp.NewWithClient(httpClient, dsn, nil)
 	if err != nil {
 		return nil, err
 	}
