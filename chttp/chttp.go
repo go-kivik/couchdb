@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-kivik/couchdb/v4/internal"
 	"github.com/go-kivik/kivik/v4"
 )
 
@@ -56,13 +57,13 @@ type Client struct {
 // included in the URL, requests will be authenticated using Cookie Auth. To
 // use HTTP BasicAuth or some other authentication mechanism, do not specify
 // credentials in the URL, and instead call the Auth() method later.
-func New(dsn string) (*Client, error) {
-	return NewWithClient(&http.Client{}, dsn)
+func New(dsn string, options map[string]interface{}) (*Client, error) {
+	return NewWithClient(&http.Client{}, dsn, options)
 }
 
 // NewWithClient works the same as New(), but allows providing a custom
 // *http.Client for all network connections.
-func NewWithClient(client *http.Client, dsn string) (*Client, error) {
+func NewWithClient(client *http.Client, dsn string, options map[string]interface{}) (*Client, error) {
 	dsnURL, err := parseDSN(dsn)
 	if err != nil {
 		return nil, err
@@ -84,7 +85,27 @@ func NewWithClient(client *http.Client, dsn string) (*Client, error) {
 			return nil, err
 		}
 	}
+	if err := c.setUserAgent(options); err != nil {
+		return nil, err
+	}
 	return c, nil
+}
+
+func (c *Client) setUserAgent(options map[string]interface{}) error {
+	c.UserAgents = []string{
+		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
+		fmt.Sprintf("Kivik CouchDB driver/%s", Version),
+	}
+	ua, ok := options[internal.OptionUserAgent]
+	if !ok {
+		return nil
+	}
+	userAgent, ok := ua.(string)
+	if !ok {
+		return &kivik.Error{Status: http.StatusBadRequest, Message: fmt.Sprintf("OptionUserAgent is %T, must be string", ua)}
+	}
+	c.UserAgents = append(c.UserAgents, userAgent)
+	return nil
 }
 
 func parseDSN(dsn string) (*url.URL, error) {

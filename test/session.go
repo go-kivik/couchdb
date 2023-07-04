@@ -32,11 +32,11 @@ func init() {
 }
 
 func session(ctx *kt.Context) {
-	chttpAdmin, err := chttp.New(ctx.Admin.DSN())
+	chttpAdmin, err := chttp.New(ctx.Admin.DSN(), nil)
 	if err != nil {
 		ctx.Fatalf("chttp.Admin failed: %s", err)
 	}
-	chttpNoAuth, err := chttp.New(ctx.NoAuth.DSN())
+	chttpNoAuth, err := chttp.New(ctx.NoAuth.DSN(), nil)
 	if err != nil {
 		ctx.Fatalf("chttp.NoAuth failed: %s", err)
 	}
@@ -114,7 +114,7 @@ func testCreateSession(ctx *kt.Context, client *chttp.Client) {
 		ctx.Skipf("No CHTTP client")
 	}
 	// Re-create client, so we can override defaults
-	client, _ = chttp.New(client.DSN())
+	client, _ = chttp.New(client.DSN(), nil)
 	// Don't follow redirect
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -308,7 +308,7 @@ func testDeleteSession(ctx *kt.Context, client *chttp.Client) {
 		ctx.Skipf("No CHTTP client")
 	}
 	// Re-create client, so we can override defaults
-	client, _ = chttp.New(client.DSN())
+	client, _ = chttp.New(client.DSN(), nil)
 	// Don't save sessions
 	client.Jar = nil
 	var cookie *http.Cookie
