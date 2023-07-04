@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-kivik/couchdb/v4/internal"
 	"github.com/go-kivik/kivik/v4"
 )
 
@@ -84,7 +85,27 @@ func NewWithClient(client *http.Client, dsn string, options map[string]interface
 			return nil, err
 		}
 	}
+	if err := c.setUserAgent(options); err != nil {
+		return nil, err
+	}
 	return c, nil
+}
+
+func (c *Client) setUserAgent(options map[string]interface{}) error {
+	c.UserAgents = []string{
+		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
+		fmt.Sprintf("Kivik CouchDB driver/%s", Version),
+	}
+	ua, ok := options[internal.OptionUserAgent]
+	if !ok {
+		return nil
+	}
+	userAgent, ok := ua.(string)
+	if !ok {
+		return &kivik.Error{Status: http.StatusBadRequest, Message: fmt.Sprintf("OptionUserAgent is %T, must be string", ua)}
+	}
+	c.UserAgents = append(c.UserAgents, userAgent)
+	return nil
 }
 
 func parseDSN(dsn string) (*url.URL, error) {

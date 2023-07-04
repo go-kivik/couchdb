@@ -62,22 +62,9 @@ func (d *couch) NewClient(dsn string, options map[string]interface{}) (driver.Cl
 	if httpClient == nil {
 		httpClient = &http.Client{}
 	}
-	var userAgent string
-	if ua, ok := options[OptionUserAgent]; ok {
-		if userAgent, ok = ua.(string); !ok {
-			return nil, &kivik.Error{Status: http.StatusBadRequest, Message: fmt.Sprintf("OptionUserAgent is %T, must be string", ua)}
-		}
-	}
-	chttpClient, err := chttp.NewWithClient(httpClient, dsn, nil)
+	chttpClient, err := chttp.NewWithClient(httpClient, dsn, options)
 	if err != nil {
 		return nil, err
-	}
-	chttpClient.UserAgents = []string{
-		fmt.Sprintf("Kivik/%s", kivik.KivikVersion),
-		fmt.Sprintf("Kivik CouchDB driver/%s", Version),
-	}
-	if userAgent != "" {
-		chttpClient.UserAgents = append(chttpClient.UserAgents, userAgent)
 	}
 	return &client{
 		Client: chttpClient,
