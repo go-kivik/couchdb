@@ -62,7 +62,7 @@ func (d *couch) NewClient(dsn string, options map[string]interface{}) (driver.Cl
 	if httpClient == nil {
 		httpClient = &http.Client{}
 	}
-	chttpClient, err := chttp.NewWithClient(httpClient, dsn, options)
+	chttpClient, err := chttp.New(httpClient, dsn, options)
 	if err != nil {
 		return nil, err
 	}
