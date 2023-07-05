@@ -630,7 +630,7 @@ func TestFetchSchedulerReplication(t *testing.T) {
 			name:   "network error",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    `Get "?http://example.com/_scheduler/docs/_replicator/"?: net error`,
+			err:    `Get "?http://example.com/_scheduler/docs/_replicator"?: net error`,
 		},
 		{
 			name: "loop wait",

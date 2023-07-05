@@ -499,7 +499,7 @@ func TestDoJSON(t *testing.T) {
 			method: "GET",
 			client: newTestClient(nil, errors.New("net error")),
 			status: http.StatusBadGateway,
-			err:    `Get "?http://example.com"?: net error`,
+			err:    `Get "?http://example.com/"?: net error`,
 		},
 		{
 			name:   "error response",
@@ -590,7 +590,7 @@ func TestNewRequest(t *testing.T) {
 			method: "GET",
 			path:   "%xx",
 			status: http.StatusBadRequest,
-			err:    `parse "?%xx"?: invalid URL escape "%xx"`,
+			err:    `parse "?/%xx"?: invalid URL escape "%xx"`,
 		},
 		{
 			name:   "invalid method",
@@ -653,7 +653,7 @@ func TestDoReq(t *testing.T) {
 		path:   "%xx",
 		client: newTestClient(nil, nil),
 		status: http.StatusBadRequest,
-		err:    `parse "?%xx"?: invalid URL escape "%xx"`,
+		err:    `parse "?/%xx"?: invalid URL escape "%xx"`,
 	})
 	tests.Add("network error", tt{
 		method: "GET",

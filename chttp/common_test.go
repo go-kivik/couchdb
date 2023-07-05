@@ -23,6 +23,7 @@ import (
 // statusErrorRE is a modified version of testy.StatusError, which handles
 // exit statuses as well.
 func statusErrorRE(t *testing.T, expected string, status int, actual error) {
+	t.Helper()
 	var err string
 	var actualStatus int
 	if actual != nil {
