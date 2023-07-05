@@ -159,7 +159,7 @@ func TestAuthenticate(t *testing.T) {
 
 	tests.Run(t, func(t *testing.T, test authTest) {
 		ctx := context.Background()
-		c, err := New(test.addr, nil)
+		c, err := New(&http.Client{}, test.addr, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -111,7 +111,7 @@ func TestNew(t *testing.T) {
 	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
-		result, err := New(tt.dsn, nil)
+		result, err := New(&http.Client{}, tt.dsn, nil)
 		statusErrorRE(t, tt.err, tt.status, err)
 		result.UserAgents = nil // Determinism
 		if d := testy.DiffInterface(tt.expected, result); d != nil {
