@@ -53,14 +53,6 @@ type Client struct {
 	authMU sync.Mutex
 }
 
-// New returns a connection to a remote CouchDB server. If credentials are
-// included in the URL, requests will be authenticated using Cookie Auth. To
-// use HTTP BasicAuth or some other authentication mechanism, do not specify
-// credentials in the URL, and instead call the Auth() method later.
-func New(dsn string, options map[string]interface{}) (*Client, error) {
-	return NewWithClient(&http.Client{}, dsn, options)
-}
-
 // NewWithClient works the same as New(), but allows providing a custom
 // *http.Client for all network connections.
 func NewWithClient(client *http.Client, dsn string, options map[string]interface{}) (*Client, error) {
