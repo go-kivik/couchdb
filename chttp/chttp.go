@@ -193,6 +193,21 @@ func (c *Client) path(path string) string {
 	return path
 }
 
+// fullPathMatches returns true if the target resolves to match path.
+func (c *Client) fullPathMatches(path, target string) bool {
+	p, err := url.Parse(path)
+	if err != nil {
+		// should be impossible
+		return false
+	}
+	p.RawQuery = ""
+	t := new(url.URL)
+	*t = *c.dsn // shallow copy
+	t.Path = c.path(target)
+	t.RawQuery = ""
+	return t.String() == p.String()
+}
+
 // NewRequest returns a new *http.Request to the CouchDB server, and the
 // specified path. The host, schema, etc, of the specified path are ignored.
 func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader, opts *Options) (*http.Request, error) {
@@ -221,12 +236,7 @@ func (c *Client) shouldCompressBody(path string, body io.Reader, opts *Options) 
 		return false
 	}
 	// /_session only supports compression from CouchDB 3.2.
-	parsed, err := url.Parse(path)
-	if err != nil {
-		// should never happen
-		return true
-	}
-	if strings.HasSuffix(parsed.Path, "/_session") {
+	if c.fullPathMatches(path, "/_session") {
 		return false
 	}
 	if body == nil {
