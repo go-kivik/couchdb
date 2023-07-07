@@ -47,10 +47,11 @@ type Client struct {
 
 	*http.Client
 
-	rawDSN string
-	dsn    *url.URL
-	auth   Authenticator
-	authMU sync.Mutex
+	rawDSN   string
+	dsn      *url.URL
+	basePath string
+	auth     Authenticator
+	authMU   sync.Mutex
 }
 
 // New returns a connection to a remote CouchDB server. If credentials are
@@ -65,9 +66,10 @@ func New(client *http.Client, dsn string, options map[string]interface{}) (*Clie
 	user := dsnURL.User
 	dsnURL.User = nil
 	c := &Client{
-		Client: client,
-		dsn:    dsnURL,
-		rawDSN: dsn,
+		Client:   client,
+		dsn:      dsnURL,
+		basePath: strings.TrimSuffix(dsnURL.Path, "/"),
+		rawDSN:   dsn,
 	}
 	if user != nil {
 		password, _ := user.Password()
@@ -172,8 +174,8 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 }
 
 func (c *Client) path(path string) string {
-	if cPath := strings.TrimSuffix(c.dsn.Path, "/"); cPath != "" {
-		return cPath + "/" + strings.TrimPrefix(path, "/")
+	if c.basePath != "" {
+		return c.basePath + "/" + strings.TrimPrefix(path, "/")
 	}
 	return path
 }

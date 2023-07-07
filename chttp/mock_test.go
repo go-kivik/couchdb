@@ -41,6 +41,7 @@ func newCustomClient(dsn string, fn func(*http.Request) (*http.Response, error))
 	if err != nil {
 		panic(err)
 	}
+	c.basePath = strings.TrimSuffix(c.dsn.Path, "/")
 	return c
 }
 
