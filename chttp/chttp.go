@@ -221,7 +221,12 @@ func (c *Client) shouldCompressBody(path string, body io.Reader, opts *Options) 
 		return false
 	}
 	// /_session only supports compression from CouchDB 3.2.
-	if strings.HasSuffix(path, "/_session") {
+	parsed, err := url.Parse(path)
+	if err != nil {
+		// should never happen
+		return true
+	}
+	if strings.HasSuffix(parsed.Path, "/_session") {
 		return false
 	}
 	if body == nil {
