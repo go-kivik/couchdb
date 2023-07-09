@@ -249,24 +249,27 @@ func TestSetHeaders(t *testing.T) {
 		{
 			Name: "NoOpts",
 			Expected: http.Header{
-				"Accept":       {"application/json"},
-				"Content-Type": {"application/json"},
+				"Accept":          {"application/json"},
+				"Content-Type":    {"application/json"},
+				"Accept-Encoding": {"gzip"},
 			},
 		},
 		{
 			Name:    "Content-Type",
 			Options: &Options{ContentType: "image/gif"},
 			Expected: http.Header{
-				"Accept":       {"application/json"},
-				"Content-Type": {"image/gif"},
+				"Accept":          {"application/json"},
+				"Accept-Encoding": {"gzip"},
+				"Content-Type":    {"image/gif"},
 			},
 		},
 		{
 			Name:    "Accept",
 			Options: &Options{Accept: "image/gif"},
 			Expected: http.Header{
-				"Accept":       {"image/gif"},
-				"Content-Type": {"application/json"},
+				"Accept":          {"image/gif"},
+				"Content-Type":    {"application/json"},
+				"Accept-Encoding": {"gzip"},
 			},
 		},
 		{
@@ -275,6 +278,7 @@ func TestSetHeaders(t *testing.T) {
 			Expected: http.Header{
 				"Accept":              {"application/json"},
 				"Content-Type":        {"application/json"},
+				"Accept-Encoding":     {"gzip"},
 				"X-Couch-Full-Commit": {"true"},
 			},
 		},
@@ -284,27 +288,30 @@ func TestSetHeaders(t *testing.T) {
 				HeaderDestination: []string{"somewhere nice"},
 			}},
 			Expected: http.Header{
-				"Accept":       {"application/json"},
-				"Content-Type": {"application/json"},
-				"Destination":  {"somewhere nice"},
+				"Accept":          {"application/json"},
+				"Content-Type":    {"application/json"},
+				"Accept-Encoding": {"gzip"},
+				"Destination":     {"somewhere nice"},
 			},
 		},
 		{
 			Name:    "If-None-Match",
 			Options: &Options{IfNoneMatch: `"foo"`},
 			Expected: http.Header{
-				"Accept":        {"application/json"},
-				"Content-Type":  {"application/json"},
-				"If-None-Match": {`"foo"`},
+				"Accept":          {"application/json"},
+				"Content-Type":    {"application/json"},
+				"Accept-Encoding": {"gzip"},
+				"If-None-Match":   {`"foo"`},
 			},
 		},
 		{
 			Name:    "Unquoted If-None-Match",
 			Options: &Options{IfNoneMatch: `foo`},
 			Expected: http.Header{
-				"Accept":        {"application/json"},
-				"Content-Type":  {"application/json"},
-				"If-None-Match": {`"foo"`},
+				"Accept":          {"application/json"},
+				"Content-Type":    {"application/json"},
+				"Accept-Encoding": {"gzip"},
+				"If-None-Match":   {`"foo"`},
 			},
 		},
 	}
@@ -741,6 +748,7 @@ func TestDoReq(t *testing.T) {
 						*success = true
 						expected := httptest.NewRequest("PUT", "/foo", nil)
 						expected.Header.Add("Accept", "application/json")
+						expected.Header.Add("Accept-Encoding", "gzip")
 						expected.Header.Add("Content-Type", "application/json")
 						expected.Header.Add("User-Agent", defaultUA)
 						if d := testy.DiffHTTPRequest(expected, r); d != nil {
@@ -769,6 +777,7 @@ func TestDoReq(t *testing.T) {
 						expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
 						expected.Header.Add("Accept", "application/json")
 						expected.Header.Add("Content-Type", "application/json")
+						expected.Header.Add("Accept-Encoding", "gzip")
 						expected.Header.Add("User-Agent", defaultUA)
 						if d := testy.DiffHTTPRequest(expected, r); d != nil {
 							t.Error(d)
