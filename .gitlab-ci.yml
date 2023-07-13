@@ -41,17 +41,6 @@ variables:
     - ./script/test_version.sh
     - go test -race ./...
 
-.nomod: &nomod_template
-  <<: *test_template
-  script:
-    - mkdir -p /go/src
-    - ln -s /builds /go/src/github.com
-    - cd ${SRCDIR}
-    - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-    - dep ensure && dep status
-    - ./script/test_version.sh
-    - go test -race ./...
-
 linter:
   stage: test
   image: golangci/golangci-lint:v1.54.0
