@@ -351,7 +351,6 @@ func setHeaders(req *http.Request, opts *Options) {
 	}
 	req.Header.Add("Accept", accept)
 	req.Header.Add("Content-Type", contentType)
-	req.Header.Add("Accept-Encoding", "gzip")
 }
 
 func setQuery(req *http.Request, opts *Options) {
