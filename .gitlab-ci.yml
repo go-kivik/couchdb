@@ -63,7 +63,7 @@ linter:
 
 coverage:
   stage: test
-  image: golang:1.20.4
+  image: golang:1.20
   services: []
   before_script:
     - ""
