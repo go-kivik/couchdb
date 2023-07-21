@@ -27,45 +27,45 @@ func init() {
 }
 
 func TestCouch16(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch16, "KIVIK_TEST_DSN_COUCH16", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch16, "KIVIK_TEST_DSN_COUCH16")
 }
 
 func TestCouch17(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch17, "KIVIK_TEST_DSN_COUCH17", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch17, "KIVIK_TEST_DSN_COUCH17")
 }
 
 func TestCouch20(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch20, "KIVIK_TEST_DSN_COUCH20", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch20, "KIVIK_TEST_DSN_COUCH20")
 }
 
 func TestCouch21(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch21, "KIVIK_TEST_DSN_COUCH21", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch21, "KIVIK_TEST_DSN_COUCH21")
 }
 
 func TestCouch22(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch22, "KIVIK_TEST_DSN_COUCH22", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch22, "KIVIK_TEST_DSN_COUCH22")
 }
 
 func TestCouch23(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch23, "KIVIK_TEST_DSN_COUCH23", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch23, "KIVIK_TEST_DSN_COUCH23")
 }
 
 func TestCouch30(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch30, "KIVIK_TEST_DSN_COUCH30", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch30, "KIVIK_TEST_DSN_COUCH30")
 }
 
 func TestCouch31(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch31, "KIVIK_TEST_DSN_COUCH31", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch31, "KIVIK_TEST_DSN_COUCH31")
 }
 
 func TestCouch32(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch32, "KIVIK_TEST_DSN_COUCH32", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch32, "KIVIK_TEST_DSN_COUCH32")
 }
 
 func TestCouch33(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCouch33, "KIVIK_TEST_DSN_COUCH33", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCouch33, "KIVIK_TEST_DSN_COUCH33")
 }
 
 func TestCloudant(t *testing.T) {
-	kiviktest.DoTest(kiviktest.SuiteCloudant, "KIVIK_TEST_DSN_CLOUDANT", t)
+	kiviktest.DoTest(t, kiviktest.SuiteCloudant, "KIVIK_TEST_DSN_CLOUDANT")
 }
