@@ -23,6 +23,7 @@ import (
 // nolint:gomnd
 func registerSuiteCloudant() {
 	kiviktest.RegisterSuite(kiviktest.SuiteCloudant, kt.SuiteConfig{
+		"Options":                       httpClient(),
 		"AllDBs.expected":               []string{"_replicator", "_users"},
 		"AllDBs/NoAuth.status":          http.StatusUnauthorized,
 		"AllDBs/RW/group/NoAuth.status": http.StatusUnauthorized,
