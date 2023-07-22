@@ -23,6 +23,7 @@ import (
 // nolint:gomnd
 func registerSuiteCouch20() {
 	kiviktest.RegisterSuite(kiviktest.SuiteCouch20, kt.SuiteConfig{
+		"Options":         httpClient(),
 		"AllDBs.expected": []string{"_global_changes", "_replicator", "_users"},
 
 		"CreateDB/RW/NoAuth.status":         http.StatusUnauthorized,

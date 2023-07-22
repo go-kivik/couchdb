@@ -12,6 +12,12 @@
 
 package test
 
+import (
+	"net/http"
+)
+
+const maxConnsPerHost = 100
+
 // RegisterCouchDBSuites registers the CouchDB related integration test suites.
 func RegisterCouchDBSuites() {
 	registerSuiteCouch20()
@@ -23,4 +29,12 @@ func RegisterCouchDBSuites() {
 	registerSuiteCouch32()
 	registerSuiteCouch33()
 	registerSuiteCloudant()
+}
+
+func httpClient() *http.Client {
+	client := &http.Client{
+		Transport: http.DefaultTransport,
+	}
+	client.Transport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
+	return client
 }
