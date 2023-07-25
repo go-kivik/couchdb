@@ -16,7 +16,7 @@ import (
 	"net/http"
 )
 
-const maxConnsPerHost = 100
+const maxConnsPerHost = 90 // 100
 
 // RegisterCouchDBSuites registers the CouchDB related integration test suites.
 func RegisterCouchDBSuites() {
