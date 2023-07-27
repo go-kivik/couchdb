@@ -741,7 +741,7 @@ func (d *db) Delete(ctx context.Context, docID string, options map[string]interf
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close() // nolint: errcheck
+	defer chttp.CloseBody(resp.Body)
 	return chttp.GetRev(resp)
 }
 
@@ -814,7 +814,7 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close() // nolint: errcheck
+	defer chttp.CloseBody(res.Body)
 	return chttp.ResponseError(res)
 }
 
@@ -841,7 +841,7 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close() // nolint: errcheck
+	defer chttp.CloseBody(resp.Body)
 	return chttp.GetRev(resp)
 }
 

@@ -52,7 +52,7 @@ func ResponseError(resp *http.Response) error {
 		return nil
 	}
 	if resp.Body != nil {
-		defer resp.Body.Close() // nolint: errcheck
+		defer CloseBody(resp.Body)
 	}
 	httpErr := &HTTPError{
 		Response: resp,
