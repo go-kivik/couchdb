@@ -39,7 +39,7 @@ variables:
   script:
     - go mod download
     - ./script/test_version.sh
-    - go test -race -tags=livetest ./...
+    - go test -race ./...
 
 .nomod: &nomod_template
   <<: *test_template
@@ -50,7 +50,7 @@ variables:
     - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
     - dep ensure && dep status
     - ./script/test_version.sh
-    - go test -race -tags=livetest ./...
+    - go test -race ./...
 
 linter:
   stage: test
