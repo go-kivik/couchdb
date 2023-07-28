@@ -51,7 +51,7 @@ func (d *db) PutAttachment(ctx context.Context, docID string, att *driver.Attach
 	opts.Body = att.Content
 	opts.ContentType = att.ContentType
 	opts.Query = query
-	_, err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
+	err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)+"/"+att.Filename), opts, &response)
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +159,7 @@ func (d *db) DeleteAttachment(ctx context.Context, docID, filename string, optio
 		Rev string `json:"rev"`
 	}
 
-	_, err = d.Client.DoJSON(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
+	err = d.Client.DoJSON(ctx, http.MethodDelete, d.path(chttp.EncodeDocID(docID)+"/"+filename), opts, &response)
 	if err != nil {
 		return "", err
 	}

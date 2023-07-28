@@ -213,7 +213,7 @@ func isBug1000(err error) bool {
 func (r *schedulerReplication) update(ctx context.Context) error {
 	path := fmt.Sprintf("/_scheduler/docs/%s/%s", r.database, chttp.EncodeDocID(r.docID))
 	var doc schedulerDoc
-	if _, err := r.db.Client.DoJSON(ctx, http.MethodGet, path, nil, &doc); err != nil {
+	if err := r.db.Client.DoJSON(ctx, http.MethodGet, path, nil, &doc); err != nil {
 		if isBug1000(err) {
 			return r.update(ctx)
 		}
@@ -235,7 +235,7 @@ func (c *client) getReplicationsFromScheduler(ctx context.Context, options map[s
 	if params != nil {
 		path = path + "?" + params.Encode()
 	}
-	if _, err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+	if err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Docs))

@@ -62,7 +62,7 @@ func (s *dbStats) driverStats() *driver.DBStats {
 
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 	result := dbStats{}
-	if _, err := d.Client.DoJSON(ctx, http.MethodGet, d.dbName, nil, &result); err != nil {
+	if err := d.Client.DoJSON(ctx, http.MethodGet, d.dbName, nil, &result); err != nil {
 		return nil, err
 	}
 	return result.driverStats(), nil
@@ -86,7 +86,7 @@ func (c *client) DBsStats(_ context.Context, dbnames []string) ([]*driver.DBStat
 		},
 	}
 	result := []dbsInfoResponse{}
-	_, err := c.DoJSON(context.Background(), http.MethodPost, "/_dbs_info", opts, &result)
+	err := c.DoJSON(context.Background(), http.MethodPost, "/_dbs_info", opts, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (s *partitionStats) UnmarshalJSON(p []byte) error {
 
 func (d *db) PartitionStats(ctx context.Context, name string) (*driver.PartitionStats, error) {
 	result := partitionStats{}
-	if _, err := d.Client.DoJSON(ctx, http.MethodGet, d.path("_partition/"+name), nil, &result); err != nil {
+	if err := d.Client.DoJSON(ctx, http.MethodGet, d.path("_partition/"+name), nil, &result); err != nil {
 		return nil, err
 	}
 	return &driver.PartitionStats{

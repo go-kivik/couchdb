@@ -31,7 +31,7 @@ func (c *client) AllDBs(ctx context.Context, opts map[string]interface{}) ([]str
 		return nil, err
 	}
 	var allDBs []string
-	_, err = c.DoJSON(ctx, http.MethodGet, "/_all_dbs", &chttp.Options{Query: query}, &allDBs)
+	err = c.DoJSON(ctx, http.MethodGet, "/_all_dbs", &chttp.Options{Query: query}, &allDBs)
 	return allDBs, err
 }
 

@@ -28,7 +28,7 @@ func (c *client) ClusterStatus(ctx context.Context, opts map[string]interface{})
 	if err != nil {
 		return "", err
 	}
-	_, err = c.DoJSON(ctx, http.MethodGet, "/_cluster_setup", &chttp.Options{Query: query}, &result)
+	err = c.DoJSON(ctx, http.MethodGet, "/_cluster_setup", &chttp.Options{Query: query}, &result)
 	return result.State, err
 }
 
@@ -42,6 +42,6 @@ func (c *client) ClusterSetup(ctx context.Context, action interface{}) error {
 
 func (c *client) Membership(ctx context.Context) (*driver.ClusterMembership, error) {
 	result := new(driver.ClusterMembership)
-	_, err := c.DoJSON(ctx, http.MethodGet, "/_membership", nil, &result)
+	err := c.DoJSON(ctx, http.MethodGet, "/_membership", nil, &result)
 	return result, err
 }

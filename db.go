@@ -341,7 +341,7 @@ func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]
 
 	opts.Body = chttp.EncodeBody(doc)
 
-	_, err = d.Client.DoJSON(ctx, http.MethodPost, path, opts, &result)
+	err = d.Client.DoJSON(ctx, http.MethodPost, path, opts, &result)
 	return result.ID, result.Rev, err
 }
 
@@ -382,7 +382,7 @@ func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
 	}
-	_, err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)), opts, &result)
+	err = d.Client.DoJSON(ctx, http.MethodPut, d.path(chttp.EncodeDocID(docID)), opts, &result)
 	if err != nil {
 		return "", err
 	}
@@ -799,7 +799,7 @@ func (d *db) ViewCleanup(ctx context.Context) error {
 
 func (d *db) Security(ctx context.Context) (*driver.Security, error) {
 	var sec *driver.Security
-	_, err := d.Client.DoJSON(ctx, http.MethodGet, d.path("/_security"), nil, &sec)
+	err := d.Client.DoJSON(ctx, http.MethodGet, d.path("/_security"), nil, &sec)
 	return sec, err
 }
 
@@ -853,7 +853,7 @@ func (d *db) Purge(ctx context.Context, docMap map[string][]string) (*driver.Pur
 			chttp.HeaderIdempotencyKey: []string{},
 		},
 	}
-	_, err := d.Client.DoJSON(ctx, http.MethodPost, d.path("_purge"), options, &result)
+	err := d.Client.DoJSON(ctx, http.MethodPost, d.path("_purge"), options, &result)
 	return result, err
 }
 

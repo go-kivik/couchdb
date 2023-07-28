@@ -277,7 +277,7 @@ func (c *client) legacyGetReplications(ctx context.Context, options map[string]i
 		} `json:"rows"`
 	}
 	path := "/_replicator/_all_docs?" + params.Encode()
-	if _, err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+	if err = c.DoJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
 		return nil, err
 	}
 	reps := make([]driver.Replication, 0, len(result.Rows))
@@ -321,7 +321,7 @@ func (c *client) Replicate(ctx context.Context, targetDSN, sourceDSN string, opt
 	var repStub struct {
 		ID string `json:"id"`
 	}
-	if _, e := c.Client.DoJSON(ctx, http.MethodPost, "/_replicator", opts, &repStub); e != nil {
+	if e := c.Client.DoJSON(ctx, http.MethodPost, "/_replicator", opts, &repStub); e != nil {
 		return nil, e
 	}
 	if scheduler {

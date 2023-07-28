@@ -50,7 +50,7 @@ func (s *session) UnmarshalJSON(data []byte) error {
 
 func (c *client) Session(ctx context.Context) (*driver.Session, error) {
 	s := &session{}
-	_, err := c.DoJSON(ctx, http.MethodGet, "/_session", nil, s)
+	err := c.DoJSON(ctx, http.MethodGet, "/_session", nil, s)
 	return &driver.Session{
 		RawResponse:            s.Data,
 		Name:                   s.UserCtx.Name,
