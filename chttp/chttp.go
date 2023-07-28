@@ -166,6 +166,9 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options,
 	if err != nil {
 		return err
 	}
+	if res.Body != nil {
+		defer CloseBody(res.Body)
+	}
 	if err = ResponseError(res); err != nil {
 		return err
 	}
