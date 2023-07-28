@@ -166,7 +166,7 @@ func (r *replication) updateActiveTasks(ctx context.Context) (*activeTask, error
 	if err = chttp.ResponseError(resp); err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer chttp.CloseBody(resp.Body)
 	var tasks []*activeTask
 	if err = json.NewDecoder(resp.Body).Decode(&tasks); err != nil {
 		return nil, &kivik.Error{Status: http.StatusBadGateway, Err: err}
