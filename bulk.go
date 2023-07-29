@@ -38,6 +38,8 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	if err != nil {
 		return nil, err
 	}
+	defer chttp.CloseBody(resp.Body)
+
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		// Nothing to do
