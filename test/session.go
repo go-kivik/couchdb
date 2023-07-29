@@ -73,7 +73,7 @@ func testSession(ctx *kt.Context, client *chttp.Client) {
 			Roles []string `json:"roles"`
 		} `json:"userCtx"`
 	}{}
-	_, err := client.DoJSON(context.Background(), http.MethodGet, "/_session", nil, &uCtx)
+	err := client.DoJSON(context.Background(), http.MethodGet, "/_session", nil, &uCtx)
 	if !ctx.IsExpectedSuccess(err) {
 		return
 	}

@@ -23,7 +23,7 @@ import (
 // Version returns the server's version info.
 func (c *client) Version(ctx context.Context) (*driver.Version, error) {
 	i := &info{}
-	_, err := c.DoJSON(ctx, http.MethodGet, "/", nil, i)
+	err := c.DoJSON(ctx, http.MethodGet, "/", nil, i)
 	return &driver.Version{
 		Version:     i.Version,
 		Vendor:      i.Vendor.Name,

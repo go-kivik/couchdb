@@ -62,7 +62,7 @@ func (d *db) GetIndexes(ctx context.Context, opts map[string]interface{}) ([]dri
 	var result struct {
 		Indexes []driver.Index `json:"indexes"`
 	}
-	_, err := d.Client.DoJSON(ctx, http.MethodGet, d.path(reqPath), nil, &result)
+	err := d.Client.DoJSON(ctx, http.MethodGet, d.path(reqPath), nil, &result)
 	return result.Indexes, err
 }
 
@@ -145,7 +145,7 @@ func (d *db) Explain(ctx context.Context, query interface{}, opts map[string]int
 		},
 	}
 	var plan queryPlan
-	if _, err := d.Client.DoJSON(ctx, http.MethodPost, d.path(reqPath), options, &plan); err != nil {
+	if err := d.Client.DoJSON(ctx, http.MethodPost, d.path(reqPath), options, &plan); err != nil {
 		return nil, err
 	}
 	return &driver.QueryPlan{

@@ -161,16 +161,19 @@ func DecodeJSON(r *http.Response, i interface{}) error {
 
 // DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
 // closes the response body.
-func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options, i interface{}) (*http.Response, error) {
+func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options, i interface{}) error {
 	res, err := c.DoReq(ctx, method, path, opts)
 	if err != nil {
-		return res, err
+		return err
+	}
+	if res.Body != nil {
+		defer CloseBody(res.Body)
 	}
 	if err = ResponseError(res); err != nil {
-		return res, err
+		return err
 	}
 	err = DecodeJSON(res, i)
-	return res, err
+	return err
 }
 
 func (c *Client) path(path string) string {

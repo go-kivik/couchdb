@@ -490,7 +490,6 @@ func TestDoJSON(t *testing.T) {
 		opts         *Options
 		client       *Client
 		expected     interface{}
-		response     *http.Response
 		status       int
 		err          string
 	}{
@@ -547,28 +546,15 @@ func TestDoJSON(t *testing.T) {
 				Request:       &http.Request{Method: "GET"},
 			}, nil),
 			expected: map[string]interface{}{"foo": "bar"},
-			response: &http.Response{
-				StatusCode: 200,
-				Header: http.Header{
-					"Content-Type":   {"application/json"},
-					"Content-Length": {"15"},
-				},
-				ContentLength: 15,
-			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var i interface{}
-			response, err := test.client.DoJSON(context.Background(), test.method, test.path, test.opts, &i)
+			err := test.client.DoJSON(context.Background(), test.method, test.path, test.opts, &i)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if d := testy.DiffInterface(test.expected, i); d != nil {
 				t.Errorf("JSON result differs:\n%s\n", d)
-			}
-			response.Request = nil
-			response.Body = nil
-			if d := testy.DiffInterface(test.response, response); d != nil {
-				t.Errorf("Response differs:\n%s\n", d)
 			}
 		})
 	}
