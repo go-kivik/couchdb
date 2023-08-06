@@ -16,3 +16,4 @@ for db in _users _replicator _global_changes; do
     esac
 done
 curl --silent --fail -o /dev/null -X PUT ${1}/_node/nonode@nohost/_config/replicator/interval -d '"1000"'
+curl --silent --fail -o /dev/null -X PUT ${1}/_node/nonode@nohost/_config/cluster/n -d '"1"'
