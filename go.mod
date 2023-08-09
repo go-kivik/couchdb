@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-kivik/kivik/v4 v4.0.0-20230520195323-33e57d600444
-	github.com/go-kivik/kiviktest/v4 v4.0.0-20230725205144-6e0acc5c09c9
+	github.com/go-kivik/kiviktest/v4 v4.0.0-20230809211400-c59885fac16a
 	github.com/google/go-cmp v0.5.9
 	github.com/gopherjs/gopherjs v1.17.2
 	github.com/pkg/errors v0.9.1
