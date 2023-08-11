@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-kivik/kivik/v4 v4.0.0-20230520195323-33e57d600444
-	github.com/go-kivik/kiviktest/v4 v4.0.0-20230809211400-c59885fac16a
+	github.com/go-kivik/kiviktest/v4 v4.0.0-20230815202901-110af17dac8c
 	github.com/google/go-cmp v0.5.9
 	github.com/gopherjs/gopherjs v1.17.2
 	github.com/pkg/errors v0.9.1
@@ -14,6 +14,7 @@ require (
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/otiai10/copy v1.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
