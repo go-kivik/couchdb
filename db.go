@@ -765,6 +765,7 @@ func (d *db) Compact(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer chttp.CloseBody(res.Body)
 	return chttp.ResponseError(res)
 }
 
@@ -781,6 +782,7 @@ func (d *db) CompactView(ctx context.Context, ddocID string) error {
 	if err != nil {
 		return err
 	}
+	defer chttp.CloseBody(res.Body)
 	return chttp.ResponseError(res)
 }
 
@@ -794,6 +796,7 @@ func (d *db) ViewCleanup(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer chttp.CloseBody(res.Body)
 	return chttp.ResponseError(res)
 }
 

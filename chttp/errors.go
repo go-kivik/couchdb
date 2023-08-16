@@ -21,10 +21,9 @@ import (
 
 // HTTPError is an error that represents an HTTP transport error.
 type HTTPError struct {
-	// Response is the HTTP response received by the client.  Typically the
-	// response body has already been consumed, but the response and request
-	// headers and other metadata will typically be in tact for debugging
-	// purposes.
+	// Response is the HTTP response received by the client.  The response body
+	// should already be closed, but the response and request headers and other
+	// metadata will typically be in tact for debugging purposes.
 	Response *http.Response `json:"-"`
 
 	// Reason is the server-supplied error reason.
@@ -46,7 +45,8 @@ func (e *HTTPError) HTTPStatus() int {
 	return e.Response.StatusCode
 }
 
-// ResponseError returns an error from an *http.Response.
+// ResponseError returns an error from an *http.Response if the status code
+// indicates an error.
 func ResponseError(resp *http.Response) error {
 	if resp.StatusCode < 400 { // nolint:gomnd
 		return nil
