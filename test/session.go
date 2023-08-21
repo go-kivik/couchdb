@@ -346,7 +346,7 @@ func testDeleteSession(ctx *kt.Context, client *chttp.Client) {
 				response := struct {
 					OK bool `json:"ok"`
 				}{}
-				req, err := client.NewRequest(context.Background(), http.MethodDelete, "/_session", nil)
+				req, err := client.NewRequest(context.Background(), http.MethodDelete, "/_session", nil, nil)
 				if err != nil {
 					ctx.Fatalf("Failed to create request: %s", err)
 				}

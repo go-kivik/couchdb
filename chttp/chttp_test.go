@@ -13,6 +13,7 @@
 package chttp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -564,7 +565,6 @@ func TestNewRequest(t *testing.T) {
 	tests := []struct {
 		name         string
 		method, path string
-		body         io.Reader
 		expected     *http.Request
 		client       *Client
 		status       int
@@ -609,7 +609,7 @@ func TestNewRequest(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req, err := test.client.NewRequest(context.Background(), test.method, test.path, test.body)
+			req, err := test.client.NewRequest(context.Background(), test.method, test.path, nil, nil)
 			statusErrorRE(t, test.err, test.status, err)
 			test.expected = test.expected.WithContext(req.Context()) // determinism
 			if d := testy.DiffInterface(test.expected, req); d != nil {
@@ -724,6 +724,7 @@ func TestDoReq(t *testing.T) {
 					expected := httptest.NewRequest("PUT", "/foo", nil)
 					expected.Header.Add("Accept", "application/json")
 					expected.Header.Add("Content-Type", "application/json")
+					expected.Header.Add("Content-Encoding", "gzip")
 					expected.Header.Add("User-Agent", defaultUA)
 					if d := testy.DiffHTTPRequest(expected, r); d != nil {
 						t.Error(d)
@@ -747,10 +748,16 @@ func TestDoReq(t *testing.T) {
 			return &ClientTrace{
 				HTTPRequestBody: func(r *http.Request) {
 					*success = true
-					expected := httptest.NewRequest("PUT", "/foo", Body("bar"))
+					body := io.NopCloser(bytes.NewReader([]byte{
+						31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 74, 74, 44, 2,
+						4, 0, 0, 255, 255, 170, 140, 255, 118, 3, 0, 0, 0,
+					}))
+					expected := httptest.NewRequest("PUT", "/foo", body)
 					expected.Header.Add("Accept", "application/json")
 					expected.Header.Add("Content-Type", "application/json")
+					expected.Header.Add("Content-Encoding", "gzip")
 					expected.Header.Add("User-Agent", defaultUA)
+					expected.Header.Add("Content-Length", "27")
 					if d := testy.DiffHTTPRequest(expected, r); d != nil {
 						t.Error(d)
 					}
@@ -788,6 +795,33 @@ func TestDoReq(t *testing.T) {
 		method: "GET",
 		path:   "/foo",
 	})
+	tests.Add("gzipped request", tt{
+		client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+			if ce := r.Header.Get("Content-Encoding"); ce != "gzip" {
+				return nil, errors.Errorf("Unexpected Content-Encoding: %s", ce)
+			}
+			return &http.Response{}, nil
+		}),
+		method: "PUT",
+		path:   "/foo",
+		opts: &Options{
+			Body: Body("raw body"),
+		},
+	})
+	tests.Add("gzipped disabled", tt{
+		client: newCustomClient("http://foo.com/", func(r *http.Request) (*http.Response, error) {
+			if ce := r.Header.Get("Content-Encoding"); ce != "" {
+				return nil, errors.Errorf("Unexpected Content-Encoding: %s", ce)
+			}
+			return &http.Response{}, nil
+		}),
+		method: "PUT",
+		path:   "/foo",
+		opts: &Options{
+			Body:   Body("raw body"),
+			NoGzip: true,
+		},
+	})
 
 	tests.Run(t, func(t *testing.T, tt tt) {
 		ctx := context.Background()
@@ -796,8 +830,10 @@ func TestDoReq(t *testing.T) {
 			traceSuccess = false
 			ctx = WithClientTrace(ctx, tt.trace(t, &traceSuccess))
 		}
-		_, err := tt.client.DoReq(ctx, tt.method, tt.path, tt.opts)
+		res, err := tt.client.DoReq(ctx, tt.method, tt.path, tt.opts)
 		statusErrorRE(t, tt.err, tt.status, err)
+		defer res.Body.Close()
+		_, _ = io.Copy(io.Discard, res.Body)
 		if !traceSuccess {
 			t.Error("Trace failed")
 		}

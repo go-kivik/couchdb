@@ -16,6 +16,7 @@ package chttp
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -52,6 +53,9 @@ type Client struct {
 	basePath string
 	auth     Authenticator
 	authMU   sync.Mutex
+
+	// noGzip will be set to true if the server fails on gzip-encoded requests.
+	noGzip bool
 }
 
 // New returns a connection to a remote CouchDB server. If credentials are
@@ -79,6 +83,12 @@ func New(client *http.Client, dsn string, options map[string]interface{}) (*Clie
 		})
 		if err != nil {
 			return nil, err
+		}
+	}
+	if gzip, ok := options[internal.OptionNoCompressedRequests]; ok {
+		c.noGzip, ok = gzip.(bool)
+		if !ok {
+			return nil, &kivik.Error{Status: http.StatusBadRequest, Message: fmt.Sprintf("OptionNoCompressedRequests is %T, must be bool", gzip)}
 		}
 	}
 	if err := c.setUserAgent(options); err != nil {
@@ -159,8 +169,8 @@ func DecodeJSON(r *http.Response, i interface{}) error {
 	return nil
 }
 
-// DoJSON combines DoReq() and, ResponseError(), and (*Response).DecodeJSON(), and
-// closes the response body.
+// DoJSON combines [Client.DoReq], [Client.ResponseError], and
+// [Response.DecodeJSON], and closes the response body.
 func (c *Client) DoJSON(ctx context.Context, method, path string, opts *Options, i interface{}) error {
 	res, err := c.DoReq(ctx, method, path, opts)
 	if err != nil {
@@ -183,9 +193,24 @@ func (c *Client) path(path string) string {
 	return path
 }
 
+// fullPathMatches returns true if the target resolves to match path.
+func (c *Client) fullPathMatches(path, target string) bool {
+	p, err := url.Parse(path)
+	if err != nil {
+		// should be impossible
+		return false
+	}
+	p.RawQuery = ""
+	t := new(url.URL)
+	*t = *c.dsn // shallow copy
+	t.Path = c.path(target)
+	t.RawQuery = ""
+	return t.String() == p.String()
+}
+
 // NewRequest returns a new *http.Request to the CouchDB server, and the
 // specified path. The host, schema, etc, of the specified path are ignored.
-func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader, opts *Options) (*http.Request, error) {
 	fullPath := c.path(path)
 	reqPath, err := url.Parse(fullPath)
 	if err != nil {
@@ -194,12 +219,49 @@ func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Re
 	u := *c.dsn // Make a copy
 	u.Path = reqPath.Path
 	u.RawQuery = reqPath.RawQuery
+	compress, body := c.compressBody(u.String(), body, opts)
 	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
 		return nil, &kivik.Error{Status: http.StatusBadRequest, Err: err}
 	}
+	if compress {
+		req.Header.Add("Content-Encoding", "gzip")
+	}
 	req.Header.Add("User-Agent", c.userAgent())
 	return req.WithContext(ctx), nil
+}
+
+func (c *Client) shouldCompressBody(path string, body io.Reader, opts *Options) bool {
+	if c.noGzip || (opts != nil && opts.NoGzip) {
+		return false
+	}
+	// /_session only supports compression from CouchDB 3.2.
+	if c.fullPathMatches(path, "/_session") {
+		return false
+	}
+	if body == nil {
+		return false
+	}
+	return true
+}
+
+// compressBody compresses body with gzip compression if appropriate. It will
+// return true, and the compressed stream, or false, and the unaltered stream.
+func (c *Client) compressBody(path string, body io.Reader, opts *Options) (bool, io.Reader) {
+	if !c.shouldCompressBody(path, body, opts) {
+		return false, body
+	}
+	r, w := io.Pipe()
+	go func() {
+		if closer, ok := body.(io.Closer); ok {
+			defer closer.Close()
+		}
+		gz := gzip.NewWriter(w)
+		_, err := io.Copy(gz, body)
+		gz.Close()
+		w.CloseWithError(err)
+	}()
+	return true, r
 }
 
 // DoReq does an HTTP request. An error is returned only if there was an error
@@ -223,7 +285,7 @@ func (c *Client) DoReq(ctx context.Context, method, path string, opts *Options) 
 			defer opts.Body.Close() // nolint: errcheck
 		}
 	}
-	req, err := c.NewRequest(ctx, method, path, body)
+	req, err := c.NewRequest(ctx, method, path, body, opts)
 	if err != nil {
 		return nil, err
 	}
