@@ -27,10 +27,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"gitlab.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/go-kivik/kivik/v4/errors"
+	kivik "github.com/go-kivik/kivik/v4"
 )
 
 var defaultUA = func() string {
@@ -669,7 +670,7 @@ func TestDoReq(t *testing.T) {
 	tests.Add("body error", tt{
 		method: "PUT",
 		path:   "foo",
-		client: newTestClient(nil, errors.Status(http.StatusBadRequest, "bad request")),
+		client: newTestClient(nil, &kivik.Error{Status: http.StatusBadRequest, Message: "bad request"}),
 		status: http.StatusBadRequest,
 		err:    `Put "?http://example.com/foo"?: bad request`,
 	})
@@ -973,7 +974,7 @@ func TestNetError(t *testing.T) {
 			input: &url.Error{
 				Op:  "Get",
 				URL: "http://foo.com/",
-				Err: errors.Status(http.StatusBadRequest, "some error"),
+				Err: &kivik.Error{Status: http.StatusBadRequest, Message: "some error"},
 			},
 			status: http.StatusBadRequest,
 			err:    `Get "?http://foo.com/"?: some error`,
@@ -986,7 +987,7 @@ func TestNetError(t *testing.T) {
 		},
 		{
 			name:   "other error with embedded status",
-			input:  errors.Status(http.StatusBadRequest, "bad req"),
+			input:  &kivik.Error{Status: http.StatusBadRequest, Message: "bad req"},
 			status: http.StatusBadRequest,
 			err:    "bad req",
 		},
