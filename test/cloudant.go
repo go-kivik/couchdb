@@ -16,8 +16,8 @@ import (
 	"net/http"
 
 	kivik "github.com/go-kivik/kivik/v4"
-	kiviktest "github.com/go-kivik/kiviktest/v4"
-	"github.com/go-kivik/kiviktest/v4/kt"
+	"github.com/go-kivik/kivik/v4/kiviktest"
+	"github.com/go-kivik/kivik/v4/kiviktest/kt"
 )
 
 // nolint:gomnd
