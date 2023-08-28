@@ -24,7 +24,7 @@ import (
 
 	"github.com/go-kivik/couchdb/v4/chttp"
 	kivik "github.com/go-kivik/kivik/v4"
-	"github.com/go-kivik/kiviktest/v4/kt"
+	"github.com/go-kivik/kivik/v4/kiviktest/kt"
 )
 
 func init() {
