@@ -27,7 +27,7 @@ const typeJSON = "application/json"
 // The default UserAgent values
 const (
 	UserAgent = "Kivik chttp"
-	Version   = "3.4.0"
+	Version   = "3.4.1"
 )
 
 // Client represents a client connection. It embeds an *http.Client
@@ -395,7 +395,6 @@ func setHeaders(req *http.Request, opts *Options) {
 	}
 	req.Header.Add("Accept", accept)
 	req.Header.Add("Content-Type", contentType)
-	req.Header.Add("Accept-Encoding", "gzip")
 }
 
 func setQuery(req *http.Request, opts *Options) {
