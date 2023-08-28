@@ -1,3 +1,7 @@
+This code has moved to [github.com/go-kivik/kivik/v4/couchdb](https://github.com/go-kivik/kivik/tree/master/couchdb).
+
+<hr>
+
 [![Build Status](https://travis-ci.org/go-kivik/couchdb.svg?branch=master)](https://travis-ci.org/go-kivik/couchdb) [![Codecov](https://img.shields.io/codecov/c/github/go-kivik/couchdb.svg?style=flat)](https://codecov.io/gh/go-kivik/couchdb) [![GoDoc](https://godoc.org/github.com/go-kivik/couchdb?status.svg)](http://godoc.org/github.com/go-kivik/couchdb)
 
 # Kivik CouchDB
